@@ -28,14 +28,15 @@ class RoleSeeder extends Seeder
         Role::create(['name' => 'dealer', 'guard_name' => 'api']);
         Role::create(['name' => 'customer', 'guard_name' => 'api']);
 
-//        $roleAdmin = Role::create(['name' => 'sys_admin', 'guard_name' => 'web']);
-//        Role::create(['name' => 'sys_subadmin', 'guard_name' => 'web']);
-//        Role::create(['name' => 'agent_admin', 'guard_name' => 'web']);
-//        Role::create(['name' => 'agent_subadmin', 'guard_name' => 'web']);
-//        Role::create(['name' => 'dealer', 'guard_name' => 'web']);
-//        Role::create(['name' => 'customer', 'guard_name' => 'web']);
+        $roleAdminWeb = Role::create(['name' => 'sys_admin', 'guard_name' => 'web']);
+        Role::create(['name' => 'sys_subadmin', 'guard_name' => 'web']);
+        Role::create(['name' => 'agent_admin', 'guard_name' => 'web']);
+        Role::create(['name' => 'agent_subadmin', 'guard_name' => 'web']);
+        Role::create(['name' => 'dealer', 'guard_name' => 'web']);
+        Role::create(['name' => 'customer', 'guard_name' => 'web']);
+
 
         $roleAdminApi->syncPermissions($permissions);
-//        $roleAdmin->syncPermissions($permissions);
+//        $roleAdminWeb->syncPermissions($permissions);
     }
 }

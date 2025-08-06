@@ -13,12 +13,14 @@ import { User } from '@/types';
 // import { MoreHorizontal } from 'lucide-react';
 
 import { Link } from '@inertiajs/react';
+import { Button } from '@headlessui/react';
 
 // This type is used to define the shape of our data.
 // You can use a Zod schema here if you want.
 
 export const getColumns = (
     onDelete: (user: User) => void,
+    onMessage: (user: User) => void,
 ): ColumnDef<User>[] => [
     { accessorKey: 'DT_RowIndex', header: '#' },
     { accessorKey: 'name', header: 'Name' },
@@ -42,6 +44,15 @@ export const getColumns = (
                     >
                         Delete
                     </button>
+                    <Button
+                        className="w-full bg-black py-6 text-white"
+                        size="md"
+                        radius="md"
+                        onClick={() =>
+                            onMessage(user)
+                        }>
+                        Send message
+                    </Button>
                 </div>
             )
         },

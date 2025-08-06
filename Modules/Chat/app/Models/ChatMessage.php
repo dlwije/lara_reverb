@@ -14,7 +14,7 @@ class ChatMessage extends Model
     /**
      * The attributes that are mass assignable.
      */
-    protected $fillable = [];
+    protected $fillable = ['user_id', 'from', 'message'];
 
     // protected static function newFactory(): ChatMessageFactory
     // {

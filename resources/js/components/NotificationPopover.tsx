@@ -6,6 +6,7 @@ import { Howl } from 'howler';
 import { axios } from '@/lib/axios';
 import { usePage } from '@inertiajs/react';
 import type { SharedData } from '@/types';
+import { toast } from "sonner"
 
 export default function NotificationPopover() {
     const [unreadMessages, setUnreadMessages] = useState<number>(0);
@@ -45,8 +46,18 @@ export default function NotificationPopover() {
         // Here we are going to listen for real-time events.
         if (echo) {
             echo.private(`chat.${user?.id}`).listen('MessageSent', event => {
-                if (event.receiver.id === user?.id)
+                if (event.receiver.id === user?.id){
+
+                    toast("Event has been created", {
+                        description: "Sunday, December 03, 2023 at 9:00 AM",
+                        action: {
+                            label: "Undo",
+                            onClick: () => console.log("Undo"),
+                        },
+                    })
                     console.log('Real-time event received: ', event)
+                }
+
 
                 handleEchoCallback()
             })
