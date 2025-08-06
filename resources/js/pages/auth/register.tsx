@@ -1,6 +1,6 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useEffect } from 'react';
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -30,6 +30,22 @@ export default function Register() {
             onFinish: () => reset('password', 'password_confirmation'),
         });
     };
+
+    // ✅ Listen for token/user in flash props
+    const { auth_token, auth_user } = usePage().props;
+
+    useEffect(() => {
+    // console.log('Auth Token: '+auth_token);
+    // console.log('Auth User: '+ auth_user);
+        if (auth_token) {
+            if (typeof auth_token === 'string') {
+                localStorage.setItem('access_token', auth_token);
+            }
+        }
+        if (auth_user) {
+            localStorage.setItem('auth_user', JSON.stringify(auth_user));
+        }
+    }, [auth_token, auth_user]);
 
     return (
         <AuthLayout title="Create an account" description="Enter your details below to create your account">

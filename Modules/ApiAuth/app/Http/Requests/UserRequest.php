@@ -29,8 +29,8 @@ class UserRequest extends FormRequest
                     ->mixedCase()
                     ->letters()
                     ->numbers()
-                    ->symbols()
-                    ->uncompromised(), // Checks password is not in data breaches
+                    ->symbols(),
+//                    ->uncompromised(), // Checks password is not in data breaches
             ],
         ];
     }

@@ -4,6 +4,15 @@ namespace App\Http\Controllers;
 
 abstract class Controller
 {
+    public static function inertiaSuccess($data, $redirectRouteName = 'dashboard', $message = 'Success', $statusCode = 200): \Illuminate\Http\JsonResponse
+    {
+        return response()->json([
+            'status' => true,
+            'message' => $message,
+            'data' => $data,
+            'redirect' => route($redirectRouteName, absolute: false),
+        ], $statusCode);
+    }
     public static function success($data = [], $message = 'Success', $statusCode = 200)
     {
         return response()->json([

@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\ApiAuth\Actions\SaveUser;
+use Modules\ApiAuth\Enums\RoleEnum;
+use Modules\ApiAuth\Http\Controllers\ApiAuthController;
+use Modules\ApiAuth\Http\Requests\UserRequest;
+use Modules\ApiAuth\Services\AuthTokenService;
 
 class RegisteredUserController extends Controller
 {
@@ -28,24 +33,44 @@ class RegisteredUserController extends Controller
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function store(Request $request): RedirectResponse
+    public function store(UserRequest $request): RedirectResponse
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+        $data = $request->validated();
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        // Ensure roles are provided or fall back to ['customer']
+        $data['roles'] = $request->input('roles', [RoleEnum::customer->name]);;
+        $data['team_id'] = $data['team_id'] ?? 1; // or get team ID dynamically
+        $data['login_type'] = 'email';
 
-        event(new Registered($user));
 
-        Auth::login($user);
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Generate Passport access token
+        $tokenService = app(AuthTokenService::class);
+
+        try {
+
+            $user = (new SaveUser)->execute($data);
+            $tokenData = $tokenService->issueTokenViaPasswordGrant($request->email, $request->password);
+
+            event(new Registered($user));
+
+            Auth::login($user);
+
+            session([
+                'access_token' => $tokenData['access_token'] ?? null,
+                'refresh_token' => $tokenData['refresh_token'] ?? null,
+                'access_token_expires_in' => $tokenData['expires_in'] ?? 3600, // typically 3600 seconds
+                'refresh_token_expires_in' => round(now()->diffInSeconds(now()->addDays(15))), // 15 * 24 * 60 * 60 // 1296000 seconds
+            ]);
+//            return self::inertiaSuccess([], 'dashboard');
+
+            return redirect()->intended(route('dashboard', absolute: false));
+        }catch (\Throwable $th) {
+
+            return back()->with('error', __('{model} cannot be {action}.', [
+                'model'  => __('User'),
+                'action' => __('deleted'),
+            ]));
+        }
     }
 }

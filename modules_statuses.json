@@ -1,3 +1,4 @@
 {
-    "ApiAuth": true
+    "ApiAuth": true,
+    "Chat": true
 }

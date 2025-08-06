@@ -4,7 +4,9 @@ import { type BreadcrumbItem, SharedData, type User } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import echo from '@/lib/echo';
 import { useEffect, useState } from 'react';
-import type { PageProps } from '@/types' // wherever your types file is
+import { axios } from '@/lib/axios';
+
+import { useDisclosure } from '@/hooks/use-disclosure'; // wherever your types file is
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -13,32 +15,54 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-// interface PageProps {
-//     userData: SharedData,
-//     auth: User;
-//     [key: string]: unknown; // ✅ Required to satisfy Inertia's constraint
-// }
-
 export default function Dashboard() {
 
     const [privateMessage, setPrivateMessage] = useState<string | null>(null);
+
     const { auth } = usePage<SharedData>().props;
-    // console.log(sharedData);
-    const userId = auth.user.id;
-    console.log(auth.user);
 
-    useEffect(() => {
-        // Private Channel Listener
-        const privateChannel = echo.private(`chat.${userId}`);
-        privateChannel.listen(".PrivateMessageEvent", (data: { message: string }) => {
-            console.log("🔒 Private event received:", data);
-            setPrivateMessage(data.message);
-        });
+    const userId = auth.user?.id;
 
-        return () => {
-            privateChannel.stopListening(".PrivateMessageEvent");
-        };
-    }, [userId]);
+    const user = auth.user;
+
+    // const { user } = useAuth({ middleware: 'auth' })
+    const { isOpen, onOpen, onClose, onOpenChange } = useDisclosure()
+
+    const [receiver, setReceiver] = useState(null)
+    const [messageTo, setMessageTo] = useState(null)
+    const [message, setMessage] = useState('')
+    const [isSending, setIsSending] = useState(false)
+    const [team, setTeam] = useState([])
+
+    // useEffect(() => {
+    //     if (user?.role === 'Product Owner')
+    //         axios.post('/api/get-team-members').then(res => {
+    //             setTeam(res.data)
+    //         })
+    // }, [user])
+
+    const composeMessage = member => {
+        setMessageTo(member.name)
+        setReceiver(member.id)
+        onOpen()
+    }
+
+    const sendMessage = receiver => {
+        setIsSending(true)
+
+        axios
+            .post('/api/send-message', {
+                user_id: receiver,
+                from: user?.id,
+                message: message,
+            })
+            .then(res => {
+                if (res.statusText === 'No Content') {
+                    setIsSending(false)
+                    onClose()
+                }
+            })
+    }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

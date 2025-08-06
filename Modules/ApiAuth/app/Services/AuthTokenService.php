@@ -10,6 +10,7 @@ class AuthTokenService
 {
     public function issueTokenViaPasswordGrant(string $email, string $password, string $scope = ''): array
     {
+//        Log::info([$email, $password, $scope]);
         $internalRequest = Request::create('/oauth/token', 'POST', [
             'grant_type'    => 'password',
             'client_id'     => env('PASSPORT_PASSWORD_CLIENT_ID'),
@@ -20,7 +21,7 @@ class AuthTokenService
         ]);
 
         $response = App::handle($internalRequest);
-        Log::info([$response->getContent()]);
+//        Log::info([$response->getContent()]);
 
         if ($response->getStatusCode() !== 200) {
             throw new \Exception('Token issue failed.');

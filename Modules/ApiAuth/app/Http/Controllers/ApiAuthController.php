@@ -9,12 +9,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 use Modules\ApiAuth\Actions\SaveUser;
 use Modules\ApiAuth\Enums\RoleEnum;
 use Modules\ApiAuth\Events\UserRegisteredEvent;
 use Modules\ApiAuth\Http\Requests\UserRequest;
 use Modules\ApiAuth\Services\AuthTokenService;
 use Spatie\Permission\PermissionRegistrar;
+use Yajra\DataTables\DataTables;
 
 class ApiAuthController extends Controller
 {
@@ -25,7 +28,50 @@ class ApiAuthController extends Controller
      */
     public function index()
     {
-        return view('apiauth::index');
+        return Inertia::render('users/index');
+    }
+
+    public function userList()
+    {
+        try {
+
+            $query = User::select([
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.phone',
+                'users.user_type',
+                'users.updated_at',
+                DB::raw('GROUP_CONCAT(DISTINCT roles.name SEPARATOR ", ") as role_name')
+            ])
+                ->leftJoin('model_has_roles', function ($join) {
+                    $join->on('users.id', '=', 'model_has_roles.model_id')
+                        ->where('model_has_roles.model_type', '=', User::class);
+                })
+                ->leftJoin('roles', 'model_has_roles.role_id', '=', 'roles.id')
+                ->groupBy('users.id');
+
+            return DataTables::of($query)
+                ->addIndexColumn()
+
+                ->editColumn('updated_at', function ($user) {
+                    return \Carbon\Carbon::parse($user->updated_at)->format('Y-m-d');
+                })
+
+                ->addColumn('role', function ($user) {
+                    return $user->role_name ?? '-';
+                })
+
+                ->filterColumn('updated_at', function ($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(users.updated_at, '%Y-%m-%d') like ?", ["%$keyword%"]);
+                })
+
+                ->removeColumn('email_verified_at', 'created_at', 'role_name')
+                ->make(true);
+        } catch (\Exception $e) {
+            Log::error('User List Getting Error:', ['error' => $e->getMessage()]);
+            return self::error(__('messages.something_went_wrong'), 500);
+        }
     }
 
     public function login(Request $request)
