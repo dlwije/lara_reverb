@@ -1,13 +1,10 @@
 import { axios, setBearerToken } from '@/lib/axios';
 import Echo from "laravel-echo";
 import { useMemo } from 'react';
+import apiClient from '@/lib/apiClient';
 
 const token = localStorage.getItem('acc_token'); // Passport token
-
-const existing = localStorage.getItem('acc_token');
-if (!existing) {
-    setBearerToken(token);
-}
+setBearerToken(token);
 
 const useEcho = () => {
     return useMemo(() => {
@@ -29,6 +26,14 @@ const useEcho = () => {
                         .then((res) => callback(false, res.data))
                         .catch((err) => callback(true, err))
                 }
+
+                // authorize: async (socketId, callback) => {
+                //     await apiClient.post('/api/broadcasting/auth', {
+                //         socket_id: socketId,
+                //         channel_name: channel.name,
+                //     }).then((res) => callback(false, res.data))
+                //         .catch((err) => callback(true, err))
+                // }
             })
         })
         // return new Echo({

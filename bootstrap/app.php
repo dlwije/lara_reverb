@@ -52,6 +52,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Pure API (Postman, mobile, etc.)
             if ($request->is('api/*') || $request->expectsJson()) {
 
+//                print_r($request->header('Authorization'));
                 $status = $response->getStatusCode();
 
                 if (in_array($status, [500, 403]) && ! app()->environment(['local', 'testing'])) {

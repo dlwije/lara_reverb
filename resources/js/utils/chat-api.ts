@@ -34,6 +34,7 @@ const apiClient = axios.create({
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
     },
 })
 
@@ -42,6 +43,7 @@ apiClient.interceptors.request.use(
     (config) => {
         // Add auth token if available
         const token = localStorage.getItem('acc_token')
+        console.log('chat_api:'+token)
         if (token) {
             config.headers.Authorization = `Bearer ${token}`
         }
