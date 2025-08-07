@@ -34,7 +34,6 @@ class ApiAuthController extends Controller
     public function userList()
     {
         try {
-
             $query = User::select([
                 'users.id',
                 'users.name',
@@ -49,6 +48,7 @@ class ApiAuthController extends Controller
                         ->where('model_has_roles.model_type', '=', User::class);
                 })
                 ->leftJoin('roles', 'model_has_roles.role_id', '=', 'roles.id')
+                ->where('users.id', '!=', auth('api')->id()) // 👈 Exclude logged-in user
                 ->groupBy('users.id');
 
             return DataTables::of($query)
@@ -68,6 +68,7 @@ class ApiAuthController extends Controller
 
                 ->removeColumn('email_verified_at', 'created_at', 'role_name')
                 ->make(true);
+
         } catch (\Exception $e) {
             Log::error('User List Getting Error:', ['error' => $e->getMessage()]);
             return self::error(__('messages.something_went_wrong'), 500);

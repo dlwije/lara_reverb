@@ -189,7 +189,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
     const { auth } = usePage<SharedData>().props;
 
-    console.log(auth);
+    // console.log(auth);
     useEffect(() => {
         const existing = localStorage.getItem('acc_token');
         if (auth?.accessToken && !existing) {

@@ -39,4 +39,15 @@ class PrivateMessageEvent implements ShouldBroadcast
     {
         return 'PrivateMessageEvent';
     }
+
+    public function broadcastWith(): array
+    {
+        return [
+            'message' => $this->message,
+            'sender_id' => $this->sender->id,
+            'sender_name' => $this->sender->name,
+            'sender_avatar' => $this->sender->avatar ?? null,
+        ];
+    }
+
 }

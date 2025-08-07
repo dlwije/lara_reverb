@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useEffect, useRef, useState } from 'react';
 import { Plus, ArrowUp } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -8,74 +8,67 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { User } from '@/types';
 
-interface Message {
-    id: number
-    text: string
-    isUser: boolean
+interface User {
+    id: string
+    name: string
+    email: string
+    avatar?: string
 }
 
-type ChatInterfaceProps = {
-    user: User | null;
-    onSendMessage: (receiver: User, message: string) => void;
-};
+interface Message {
+    id: number
+    user_id: number
+    from: number
+    message: string
+    created_at: string
+    updated_at: string
+    isUser: boolean
+}
+interface ChatInterfaceProps {
+    user: User | null
+    messages: Message[]
+    onSendMessage: (message: string) => void
+}
 
-export const ChatInterface = ({ user, onSendMessage }: ChatInterfaceProps) => {
-    if (!user) return null;
+export const ChatInterface = ({ user, messages, onSendMessage }: ChatInterfaceProps) => {
 
-    const [messages, setMessages] = useState<Message[]>([
-        { id: 1, text: "Hi, how can I help you today?", isUser: false },
-        { id: 2, text: "Hey, I'm having trouble with my account.", isUser: true },
-        { id: 3, text: "What seems to be the problem?", isUser: false },
-        { id: 4, text: "I can't log in.", isUser: true },
-    ])
-    const [inputValue, setInputValue] = useState("")
+    const [inputValue, setInputValue] = useState('')
+    const messagesEndRef = useRef<HTMLDivElement>(null)
+    const messagesContainerRef = useRef<HTMLDivElement>(null)
 
+    // Auto-scroll to bottom when messages change
+    useEffect(() => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'end'
+            })
+        }
+    }, [messages])
 
     const handleSendMessage = () => {
         if (inputValue.trim()) {
-            // const newMessage: Message = {
-            //     id: messages.length + 1,
-            //     text: inputValue,
-            //     isUser: true,
-            // }
-            onSendMessage(user, inputValue);
-            // setMessages([...messages, newMessage])
-            setInputValue("")
+            onSendMessage(inputValue.trim())
+            setInputValue('')
         }
     }
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter") {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
             handleSendMessage()
         }
     }
 
     return (
-        <>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                    <Avatar className="w-12 h-12">
-                        <AvatarImage src="/professional-woman-avatar.png" alt="Sofia Davis" />
-                        <AvatarFallback className="bg-white text-black">SD</AvatarFallback>
-                    </Avatar>
-                    <div>
-                        <h2 className="font-semibold text-lg">Chat with {user.name}</h2>
-                        <p className="text-zinc-400 text-sm">{user.email}</p>
-                    </div>
-                </div>
-                <Button
-                    size="icon"
-                    variant="ghost"
-                    className="rounded-full bg-zinc-800 hover:bg-zinc-700 w-10 h-10"
-                >
-                    <Plus className="w-5 h-5" />
-                </Button>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 space-y-4 mb-6">
-                {messages.map((message) => (
+        <div className="flex flex-col h-full">
+            {/* Messages Container - Scrollable */}
+            <div
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto p-6 space-y-4"
+                style={{ maxHeight: 'calc(100vh - 200px)' }}
+            >
+                {messages?.map((message) => (
                     <div
                         key={message.id}
                         className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}
@@ -87,29 +80,40 @@ export const ChatInterface = ({ user, onSendMessage }: ChatInterfaceProps) => {
                                     : "bg-zinc-800 text-white rounded-bl-md"
                             }`}
                         >
-                            <p className="text-sm leading-relaxed">{message.text}</p>
+                            <p className="text-sm leading-relaxed">{message.message}</p>
+                            <p className="text-xs opacity-60 mt-1">
+                                {new Date(message.created_at).toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </p>
                         </div>
                     </div>
                 ))}
+                {/* Invisible element to scroll to */}
+                <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="relative">
-                <Input
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Type your message..."
-                    className="w-full bg-zinc-800 border-zinc-700 rounded-2xl px-4 py-3 pr-12 text-white placeholder:text-zinc-500 focus:ring-2 focus:ring-zinc-600 focus:border-transparent"
-                />
-                <Button
-                    onClick={handleSendMessage}
-                    size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-zinc-700 hover:bg-zinc-600 w-8 h-8"
-                >
-                    <ArrowUp className="w-4 h-4" />
-                </Button>
+            {/* Input Area - Fixed at bottom */}
+            <div className="p-6 border-t border-zinc-800">
+                <div className="relative">
+                    <Input
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Type your message..."
+                        className="w-full bg-zinc-800 border-zinc-700 rounded-2xl px-4 py-3 pr-12 text-white placeholder:text-zinc-500 focus:ring-2 focus:ring-zinc-600 focus:border-transparent"
+                    />
+                    <Button
+                        onClick={handleSendMessage}
+                        size="icon"
+                        disabled={!inputValue.trim()}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 w-8 h-8"
+                    >
+                        <ArrowUp className="w-4 h-4" />
+                    </Button>
+                </div>
             </div>
-        </>
+        </div>
     )
 }

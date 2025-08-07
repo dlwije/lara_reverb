@@ -7,11 +7,12 @@ use Modules\Chat\Http\Controllers\ChatController;
 //    Route::apiResource('chats', ChatController::class)->names('chat');
 //});
 
-Route::middleware(['auth:api'])->group(function () {
+Route::middleware(['auth:api'])->prefix('v1')->name('v1.')->group(function () {
 
-    Route::post('/get-unread-messages', [ChatController::class, 'getUnreadMessages']);
+    Route::post('/get-unread-messages', [ChatController::class, 'getUnreadMessages'])->name('conversation.unread');
 
 //    Route::post('/get-team-members', [TeamController::class, 'index']);
 
-    Route::post('/send-message', [ChatController::class, 'store']);
+    Route::post('/send-message', [ChatController::class, 'store'])->name('conversation.store');
+    Route::get('/get-conversation/{user_id}', [ChatController::class, 'showConversation'])->name('conversation.show');
 });

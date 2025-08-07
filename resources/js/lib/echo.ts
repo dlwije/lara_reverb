@@ -3,7 +3,11 @@ import Echo from "laravel-echo";
 import { useMemo } from 'react';
 
 const token = localStorage.getItem('acc_token'); // Passport token
-setBearerToken(token);
+
+const existing = localStorage.getItem('acc_token');
+if (!existing) {
+    setBearerToken(token);
+}
 
 const useEcho = () => {
     return useMemo(() => {
@@ -27,6 +31,26 @@ const useEcho = () => {
                 }
             })
         })
+        // return new Echo({
+        //     broadcaster: 'pusher',
+        //     key: import.meta.env.VITE_REVERB_APP_KEY || 'local',
+        //     wsHost: import.meta.env.VITE_REVERB_HOST,
+        //     // eslint-disable-next-line no-constant-binary-expression
+        //     wsPort: Number(import.meta.env.VITE_REVERB_PORT) ?? 80,
+        //     // eslint-disable-next-line no-constant-binary-expression
+        //     wssPort: Number(import.meta.env.VITE_REVERB_PORT) ?? 443,
+        //     forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
+        //     disableStats: true,
+        //     enabledTransports: ['ws', 'wss'],
+        //     cluster: 'mt1',
+        //     authEndpoint: `${import.meta.env.APP_URL}/api/broadcasting/auth`,
+        //     auth: {
+        //         headers: {
+        //             Authorization: `Bearer ${localStorage.getItem('acc_token')}`
+        //         }
+        //     },
+        //     withCredentials: true
+        // });
     }, [])
 }
 

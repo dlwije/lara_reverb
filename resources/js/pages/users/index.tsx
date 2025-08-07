@@ -10,11 +10,15 @@ import { BreadcrumbItem, SharedData } from '@/types';
 import { axios } from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { useDisclosure } from '@/hooks/use-disclosure';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
-import { Button } from '@headlessui/react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChatInterface } from '@/components/chat-interface';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useChat } from '@/hooks/use-chat';
+import { AlertCircle, WifiOff } from 'lucide-react';
+import useEcho from '@/lib/echo';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -23,10 +27,29 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+type Message = {
+    id: number
+    text: string
+    isUser: boolean // Optional: derive from sender_id === selectedUser.id
+    sender_id: number
+    receiver_id: number
+    created_at: string
+}
+
 interface User {
     id: number
     name: string
     email: string
+    avatar?: string | null
+    // email_verified_at: string | null
+    // created_at: string
+    // status: string
+    // gender: string | null
+    // address: string | null
+    // dob: string | null
+    // nationality: string | null
+    // marital_status: string | null
+    // occupation: string | null
     phone: string | null
     user_type: string
     updated_at: string
@@ -37,19 +60,25 @@ interface User {
 export default function DemoPage() {
 
     const { auth } = usePage<SharedData>().props;
+    const echo = useEcho()
 
     const [users, setUsers] = useState<User[]>([])
-    const [loading, setLoading] = useState(true)
+    const [userLoading, setUserLoading] = useState(true)
     const [confirmingUser, setConfirmingUser] = useState<User | null>(null)
+
+    const user = auth.user;
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [open, setOpen] = useState(false);
 
     const fetchUsers = async () => {
         try {
             const res = await axios.get('/api/v1/users/list/data')
             setUsers(res.data.data)
+            setUserLoading(false)
         } catch (err) {
             toast.error('Failed to load users')
         } finally {
-            setLoading(false)
+            setUserLoading(false)
         }
     }
 
@@ -65,51 +94,40 @@ export default function DemoPage() {
     }
 
     useEffect(() => {
+        setUserLoading(true);
         fetchUsers()
     }, [])
 
-    const user = auth.user;
-    const { isOpen, onOpen, onClose, onOpenChange } = useDisclosure()
-
-    const [receiver, setReceiver] = useState(null)
-    const [messageTo, setMessageTo] = useState(null)
-    const [message, setMessage] = useState('')
-    const [isSending, setIsSending] = useState(false)
-    const [team, setTeam] = useState([])
-
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    const [chatLoading, setChatLoading] = useState(false);
-    const [open, setOpen] = useState(false);
-
     const composeMessage = member => {
         setSelectedUser(member)
-        setMessageTo(member.name)
-        setReceiver(member.id)
-        onOpen()
-
-        setChatLoading(true);
+        // setMessageTo(member.name)
+        // setReceiver(member.id)
+        // onOpen()
+        //
+        // setChatLoading(true);
         setOpen(true);
-        // Simulate loading chat data
-        setTimeout(() => {
-            setChatLoading(false);
-        }, 1000); // Replace with real async fetch if needed
+        if (echo) {
+            const channel = echo.private(`chat.${user?.id}-${member.id}`);
+            channel
+                .subscribed(() => {
+                    // This confirms the WebSocket connection AND authorization were successful.
+                    console.log(
+                        '✅ Successfully subscribed to the "online" presence channel!'
+                    );
+                }).listen('.PrivateMessageEvent', (e) => {
+                    console.log(e);
+            })
+            console.log('Attempting to join chat channel:', channel);
+        }
     }
 
-    const sendMessage = (receiver: User, message: string) => {
-        setIsSending(true)
+    const { messages, loading, sending, error, sendMessage, refreshMessages } = useChat(selectedUser?.id, user?.id)
 
-        axios
-            .post('/api/send-message', {
-                user_id: receiver.id,
-                from: selectedUser?.id,
-                message: message,
-            })
-            .then(res => {
-                if (res.statusText === 'No Content') {
-                    setIsSending(false)
-                    onClose()
-                }
-            })
+    const getErrorIcon = () => {
+        if (error?.includes('timeout') || error?.includes('connection')) {
+            return <WifiOff className="w-4 h-4" />
+        }
+        return <AlertCircle className="w-4 h-4" />
     }
 
     return (
@@ -156,9 +174,44 @@ export default function DemoPage() {
                                 <SheetTrigger asChild>
                                     {/* optional custom trigger */}
                                 </SheetTrigger>
-                                <SheetContent className="w-full max-w-md bg-zinc-900 border-zinc-800 text-white p-6 flex flex-col min-h-full">
-                                    {chatLoading ? (
-                                        <div className="flex items-center space-x-4">
+                                <SheetContent className="w-full rounded-lg max-w-md bg-zinc-900 border-zinc-800 text-white p-0 flex flex-col min-h-full">
+                                    <SheetHeader className="p-6 border-b border-zinc-800">
+                                        <SheetTitle>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="w-12 h-12">
+                                                    <AvatarImage src={selectedUser?.avatar || "/placeholder.svg"} alt={selectedUser?.name} />
+                                                    <AvatarFallback className="bg-white text-black">
+                                                        {selectedUser?.name?.split(' ').map(n => n[0]).join('')}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex-1">
+                                                    <h2 className="font-semibold text-lg">Chat with {selectedUser?.name}</h2>
+                                                    <p className="text-zinc-400 text-sm">{selectedUser?.email}</p>
+                                                </div>
+                                                <button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={refreshMessages}
+                                                    disabled={loading}
+                                                    className="text-zinc-400 hover:text-white"
+                                                >
+                                                    Refresh
+                                                </button>
+                                            </div>
+                                        </SheetTitle>
+                                    </SheetHeader>
+
+                                    {error && (
+                                        <div className="p-4 bg-red-900/20 border-b border-red-800">
+                                            <div className="flex items-center gap-2 text-red-400">
+                                                {getErrorIcon()}
+                                                <span className="text-sm">{error}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {loading ? (
+                                        <div className="flex items-center space-x-4 p-6">
                                             <Skeleton className="h-12 w-12 rounded-full" />
                                             <div className="space-y-2">
                                                 <Skeleton className="h-4 w-[250px]" />
@@ -166,7 +219,12 @@ export default function DemoPage() {
                                             </div>
                                         </div>
                                     ) : (
-                                        <ChatInterface user={selectedUser} onSendMessage={sendMessage} />
+                                        <ChatInterface
+                                            user={selectedUser}
+                                            messages={messages}
+                                            onSendMessage={sendMessage}
+                                            sending={sending}
+                                        />
                                     )}
                                 </SheetContent>
                             </Sheet>
