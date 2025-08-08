@@ -8,19 +8,17 @@ import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, SharedData } from '@/types';
 import toast from 'react-hot-toast';
-import { useDisclosure } from '@/hooks/use-disclosure';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChatInterface } from '@/components/chat-interface';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useChat } from '@/hooks/use-chat';
-import { AlertCircle, MessageCircle, Radio, WifiOff } from 'lucide-react';
-import useEcho from '@/lib/echo';
+import { AlertCircle, Radio, WifiOff } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import { useEchoChat } from '@/hooks/use-echo-chat';
 import { Button } from '@headlessui/react';
+import { setupEcho } from '@/utils/echo-setup';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -28,15 +26,6 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/users/list',
     },
 ];
-
-type Message = {
-    id: number
-    text: string
-    isUser: boolean // Optional: derive from sender_id === selectedUser.id
-    sender_id: number
-    receiver_id: number
-    created_at: string
-}
 
 interface User {
     id: number
@@ -53,7 +42,7 @@ interface User {
 export default function DemoPage() {
 
     const { auth } = usePage<SharedData>().props;
-    const echo = useEcho()
+    const echo = setupEcho()
 
     const [users, setUsers] = useState<User[]>([])
     const [userLoading, setUserLoading] = useState(true)
@@ -190,8 +179,8 @@ export default function DemoPage() {
                             <Sheet open={open} onOpenChange={setOpen}>
                                 <SheetTrigger asChild>
                                 </SheetTrigger>
-                                <SheetContent className="w-full max-w-md bg-zinc-900 border-zinc-800 text-white p-0 flex flex-col min-h-full">
-                                    <SheetHeader className="p-6 border-b border-zinc-800">
+                                <SheetContent className="w-full max-w-md text-white p-0 flex flex-col min-h-full">
+                                    <SheetHeader className="p-6 ">
                                         <SheetTitle>
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="w-12 h-12">
@@ -211,15 +200,15 @@ export default function DemoPage() {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     {getConnectionStatus()}
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={refreshMessages}
-                                                        disabled={loading}
-                                                        className="text-zinc-400 hover:text-white"
-                                                    >
-                                                        Refresh
-                                                    </Button>
+                                                    {/*<Button*/}
+                                                    {/*    variant="ghost"*/}
+                                                    {/*    size="sm"*/}
+                                                    {/*    onClick={refreshMessages}*/}
+                                                    {/*    disabled={loading}*/}
+                                                    {/*    className="text-zinc-400 hover:text-white"*/}
+                                                    {/*>*/}
+                                                    {/*    Refresh*/}
+                                                    {/*</Button>*/}
                                                 </div>
                                             </div>
                                         </SheetTitle>

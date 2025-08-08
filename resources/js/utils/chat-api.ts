@@ -1,47 +1,7 @@
 import axios, { AxiosResponse } from 'axios'
 import apiClient from '@/lib/apiClient';
+import { ApiResponse, BackendMessage, SendMessagePayload, SendMessageResponse, SendTypingResponse } from '@/types/chat';
 
-interface BackendMessage {
-    id: number
-    user_id: number
-    from: number
-    message: string
-    created_at: string
-    updated_at: string
-    isUser: boolean
-}
-
-interface ApiResponse {
-    status: boolean
-    message: string
-    data: BackendMessage[]
-}
-
-interface SendMessagePayload {
-    user_id: number
-    from: number
-    message: string
-}
-
-interface SendMessageResponse {
-    status: boolean
-    message: string
-    data: BackendMessage
-}
-
-// Types for typing event
-export interface SendTypingPayload {
-    user_id: number
-    channel: string
-    typing: boolean
-    conversation_id?: number // if you need to associate with a specific conversation
-}
-
-export interface SendTypingResponse {
-    status: boolean
-    message: string
-    data?: any
-}
 
 // Utility function to fetch messages from your backend
 export async function fetchMessages(userId: number): Promise<BackendMessage[]> {

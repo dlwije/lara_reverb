@@ -2,6 +2,7 @@
 
 namespace Modules\Chat\Events;
 
+use App\Models\User;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -10,38 +11,44 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
+use Laravel\Reverb\Loggers\Log;
 
-class MessageTyping implements ShouldBroadcastNow
+class NewMessage implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(public $request) {}
+    public function __construct(public User $receiver, public User $sender, public $message) {}
 
     /**
      * Get the channels the event should be broadcast on.
      */
     public function broadcastOn(): array
     {
-        $channels = [];
-        Log::info('typing Event: '.$this->request['channel']);
-        $channels[] = new PrivateChannel($this->request['channel']);
-        return $channels;
+        Log::info('NewMessageEvent'.$this->sender->id);
+        return [
+            new PrivateChannel('newmessage.'.$this->sender->id),
+        ];
     }
 
     public function broadcastWith()
     {
         return [
-            'user_id' => $this->request['user_id'],
-            'typing' => $this->request['typing']
+            'message' => [
+                'id' => $this->message->id,
+                'sender_id' => $this->sender->id,
+                'receiver_id' => $this->receiver->id,
+                'created_at' => $this->message->created_at,
+                'updated_at' => $this->message->updated_at,
+                'message' => $this->message->message
+            ],
         ];
     }
 
     public function BroadCastAs()
     {
-        return 'UserTyping';
+        return 'NewMessage';
     }
 }

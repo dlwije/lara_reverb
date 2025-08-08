@@ -5,7 +5,7 @@ import Pusher from 'pusher-js'
 declare global {
     interface Window {
         Pusher: typeof Pusher
-        Echo: Echo<T>
+        Echo: Echo<'reverb'>
     }
 }
 
@@ -39,45 +39,4 @@ export function createChannelName(userIdA: number, userIdB: number): string {
     const idA = Math.min(userIdA, userIdB)
     const idB = Math.max(userIdA, userIdB)
     return `chat.${idA}-${idB}`
-}
-
-// Message interface from Laravel backend
-export interface LaravelMessage {
-    message: {
-        sender_id: number
-        receiver_id: number
-        created_at: string
-        message: string
-    }
-}
-
-// Typing event interface
-export interface TypingEvent {
-  user_id: number
-  user_name: string
-  typing: boolean
-}
-
-// Convert Laravel message to our frontend format
-export function convertLaravelMessage(
-    laravelMsg: LaravelMessage,
-    currentUserId: number
-): {
-    id: number
-    user_id: number
-    from: number
-    message: string
-    created_at: string
-    updated_at: string
-    isUser: boolean
-} {
-  return {
-    id: laravelMsg.message.id || Date.now(), // Use backend ID if available
-    user_id: laravelMsg.message.receiver_id,
-    from: laravelMsg.message.sender_id,
-    message: laravelMsg.message.message,
-    created_at: laravelMsg.message.created_at,
-    updated_at: laravelMsg.message.created_at,
-    isUser: laravelMsg.message.sender_id === currentUserId
-  }
 }

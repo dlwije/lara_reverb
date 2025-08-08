@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import { debounce } from 'lodash'
-import { useState, useEffect, useRef, useCallback } from 'react'
-import axios from 'axios'
+import { debounce } from 'lodash';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import axios from 'axios';
 import {
     fetchMessages,
     sendMessageToBackend,
@@ -11,89 +11,79 @@ import {
     createCancelTokenSource,
     sendTypingEventToBackend
 } from '@/utils/chat-api';
-import { setupEcho, createChannelName, convertLaravelMessage, LaravelMessage, TypingEvent } from '@/utils/echo-setup'
-
-interface Message {
-    id: number
-    user_id: number
-    from: number
-    message: string
-    created_at: string
-    updated_at: string
-    isUser: boolean
-}
+import { setupEcho, createChannelName } from '@/utils/echo-setup';
+import { BackendMessage, MessageSentEventResponse, TypingEventResponse } from '@/types/chat';
 
 export function useEchoChat(currentUserId: number, chatUserId: number, authToken?: string) {
-    console.log('useEchoChat: '+chatUserId)
-    const [messages, setMessages] = useState<Message[]>([])
-    const [loading, setLoading] = useState(true)
-    const [channelName, setChannelName] = useState<string | null>(null)
-    const [sending, setSending] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-    const [isConnected, setIsConnected] = useState(false)
-    const [isTyping, setIsTyping] = useState(false)
-    const [otherUserTyping, setOtherUserTyping] = useState(false)
-    const cancelTokenRef = useRef<any>(null)
-    const echoRef = useRef<any>(null)
-    const channelRef = useRef<any>(null)
-    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    console.log('useEchoChat: ' + chatUserId);
+    const [messages, setMessages] = useState<BackendMessage[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [channelName, setChannelName] = useState<string | null>(null);
+    const [sending, setSending] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [isConnected, setIsConnected] = useState(false);
+    const [isTyping, setIsTyping] = useState(false);
+    const [otherUserTyping, setOtherUserTyping] = useState(false);
+    const cancelTokenRef = useRef<any>(null);
+    const echoRef = useRef<any>(null);
+    const channelRef = useRef<any>(null);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Setup Echo connection
     useEffect(() => {
-        if (typeof window === 'undefined') return
+        if (typeof window === 'undefined') return;
 
         try {
-            const echo = setupEcho(authToken)
+            const echo = setupEcho(authToken);
             if (echo) {
-                echoRef.current = echo
-                console.log('✅ Echo setup completed')
+                echoRef.current = echo;
+                console.log('✅ Echo setup completed');
             }
         } catch (error) {
-            console.error('❌ Failed to setup Echo:', error)
-            setError('Failed to setup real-time connection')
+            console.error('❌ Failed to setup Echo:', error);
+            setError('Failed to setup real-time connection');
         }
 
         return () => {
             // Cleanup Echo connection
             if (channelRef.current) {
-                channelRef.current.stopListening('.MessageSent')
-                channelRef.current.stopListening('.UserTyping')
-                console.log('🔌 Disconnected from chat channel')
+                channelRef.current.stopListening('.MessageSent');
+                channelRef.current.stopListening('.UserTyping');
+                console.log('🔌 Disconnected from chat channel');
             }
             if (echoRef.current) {
-                echoRef.current.disconnect()
+                echoRef.current.disconnect();
             }
             if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current)
+                clearTimeout(typingTimeoutRef.current);
             }
-        }
-    }, [authToken])
+        };
+    }, [authToken]);
 
     // Setup chat channel subscription
     useEffect(() => {
-        if (!echoRef.current || !currentUserId || !chatUserId) return
+        if (!echoRef.current || !currentUserId || !chatUserId) return;
 
-        const channelName = createChannelName(currentUserId, chatUserId)
-        setChannelName(channelName)
-        console.log('🔄 Attempting to join chat channel:', channelName)
+        const channelName = createChannelName(currentUserId, chatUserId);
+        setChannelName(channelName);
+        console.log('🔄 Attempting to join chat channel:', channelName);
 
         try {
-            const channel = echoRef.current.private(channelName)
-            channelRef.current = channel
-
+            const channel = echoRef.current.private(channelName);
+            channelRef.current = channel;
             channel
                 .subscribed(() => {
-                    console.log('✅ Successfully subscribed to chat channel:', channelName)
-                    setIsConnected(true)
-                    setError(null)
+                    console.log('✅ Successfully subscribed to chat channel:', channelName);
+                    setIsConnected(true);
+                    setError(null);
                 })
-                .listen('.MessageSent', (e: LaravelMessage) => {
-                    console.log('📨 MessageSent received:', e)
+                .listen('.MessageSent', (e: MessageSentEventResponse) => {
+                    console.log('📨 MessageSent received:', e);
 
                     // Only add message if it's NOT from the current user
                     // (to prevent duplicates since we already show optimistic updates)
                     if (e.message.sender_id !== chatUserId) {
-                        const newMessage = convertLaravelMessage(e, chatUserId)
+                        const newMessage = convertMessageSentEventResponse(e, chatUserId);
 
                         setMessages(prev => {
                             // Check if message already exists
@@ -102,102 +92,102 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
                                 (msg.message === newMessage.message &&
                                     msg.from === newMessage.from &&
                                     Math.abs(new Date(msg.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 2000)
-                            )
+                            );
 
                             if (exists) {
-                                console.log('⚠️ Duplicate message detected, skipping')
-                                return prev
+                                console.log('⚠️ Duplicate message detected, skipping');
+                                return prev;
                             }
 
-                            console.log('✅ Adding new message from other user')
-                            return sortMessagesByDate([...prev, newMessage])
-                        })
+                            console.log('✅ Adding new message from other user');
+                            return sortMessagesByDate([...prev, newMessage]);
+                        });
                     } else {
-                        console.log('📤 Ignoring own message to prevent duplicate')
+                        console.log('📤 Ignoring own message to prevent duplicate');
                     }
                 })
-                .listen('.UserTyping', (e: TypingEvent) => {
-                    console.log('⌨️ UserTyping event received:', e)
+                .listen('.UserTyping', (e: TypingEventResponse) => {
+                    console.log('⌨️ UserTyping event received:', e);
 
                     // Only show typing indicator for other users
                     if (e.user_id !== currentUserId) {
-                        setOtherUserTyping(e.typing)
+                        setOtherUserTyping(e.typing);
 
                         // Auto-hide typing indicator after 3 seconds
                         if (e.typing) {
                             if (typingTimeoutRef.current) {
-                                clearTimeout(typingTimeoutRef.current)
+                                clearTimeout(typingTimeoutRef.current);
                             }
                             typingTimeoutRef.current = setTimeout(() => {
-                                setOtherUserTyping(false)
-                            }, 3000)
+                                setOtherUserTyping(false);
+                            }, 3000);
                         }
                     }
                 })
                 .error((error: any) => {
-                    console.error('❌ Error subscribing to chat channel:', error)
-                    setError('Failed to connect to real-time chat')
-                    setIsConnected(false)
-                })
+                    console.error('❌ Error subscribing to chat channel:', error);
+                    setError('Failed to connect to real-time chat');
+                    setIsConnected(false);
+                });
 
         } catch (error) {
-            console.error('❌ Failed to setup chat channel:', error)
-            setError('Failed to setup chat channel')
+            console.error('❌ Failed to setup chat channel:', error);
+            setError('Failed to setup chat channel');
         }
 
         return () => {
             if (channelRef.current) {
-                channelRef.current.stopListening('.MessageSent')
-                channelRef.current.stopListening('.UserTyping')
-                console.log('🔌 Stopped listening to chat events')
+                channelRef.current.stopListening('.MessageSent');
+                channelRef.current.stopListening('.UserTyping');
+                console.log('🔌 Stopped listening to chat events');
             }
+        };
+    }, [currentUserId, chatUserId]);
+
+    // Load initial messages from database
+    useEffect(() => {
+        loadMessages();
+
+        return () => {
+            if (cancelTokenRef.current) {
+                cancelTokenRef.current.cancel('Component unmounted');
+            }
+        };
+    }, [currentUserId, chatUserId]); // Add chatUserId to dependencies
+
+    const loadMessages = async () => {
+        setLoading(true);
+        setError(null);
+
+        if (cancelTokenRef.current) {
+            cancelTokenRef.current.cancel('New request initiated');
         }
-    }, [currentUserId, chatUserId])
 
-  // Load initial messages from database
-  useEffect(() => {
-    loadMessages()
+        cancelTokenRef.current = createCancelTokenSource();
 
-    return () => {
-      if (cancelTokenRef.current) {
-        cancelTokenRef.current.cancel('Component unmounted')
-      }
-    }
-  }, [currentUserId, chatUserId]) // Add chatUserId to dependencies
+        try {
+            console.log('📥 Loading messages for user:', chatUserId);
+            const fetchedMessages = await fetchMessages(chatUserId);
+            console.log('📥 Fetched messages:', fetchedMessages.length);
 
-  const loadMessages = async () => {
-    setLoading(true)
-    setError(null)
+            const messagesWithUserFlag = fetchedMessages.map(msg =>
+                determineIsUser(msg, chatUserId)
+            );
+            const sortedMessages = sortMessagesByDate(messagesWithUserFlag);
+            setMessages(sortedMessages);
+            console.log('✅ Messages loaded and sorted');
+        } catch (error) {
+            if (axios.isCancel(error)) {
+                console.log('Request canceled:', error.message);
+                return;
+            }
 
-    if (cancelTokenRef.current) {
-      cancelTokenRef.current.cancel('New request initiated')
-    }
-
-    cancelTokenRef.current = createCancelTokenSource()
-
-    try {
-      console.log('📥 Loading messages for user:', chatUserId)
-      const fetchedMessages = await fetchMessages(chatUserId)
-      console.log('📥 Fetched messages:', fetchedMessages.length)
-
-      const messagesWithUserFlag = fetchedMessages.map(msg =>
-        determineIsUser(msg, chatUserId)
-      )
-      const sortedMessages = sortMessagesByDate(messagesWithUserFlag)
-      setMessages(sortedMessages)
-      console.log('✅ Messages loaded and sorted')
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        console.log('Request canceled:', error.message)
-        return
-      }
-
-      console.error('Failed to load messages:', error)
-      setError(error instanceof Error ? error.message : 'Unable to load messages')
-    } finally {
-      setLoading(false)
-    }
-  }
+            console.error('Failed to load messages:', error);
+            setError(error instanceof Error ? error.message : 'Unable to load messages');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Enhanced sendTypingEvent with better error handling
     const sendTypingEvent = useCallback(
@@ -209,134 +199,158 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
                         user_id: currentUserId,
                         channel: channelName,
                         typing: typing
-                    })
+                    });
 
                     // Only send real-time event if backend call succeeded
                     if (success) {
                         channelRef.current.whisper('typing', {
                             user_id: currentUserId,
                             typing: typing
-                        })
+                        });
                     }
                 } catch (error) {
-                    console.error('Failed to send typing event:', error)
+                    console.error('Failed to send typing event:', error);
                     // Optionally still send the real-time event even if backend fails
                     channelRef.current.whisper('typing', {
                         user_id: currentUserId,
                         typing: typing
-                    })
+                    });
                 }
             }
         }, 300),
         [currentUserId, isConnected, channelName]
-    )
+    );
 
     // Add proper cleanup and error handling
     const handleTyping = useCallback(() => {
         if (!isTyping) {
-            setIsTyping(true)
-            sendTypingEvent(true)
+            setIsTyping(true);
+            sendTypingEvent(true);
         }
 
         // Clear existing timeout
         if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current)
+            clearTimeout(typingTimeoutRef.current);
         }
 
         // Set new timeout to stop typing
         typingTimeoutRef.current = setTimeout(() => {
-            setIsTyping(false)
-            sendTypingEvent(false)
-        }, 1000)
-    }, [isTyping, sendTypingEvent])
+            setIsTyping(false);
+            sendTypingEvent(false);
+        }, 1000);
+    }, [isTyping, sendTypingEvent]);
 
     useEffect(() => {
         return () => {
             if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current)
+                clearTimeout(typingTimeoutRef.current);
             }
             // Send final typing stop event
             if (isTyping) {
-                sendTypingEvent(false)
+                sendTypingEvent(false);
+            }
+        };
+    }, [isTyping, sendTypingEvent]);
+
+    const sendMessage = async (messageText: string) => {
+        if (!messageText.trim() || sending) return;
+
+        setSending(true);
+        setError(null);
+
+        // Stop typing when sending message
+        if (isTyping) {
+            setIsTyping(false);
+            sendTypingEvent(false);
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
             }
         }
-    }, [isTyping, sendTypingEvent])
 
-  const sendMessage = async (messageText: string) => {
-    if (!messageText.trim() || sending) return
+        // Optimistically add message to UI
+        const optimisticMessage: BackendMessage = {
+            id: Date.now(),
+            user_id: chatUserId,
+            from: currentUserId,
+            message: messageText.trim(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            isUser: true
+        };
 
-    setSending(true)
-    setError(null)
-
-    // Stop typing when sending message
-    if (isTyping) {
-        setIsTyping(false)
-        sendTypingEvent(false)
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current)
-        }
-    }
-
-    // Optimistically add message to UI
-    const optimisticMessage: Message = {
-      id: Date.now(),
-      user_id: chatUserId,
-      from: currentUserId,
-      message: messageText.trim(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      isUser: true
-    }
-
-    console.log('Optimistic Messages: '+optimisticMessage)
-    setMessages(prev => [...prev, optimisticMessage])
+        console.log('Optimistic Messages: ' + optimisticMessage);
+        setMessages(prev => [...prev, optimisticMessage]);
 
         try {
             const payload = {
                 user_id: chatUserId,
                 from: currentUserId,
                 message: messageText.trim()
+            };
+
+            const newMessage = await sendMessageToBackend(payload);
+            if (newMessage) {
+                const messageWithUserFlag = determineIsUser(newMessage, currentUserId);
+                // Replace optimistic message with real one from backend
+                setMessages(prev =>
+                    prev.map(msg =>
+                        msg.id === optimisticMessage.id ? messageWithUserFlag : msg
+                    )
+                );
+                console.log('✅ Message sent and replaced with backend response');
+            } else {
+                // Remove optimistic message on failure
+                setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+                setError('Failed to send message');
+            }
+        } catch (error) {
+            if (axios.isCancel(error)) {
+                console.log('Send message request canceled:', error.message);
+                return;
             }
 
-      const newMessage = await sendMessageToBackend(payload)
-      if (newMessage) {
-        const messageWithUserFlag = determineIsUser(newMessage, currentUserId)
-        // Replace optimistic message with real one from backend
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === optimisticMessage.id ? messageWithUserFlag : msg
-          )
-        )
-        console.log('✅ Message sent and replaced with backend response')
-      } else {
-        // Remove optimistic message on failure
-        setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id))
-        setError('Failed to send message')
-      }
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        console.log('Send message request canceled:', error.message)
-        return
-      }
+            console.error('Failed to send message:', error);
+            setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+            setError(error instanceof Error ? error.message : 'Failed to send message');
+        } finally {
+            setSending(false);
+        }
+    };
 
-      console.error('Failed to send message:', error)
-      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id))
-      setError(error instanceof Error ? error.message : 'Failed to send message')
-    } finally {
-      setSending(false)
+    // Convert Laravel message to our frontend format
+    function convertMessageSentEventResponse(
+        laravelMsg: MessageSentEventResponse,
+        currentUserId: number
+    ): {
+        id: number
+        user_id: number
+        from: number
+        message: string
+        created_at: string
+        updated_at: string
+        isUser: boolean
+    } {
+        return {
+            id: laravelMsg.message.id || Date.now(), // Use backend ID if available
+            user_id: laravelMsg.message.receiver_id,
+            from: laravelMsg.message.sender_id,
+            message: laravelMsg.message.message,
+            created_at: laravelMsg.message.created_at,
+            updated_at: laravelMsg.message.created_at,
+            isUser: laravelMsg.message.sender_id === currentUserId
+        };
     }
-  }
 
     const reconnect = useCallback(() => {
         if (echoRef.current) {
-            echoRef.current.disconnect()
-            const echo = setupEcho(authToken)
+            echoRef.current.disconnect();
+            const echo = setupEcho(authToken);
             if (echo) {
-                echoRef.current = echo
-                setIsConnected(false)
+                echoRef.current = echo;
+                setIsConnected(false);
             }
         }
-    }, [authToken])
+    }, [authToken]);
 
     return {
         messages,
@@ -349,5 +363,5 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
         refreshMessages: loadMessages,
         reconnect,
         handleTyping
-    }
+    };
 }

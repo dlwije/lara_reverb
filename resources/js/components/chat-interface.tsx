@@ -46,6 +46,7 @@ export function ChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
+    console.log('otherUserTyping ChatInterface: ', otherUserTyping)
   // Auto-scroll to bottom when messages change or when typing indicator appears
   useEffect(() => {
     if (messagesEndRef.current) {
