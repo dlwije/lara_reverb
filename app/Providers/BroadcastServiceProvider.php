@@ -28,7 +28,7 @@ class BroadcastServiceProvider extends ServiceProvider
         // API (mobile/passport)
         Broadcast::routes([
             'prefix' => 'api',
-            'middleware' => ['auth:api'],
+            'middleware' => ['api','auth:api'],
             'as' => 'api.',
         ]);
 

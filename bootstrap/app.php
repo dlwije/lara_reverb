@@ -48,7 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
-
+            \Illuminate\Support\Facades\Log::error($exception);
             // Pure API (Postman, mobile, etc.)
             if ($request->is('api/*') || $request->expectsJson()) {
 
@@ -56,6 +56,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 $status = $response->getStatusCode();
 
                 if (in_array($status, [500, 403]) && ! app()->environment(['local', 'testing'])) {
+
 
                     return response()->json([
                         'status' => false,

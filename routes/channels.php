@@ -17,9 +17,8 @@ Broadcast::channel('online', function (User $user) {
 //});
 
 // Private Channel (Only authenticated users can listen)
-Broadcast::channel('message.user.{userId1}-{userId2}', function (User $user, int $userId1, int  $userId2)
+Broadcast::channel('chat.{userId1}-{userId2}', function (User $user, int $userId1, int  $userId2)
 {
-    Log::info('channel user to user conversation');
-
+    Log::info('user chat');
     return $user->id === $userId1 || $user->id === $userId2 ? $user : null;
 });

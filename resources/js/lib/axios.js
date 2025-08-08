@@ -12,7 +12,7 @@ const axios = Axios.create({
 
 // Set the Bearer auth token.
 const setBearerToken = (token) => {
-    console.log('setToken:'+token);
+    // console.log('setToken:'+token);
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 };
 

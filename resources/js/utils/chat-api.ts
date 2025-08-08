@@ -43,7 +43,7 @@ apiClient.interceptors.request.use(
     (config) => {
         // Add auth token if available
         const token = localStorage.getItem('acc_token')
-        console.log('chat_api:'+token)
+        // console.log('chat_api:'+token)
         if (token) {
             config.headers.Authorization = `Bearer ${token}`
         }
@@ -70,12 +70,17 @@ apiClient.interceptors.response.use(
 // Utility function to fetch messages from your backend
 export async function fetchMessages(userId: number): Promise<BackendMessage[]> {
     try {
+        console.log('🔄 Fetching messages for user ID:', userId)
         const response: AxiosResponse<ApiResponse> = await apiClient.get(`/api/v1/get-conversation/${userId}`)
+
+        console.log('📥 API Response:', response.data)
 
         if (!response.data.status) {
             throw new Error(response.data.message || 'Failed to fetch messages')
         }
 
+
+        console.log('✅ Successfully fetched', response.data.data.length, 'messages')
         return response.data.data
     } catch (error) {
         if (axios.isAxiosError(error)) {
@@ -105,7 +110,10 @@ export async function fetchMessages(userId: number): Promise<BackendMessage[]> {
 // Utility function to send a message to your backend
 export async function sendMessageToBackend(payload: SendMessagePayload): Promise<BackendMessage | null> {
     try {
+        console.log('📤 Sending message:', payload)
         const response: AxiosResponse<SendMessageResponse> = await apiClient.post(route('api.v1.conversation.store'), payload)
+
+        console.log('📤 Send message response:', response.data)
 
         if (!response.data.status) {
             throw new Error(response.data.message || 'Failed to send message')

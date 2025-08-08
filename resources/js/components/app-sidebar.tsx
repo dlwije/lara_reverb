@@ -27,43 +27,21 @@ import {
 import { NavProjects } from '@/components/nav-projects';
 import { TeamSwitcher } from '@/components/team-switcher';
 import NotificationPopover from '@/components/NotificationPopover';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import useEcho from '@/lib/echo';
 
-// const mainNavItems: NavItem[] = [
-//     {
-//         title: 'Dashboard',
-//         href: '/dashboard',
-//         icon: LayoutGrid,
-//     },
-//     {
-//         title: 'User Management',
-//         href: '/user',
-//         icon: User2,
-//         children: [
-//             {
-//                 title: 'User List',
-//                 href: '/user/list',
-//             },
-//             {
-//                 title: 'Roles',
-//                 href: '/user/roles',
-//             },
-//         ],
-//     },
-// ];
-//
-// const footerNavItems: NavItem[] = [
-//     {
-//         title: 'Repository',
-//         href: 'https://github.com/laravel/react-starter-kit',
-//         icon: Folder,
-//     },
-//     {
-//         title: 'Documentation',
-//         href: 'https://laravel.com/docs/starter-kits#react',
-//         icon: BookOpen,
-//     },
-// ];
+interface User {
+    id: number
+    name: string
+    email: string
+    avatar?: string | null
+    phone: string | null
+    user_type: string
+    updated_at: string
+    role: string
+    DT_RowIndex: number
+}
+
 // This is sample data.
 const data = {
     teams: [
@@ -187,9 +165,10 @@ const data = {
 }
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
+    const [onlineUsers, setOnlineUsers] = useState<User[]>([]);
+    const echo = useEcho()
     const { auth } = usePage<SharedData>().props;
 
-    // console.log(auth);
     useEffect(() => {
         const existing = localStorage.getItem('acc_token');
         if (auth?.accessToken && !existing) {
@@ -197,6 +176,51 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             console.log('Token saved to localStorage');
         }
     }, [auth]);
+
+    useEffect(() => {
+        // Here we are going to listen for real-time events.
+        if (echo) {
+            // 1. Join the channel ONCE and store the instance.
+            const channel = echo.join('online');
+            console.log('Attempting to join online presence channel:', channel);
+
+            // 2. Chain all event listeners to this single instance.
+            channel
+                .subscribed(() => {
+                    // This confirms the WebSocket connection AND authorization were successful.
+                    console.log(
+                        '✅ Successfully subscribed to the "online" presence channel on app-sidebar!'
+                    );
+                })
+                .here((members: User[]) => {
+                    // This is called immediately after a successful subscription.
+                    console.log('👥 Users currently here on app-sidebar:', members);
+                    const withUnread = members.map((user) => ({
+                        ...user,
+                        unread: Math.random() > 0.5
+                    }));
+                    setOnlineUsers(withUnread);
+                })
+                .joining((user: User) => {
+                    console.log('➕ User joining on app-sidebar:', user);
+                    setOnlineUsers((prev) => [...prev, { ...user, unread: true }]);
+                })
+                .leaving((user: User) => {
+                    console.log('➖ User leaving on app-sidebar:', user);
+                    setOnlineUsers((prev) => prev.filter((u) => u.id !== user.id));
+                })
+                .error((error: any) => {
+                    // This is crucial for debugging auth issues!
+                    console.error('Subscription Error on app-sidebar:', error);
+                });
+
+            // 3. Cleanup: Leave the channel when the component unmounts.
+            return () => {
+                console.log('Leaving "online" channel on app-sidebar.');
+                echo?.leave('online');
+            };
+        }
+    }, [echo])
 
     return (
         <Sidebar collapsible="icon" {...props}>

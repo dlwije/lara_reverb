@@ -7,7 +7,6 @@ import { getColumns } from './columns';
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, SharedData } from '@/types';
-import { axios } from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { useDisclosure } from '@/hooks/use-disclosure';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -17,8 +16,11 @@ import { ChatInterface } from '@/components/chat-interface';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useChat } from '@/hooks/use-chat';
-import { AlertCircle, WifiOff } from 'lucide-react';
+import { AlertCircle, MessageCircle, Radio, WifiOff } from 'lucide-react';
 import useEcho from '@/lib/echo';
+import apiClient from '@/lib/apiClient';
+import { useEchoChat } from '@/hooks/use-echo-chat';
+import { Button } from '@headlessui/react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -41,15 +43,6 @@ interface User {
     name: string
     email: string
     avatar?: string | null
-    // email_verified_at: string | null
-    // created_at: string
-    // status: string
-    // gender: string | null
-    // address: string | null
-    // dob: string | null
-    // nationality: string | null
-    // marital_status: string | null
-    // occupation: string | null
     phone: string | null
     user_type: string
     updated_at: string
@@ -68,11 +61,53 @@ export default function DemoPage() {
 
     const user = auth.user;
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
     const [open, setOpen] = useState(false);
+
+    // Get auth token from your auth system
+    const authToken = auth.accessToken // Replace with actual token
+
+    const {
+        messages,
+        loading,
+        sending,
+        error,
+        isConnected,
+        otherUserTyping,
+        sendMessage,
+        refreshMessages,
+        reconnect,
+        handleTyping
+    } = useEchoChat(user?.id, selectedUser?.id, authToken)
+
+    const getConnectionStatus = () => {
+        if (isConnected) {
+            return (
+                <div className="flex items-center gap-2 text-green-400">
+                    <Radio className="w-4 h-4" />
+                    <span className="text-xs">Live</span>
+                </div>
+            )
+        }
+        return (
+            <div className="flex items-center gap-2 text-yellow-400">
+                <WifiOff className="w-4 h-4" />
+                <span className="text-xs">Offline</span>
+            </div>
+        )
+    }
+
+    const getErrorIcon = () => {
+        if (error?.includes('timeout') || error?.includes('connection')) {
+            return <WifiOff className="w-4 h-4" />
+        }
+        return <AlertCircle className="w-4 h-4" />
+    }
+
 
     const fetchUsers = async () => {
         try {
-            const res = await axios.get('/api/v1/users/list/data')
+            const res = await apiClient.get('/api/v1/users/list/data')
             setUsers(res.data.data)
             setUserLoading(false)
         } catch (err) {
@@ -84,7 +119,7 @@ export default function DemoPage() {
 
     const deleteUser = async (user: User) => {
         try {
-            await axios.delete(`/api/v1/users/${user.id}`)
+            await apiClient.delete(`/api/v1/users/${user.id}`)
             toast.success('User deleted successfully')
             setUsers(prev => prev.filter(u => u.id !== user.id)) // ✅ update table without reload
             setConfirmingUser(null)
@@ -100,35 +135,37 @@ export default function DemoPage() {
 
     const composeMessage = member => {
         setSelectedUser(member)
+        console.log('SelectedUserId: '+member.id)
+        console.log('SelectedUserName: '+member.name)
         // setMessageTo(member.name)
         // setReceiver(member.id)
         // onOpen()
         //
         // setChatLoading(true);
         setOpen(true);
-        if (echo) {
-            const channel = echo.private(`chat.${user?.id}-${member.id}`);
-            channel
-                .subscribed(() => {
-                    // This confirms the WebSocket connection AND authorization were successful.
-                    console.log(
-                        '✅ Successfully subscribed to the "online" presence channel!'
-                    );
-                }).listen('.PrivateMessageEvent', (e) => {
-                    console.log(e);
-            })
-            console.log('Attempting to join chat channel:', channel);
-        }
+        // if (echo) {
+        //     const idA = Math.min(user.id, member.id)
+        //     const idB = Math.max(user.id, member.id)
+        //     const channelName = `chat.${idA}-${idB}`
+        //     const channel = echo.private(channelName)
+        //     console.log('Attempting to join chat channel on User List:', channelName);
+        //     channel
+        //         .subscribed(() => {
+        //             // This confirms the WebSocket connection AND authorization were successful.
+        //             console.log(
+        //                 '✅ Successfully subscribed to the "chat" private channel on User List!'
+        //             );
+        //         }).listen('.MessageSent', (e) => {
+        //             console.log(
+        //                 'MessageSent on private channel User List!'
+        //             );
+        //             console.log(e);
+        //     })
+        //     console.log('Attempting to join chat channel on User List:', channel);
+        // }
     }
 
-    const { messages, loading, sending, error, sendMessage, refreshMessages } = useChat(selectedUser?.id, user?.id)
-
-    const getErrorIcon = () => {
-        if (error?.includes('timeout') || error?.includes('connection')) {
-            return <WifiOff className="w-4 h-4" />
-        }
-        return <AlertCircle className="w-4 h-4" />
-    }
+    // const { messages, loading, sending, error, sendMessage, refreshMessages } = useChat(selectedUser?.id, user?.id)
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -172,9 +209,8 @@ export default function DemoPage() {
 
                             <Sheet open={open} onOpenChange={setOpen}>
                                 <SheetTrigger asChild>
-                                    {/* optional custom trigger */}
                                 </SheetTrigger>
-                                <SheetContent className="w-full rounded-lg max-w-md bg-zinc-900 border-zinc-800 text-white p-0 flex flex-col min-h-full">
+                                <SheetContent className="w-full max-w-md bg-zinc-900 border-zinc-800 text-white p-0 flex flex-col min-h-full">
                                     <SheetHeader className="p-6 border-b border-zinc-800">
                                         <SheetTitle>
                                             <div className="flex items-center gap-3">
@@ -186,26 +222,48 @@ export default function DemoPage() {
                                                 </Avatar>
                                                 <div className="flex-1">
                                                     <h2 className="font-semibold text-lg">Chat with {selectedUser?.name}</h2>
-                                                    <p className="text-zinc-400 text-sm">{selectedUser?.email}</p>
+                                                    <p className="text-zinc-400 text-sm">
+                                                      {selectedUser?.email}
+                                                      {otherUserTyping && (
+                                                        <span className="text-green-400 ml-2">• typing...</span>
+                                                      )}
+                                                    </p>
                                                 </div>
-                                                <button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={refreshMessages}
-                                                    disabled={loading}
-                                                    className="text-zinc-400 hover:text-white"
-                                                >
-                                                    Refresh
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    {getConnectionStatus()}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={refreshMessages}
+                                                        disabled={loading}
+                                                        className="text-zinc-400 hover:text-white"
+                                                    >
+                                                        Refresh
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </SheetTitle>
                                     </SheetHeader>
-
+                                    <VisuallyHidden>
+                                        <SheetDescription className="p-6"></SheetDescription>
+                                    </VisuallyHidden>
                                     {error && (
                                         <div className="p-4 bg-red-900/20 border-b border-red-800">
-                                            <div className="flex items-center gap-2 text-red-400">
-                                                {getErrorIcon()}
-                                                <span className="text-sm">{error}</span>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2 text-red-400">
+                                                    {getErrorIcon()}
+                                                    <span className="text-sm">{error}</span>
+                                                </div>
+                                                {!isConnected && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={reconnect}
+                                                        className="text-red-400 hover:text-red-300"
+                                                    >
+                                                        Reconnect
+                                                    </Button>
+                                                )}
                                             </div>
                                         </div>
                                     )}
@@ -224,6 +282,9 @@ export default function DemoPage() {
                                             messages={messages}
                                             onSendMessage={sendMessage}
                                             sending={sending}
+                                            isConnected={isConnected}
+                                            otherUserTyping={otherUserTyping}
+                                            onTyping={handleTyping}
                                         />
                                     )}
                                 </SheetContent>

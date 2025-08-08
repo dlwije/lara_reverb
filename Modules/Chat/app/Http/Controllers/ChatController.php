@@ -19,10 +19,10 @@ class ChatController extends Controller
 
         $messages= ChatMessage::create($request->toArray());
 
-        $receiver = User::find($request->user_id);
-        $sender = User::find($request->from);
+        $receiver = User::find($request->from);
+        $sender = User::find($request->user_id);
 
-        broadcast(new MessageSent($receiver, $sender, $request->message));
+        broadcast(new MessageSent($receiver, $sender, $messages));
         return self::success($messages, 'Messages retrieved successfully');
     }
 
