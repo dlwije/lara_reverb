@@ -70,12 +70,23 @@ export function ChatInterface({
         }
     }
 
+// Enhanced input change handler
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setInputValue(e.target.value)
-        // Trigger typing event
-        if (onTyping) {
+        const value = e.target.value
+        setInputValue(value)
+
+        // Only trigger typing if there's actual content
+        if (value.trim().length > 0 && onTyping) {
             onTyping()
         }
+        // else if (value.trim().length === 0 && isTyping) {
+        //     // Stop typing immediately if input is cleared
+        //     setIsTyping(false)
+        //     sendTypingEvent(false)
+        //     if (typingTimeoutRef.current) {
+        //         clearTimeout(typingTimeoutRef.current)
+        //     }
+        // }
     }
 
     const formatTime = (dateString: string) => {

@@ -33,7 +33,6 @@ class MessageSent implements ShouldBroadcastNow
                 'message' => $this->message->message
             ],
         ];
-
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Laravel\Reverb\Loggers\Log;
 use Modules\Chat\Events\MessageSent;
+use Modules\Chat\Events\MessageTyping;
 use Modules\Chat\Models\ChatMessage;
 
 class ChatController extends Controller
@@ -23,7 +24,14 @@ class ChatController extends Controller
         $sender = User::find($request->user_id);
 
         broadcast(new MessageSent($receiver, $sender, $messages));
-        return self::success($messages, 'Messages retrieved successfully');
+        return self::success($messages, 'Message saved successfully');
+    }
+
+    public function storeTyping(Request $request)
+    {
+
+        broadcast(new MessageTyping($request->all()));
+        return self::success([], 'Message typing saved successfully');
     }
 
     /**

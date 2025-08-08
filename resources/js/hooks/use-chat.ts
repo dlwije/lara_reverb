@@ -46,9 +46,9 @@ export function useChat(currentUserId: number, chatUserId: number) {
         cancelTokenRef.current = createCancelTokenSource()
 
         try {
-            const fetchedMessages = await fetchMessages(currentUserId)
+            const fetchedMessages = await fetchMessages(chatUserId)
             const messagesWithUserFlag = fetchedMessages.map(msg =>
-                determineIsUser(msg, currentUserId)
+                determineIsUser(msg, chatUserId)
             )
             const sortedMessages = sortMessagesByDate(messagesWithUserFlag)
             setMessages(sortedMessages)

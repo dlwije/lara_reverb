@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from 'axios'
+import apiClient from '@/lib/apiClient';
 
 interface BackendMessage {
     id: number
@@ -28,44 +29,19 @@ interface SendMessageResponse {
     data: BackendMessage
 }
 
-// Create axios instance with default config
-const apiClient = axios.create({
-    baseURL: import.meta.env.APP_URL || '',
-    timeout: 10000,
-    headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-    },
-})
+// Types for typing event
+export interface SendTypingPayload {
+    user_id: number
+    channel: string
+    typing: boolean
+    conversation_id?: number // if you need to associate with a specific conversation
+}
 
-// Add request interceptor for authentication if needed
-apiClient.interceptors.request.use(
-    (config) => {
-        // Add auth token if available
-        const token = localStorage.getItem('acc_token')
-        // console.log('chat_api:'+token)
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`
-        }
-        return config
-    },
-    (error) => {
-        return Promise.reject(error)
-    }
-)
-
-// Add response interceptor for error handling
-apiClient.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            // Handle unauthorized access
-            localStorage.removeItem('acc_token')
-            // Redirect to login if needed
-        }
-        return Promise.reject(error)
-    }
-)
+export interface SendTypingResponse {
+    status: boolean
+    message: string
+    data?: any
+}
 
 // Utility function to fetch messages from your backend
 export async function fetchMessages(userId: number): Promise<BackendMessage[]> {
@@ -137,6 +113,45 @@ export async function sendMessageToBackend(payload: SendMessagePayload): Promise
 
         console.error('Unexpected error sending message:', error)
         return null
+    }
+}
+
+// Utility function to send typing event to your backend
+export async function sendTypingEventToBackend(payload: {
+    user_id: number;
+    channel: string | null;
+    typing: boolean
+}): Promise<boolean> {
+    try {
+        console.log('⌨️ Sending typing event:', payload)
+
+        const response: AxiosResponse<SendTypingResponse> = await apiClient.post(
+            route('api.v1.typing.store'), // or whatever your Laravel route is
+            payload
+        )
+
+        console.log('⌨️ Typing event response:', response.data)
+
+        if (!response.data.status) {
+            throw new Error(response.data.message || 'Failed to send typing event')
+        }
+
+        return true
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            console.error('Axios error sending typing event:', {
+                message: error.message,
+                status: error.response?.status,
+                data: error.response?.data
+            })
+
+            // Don't throw errors for typing events - they're not critical
+            // Just log and return false
+            return false
+        }
+
+        console.error('Unexpected error sending typing event:', error)
+        return false
     }
 }
 

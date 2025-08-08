@@ -1,8 +1,16 @@
 'use client'
 
+import { debounce } from 'lodash'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import axios from 'axios'
-import { fetchMessages, sendMessageToBackend, determineIsUser, sortMessagesByDate, createCancelTokenSource } from '@/utils/chat-api'
+import {
+    fetchMessages,
+    sendMessageToBackend,
+    determineIsUser,
+    sortMessagesByDate,
+    createCancelTokenSource,
+    sendTypingEventToBackend
+} from '@/utils/chat-api';
 import { setupEcho, createChannelName, convertLaravelMessage, LaravelMessage, TypingEvent } from '@/utils/echo-setup'
 
 interface Message {
@@ -16,8 +24,10 @@ interface Message {
 }
 
 export function useEchoChat(currentUserId: number, chatUserId: number, authToken?: string) {
+    console.log('useEchoChat: '+chatUserId)
     const [messages, setMessages] = useState<Message[]>([])
     const [loading, setLoading] = useState(true)
+    const [channelName, setChannelName] = useState<string | null>(null)
     const [sending, setSending] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [isConnected, setIsConnected] = useState(false)
@@ -64,6 +74,7 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
         if (!echoRef.current || !currentUserId || !chatUserId) return
 
         const channelName = createChannelName(currentUserId, chatUserId)
+        setChannelName(channelName)
         console.log('🔄 Attempting to join chat channel:', channelName)
 
         try {
@@ -81,8 +92,8 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
 
                     // Only add message if it's NOT from the current user
                     // (to prevent duplicates since we already show optimistic updates)
-                    if (e.message.sender_id !== currentUserId) {
-                        const newMessage = convertLaravelMessage(e, currentUserId)
+                    if (e.message.sender_id !== chatUserId) {
+                        const newMessage = convertLaravelMessage(e, chatUserId)
 
                         setMessages(prev => {
                             // Check if message already exists
@@ -165,12 +176,12 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
     cancelTokenRef.current = createCancelTokenSource()
 
     try {
-      console.log('📥 Loading messages for user:', currentUserId)
-      const fetchedMessages = await fetchMessages(currentUserId)
+      console.log('📥 Loading messages for user:', chatUserId)
+      const fetchedMessages = await fetchMessages(chatUserId)
       console.log('📥 Fetched messages:', fetchedMessages.length)
 
       const messagesWithUserFlag = fetchedMessages.map(msg =>
-        determineIsUser(msg, currentUserId)
+        determineIsUser(msg, chatUserId)
       )
       const sortedMessages = sortMessagesByDate(messagesWithUserFlag)
       setMessages(sortedMessages)
@@ -188,33 +199,68 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
     }
   }
 
-  const sendTypingEvent = useCallback((typing: boolean) => {
-    if (channelRef.current && isConnected) {
-      // Send typing event to Laravel backend
-      channelRef.current.whisper('typing', {
-        user_id: currentUserId,
-        typing: typing
-      })
-    }
-  }, [currentUserId, isConnected])
+    // Enhanced sendTypingEvent with better error handling
+    const sendTypingEvent = useCallback(
+        debounce(async (typing: boolean) => {
+            if (channelRef.current && isConnected && currentUserId) {
+                try {
+                    // Send to backend first
+                    const success = await sendTypingEventToBackend({
+                        user_id: currentUserId,
+                        channel: channelName,
+                        typing: typing
+                    })
 
-  const handleTyping = useCallback(() => {
-    if (!isTyping) {
-      setIsTyping(true)
-      sendTypingEvent(true)
-    }
+                    // Only send real-time event if backend call succeeded
+                    if (success) {
+                        channelRef.current.whisper('typing', {
+                            user_id: currentUserId,
+                            typing: typing
+                        })
+                    }
+                } catch (error) {
+                    console.error('Failed to send typing event:', error)
+                    // Optionally still send the real-time event even if backend fails
+                    channelRef.current.whisper('typing', {
+                        user_id: currentUserId,
+                        typing: typing
+                    })
+                }
+            }
+        }, 300),
+        [currentUserId, isConnected, channelName]
+    )
 
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current)
-    }
+    // Add proper cleanup and error handling
+    const handleTyping = useCallback(() => {
+        if (!isTyping) {
+            setIsTyping(true)
+            sendTypingEvent(true)
+        }
 
-    // Set new timeout to stop typing
-    typingTimeoutRef.current = setTimeout(() => {
-      setIsTyping(false)
-      sendTypingEvent(false)
-    }, 1000)
-  }, [isTyping, sendTypingEvent])
+        // Clear existing timeout
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current)
+        }
+
+        // Set new timeout to stop typing
+        typingTimeoutRef.current = setTimeout(() => {
+            setIsTyping(false)
+            sendTypingEvent(false)
+        }, 1000)
+    }, [isTyping, sendTypingEvent])
+
+    useEffect(() => {
+        return () => {
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current)
+            }
+            // Send final typing stop event
+            if (isTyping) {
+                sendTypingEvent(false)
+            }
+        }
+    }, [isTyping, sendTypingEvent])
 
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || sending) return
@@ -224,8 +270,11 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
 
     // Stop typing when sending message
     if (isTyping) {
-      setIsTyping(false)
-      sendTypingEvent(false)
+        setIsTyping(false)
+        sendTypingEvent(false)
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current)
+        }
     }
 
     // Optimistically add message to UI
@@ -239,6 +288,7 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
       isUser: true
     }
 
+    console.log('Optimistic Messages: '+optimisticMessage)
     setMessages(prev => [...prev, optimisticMessage])
 
         try {

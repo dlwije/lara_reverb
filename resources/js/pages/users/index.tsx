@@ -143,26 +143,6 @@ export default function DemoPage() {
         //
         // setChatLoading(true);
         setOpen(true);
-        // if (echo) {
-        //     const idA = Math.min(user.id, member.id)
-        //     const idB = Math.max(user.id, member.id)
-        //     const channelName = `chat.${idA}-${idB}`
-        //     const channel = echo.private(channelName)
-        //     console.log('Attempting to join chat channel on User List:', channelName);
-        //     channel
-        //         .subscribed(() => {
-        //             // This confirms the WebSocket connection AND authorization were successful.
-        //             console.log(
-        //                 '✅ Successfully subscribed to the "chat" private channel on User List!'
-        //             );
-        //         }).listen('.MessageSent', (e) => {
-        //             console.log(
-        //                 'MessageSent on private channel User List!'
-        //             );
-        //             console.log(e);
-        //     })
-        //     console.log('Attempting to join chat channel on User List:', channel);
-        // }
     }
 
     // const { messages, loading, sending, error, sendMessage, refreshMessages } = useChat(selectedUser?.id, user?.id)
