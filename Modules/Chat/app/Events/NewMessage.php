@@ -27,28 +27,49 @@ class NewMessage implements ShouldBroadcastNow
      */
     public function broadcastOn(): array
     {
-        Log::info('NewMessageEvent'.$this->sender->id);
-        return [
-            new PrivateChannel('newmessage.'.$this->sender->id),
-        ];
+        if ($this->message->conversation->type === 'group') {
+            // Broadcast to all group participants
+            return [new PrivateChannel('chat.conversation.' . $this->message->conversation_id)];
+        }
+
+        // Private chat: notify only receiver
+        return [new PrivateChannel('notification.' . $this->receiver?->id)];
     }
 
     public function broadcastWith()
     {
         return [
-            'message' => [
-                'id' => $this->message->id,
-                'sender_id' => $this->sender->id,
-                'receiver_id' => $this->receiver->id,
-                'created_at' => $this->message->created_at,
-                'updated_at' => $this->message->updated_at,
-                'message' => $this->message->message
+            'conversation_id' => $this->message->conversation_id,
+            'message_id'      => $this->message->id,
+            'receiver' => [
+                'id'     => $this->receiver->id,
+                'name'   => $this->receiver->name,
+                'email'  => $this->receiver->email,
+                'avatar' => $this->receiver->avatar,
             ],
+            'sender' => [
+                'id'     => $this->sender->id,
+                'name'   => $this->sender->name,
+                'email'  => $this->sender->email,
+                'avatar' => $this->sender->avatar,
+            ],
+            'message' => [
+                'message'         => $this->message->message,
+                'attachment_url'  => $this->message->attachment_url,
+                'attachment_type' => $this->message->attachment_type,
+                'created_at'      => $this->message->created_at->toDateTimeString(),
+            ],
+            'unread_count' => $this->receiver
+                ? $this->receiver->receivedMessages()
+                    ->where('conversation_id', $this->message->conversation_id)
+                    ->whereNull('read_at')
+                    ->count()
+                : 0,
         ];
     }
 
     public function BroadCastAs()
     {
-        return 'NewMessage';
+        return 'NewMessageNotification';
     }
 }

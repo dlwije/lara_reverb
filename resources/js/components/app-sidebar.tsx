@@ -7,8 +7,8 @@ import {
     SidebarHeader,
     SidebarRail
 } from '@/components/ui/sidebar';
-import { type NavItem, SharedData } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
+import {SharedData } from '@/types';
+import { usePage } from '@inertiajs/react';
 // import { BookOpen, Folder, LayoutGrid, User2 } from 'lucide-react';
 
 import {
@@ -19,17 +19,16 @@ import {
     GalleryVerticalEnd,
     PieChart,
     Settings2,
-    SquareTerminal,
     Command,
     Map,
     LayoutDashboard as IconDashboard, User2
 } from 'lucide-react';
 import { NavProjects } from '@/components/nav-projects';
 import { TeamSwitcher } from '@/components/team-switcher';
-import NotificationPopover from '@/components/NotificationPopover';
 import { useEffect, useState } from 'react';
 import useEcho from '@/lib/echo';
 import { NavItems } from '@/types/nav-list';
+import NotificationPopover from '@/components/NotificationPopover';
 
 interface User {
     id: number

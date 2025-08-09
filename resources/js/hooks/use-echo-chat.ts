@@ -65,6 +65,7 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
         if (!echoRef.current || !currentUserId || !chatUserId) return;
 
         const channelName = createChannelName(currentUserId, chatUserId);
+        // const groupChannelName = `chat.conversation.${conversationId}`;
         setChannelName(channelName);
         console.log('🔄 Attempting to join chat channel:', channelName);
 
@@ -130,6 +131,15 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
                     setIsConnected(false);
                 });
 
+            // Group chat example
+            // echoRef.current.private(groupChannelName).subscribed(() => {
+            //     console.log('✅ Successfully subscribed to group chat channel:', groupChannelName);
+            //     setIsConnected(true);
+            //     setError(null);
+            // }).listen('.MessageSent', (e: MessageSentEventResponse) => {
+            //
+            // });
+
         } catch (error) {
             console.error('❌ Failed to setup chat channel:', error);
             setError('Failed to setup chat channel');
@@ -166,8 +176,8 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
         cancelTokenRef.current = createCancelTokenSource();
 
         try {
-            console.log('📥 Loading messages for user:', chatUserId);
-            const fetchedMessages = await fetchMessages(chatUserId);
+            console.log('📥 Loading messages for user:', currentUserId);
+            const fetchedMessages = await fetchMessages(currentUserId);
             console.log('📥 Fetched messages:', fetchedMessages.length);
 
             const messagesWithUserFlag = fetchedMessages.map(msg =>

@@ -21,18 +21,38 @@ class MessageSent implements ShouldBroadcastNow
     /**
      * Create a new event instance.
      */
-    public function __construct(public User $receiver, public User $sender, public $message) {}
+    public function __construct(
+        public ?User $receiver, // nullable for groups
+        public User $sender,
+        public ChatMessage $message
+    ) {}
 
     public function broadcastWith()
     {
         return [
             'message' => [
-                'id' => $this->message->id,
-                'sender_id' => $this->sender->id,
-                'receiver_id' => $this->receiver->id,
-                'created_at' => $this->message->created_at,
-                'updated_at' => $this->message->updated_at,
-                'message' => $this->message->message
+                'id'              => $this->message->id,
+                'conversation_id'  => $this->message->conversation_id,
+                'sender_id'       => $this->sender->id,
+                'receiver_id'     => $this->receiver?->id,
+                'message'         => $this->message->message,
+                'attachment_url'  => $this->message->attachment_url,
+                'attachment_type' => $this->message->attachment_type,
+                'read_at'         => $this->message->read_at,
+                'created_at'      => $this->message->created_at,
+                'updated_at'      => $this->message->updated_at->toDateTimeString(),
+                'sender' => [
+                    'id'     => $this->sender->id,
+                    'name'   => $this->sender->name,
+                    'email'  => $this->sender->email,
+                    'avatar' => $this->sender->avatar,
+                ],
+                'receiver' => $this->receiver ? [
+                    'id'     => $this->receiver->id,
+                    'name'   => $this->receiver->name,
+                    'email'  => $this->receiver->email,
+                    'avatar' => $this->receiver->avatar,
+                ] : null,
             ],
         ];
     }
@@ -44,28 +64,19 @@ class MessageSent implements ShouldBroadcastNow
      */
     public function broadcastOn(): array
     {
-        $m = $this->message;
+        $conversation = $this->message->conversation;
 
-        $channels = [];
-        $channelName = collect([$this->receiver->id, $this->sender->id])->sort()->implode('-');
-        $channels[] = new PrivateChannel('chat.' . $channelName);
+        if ($conversation && $conversation->type === 'group') {
+            return [new PrivateChannel('chat.conversation.' . $conversation->id)];
+        }
 
-//        if ($m->group_id) {
-//            $channels[] = new PrivateChannel('message.group.' . $m->group_id);
-//        } elseif ($m->sender_id && $m->reciever_id) {
-//
-//
-//
-//        } else {
-//            Log::warning('Message missing sender or receiver ID:', ['sender_id' => $m->sender_id, 'receiver_id' => $m->reciever_id]);
-//        }
-        /*Log::info('SocketMessage payload:', [
-            'sender_id' => $m->sender_id,
-            'reciever_id' => $m->reciever_id,
-            'group_id' => $m->group_id,
-            'message_id' => $m->id,
-        ]);*/
-        return $channels;
+        // Private chat: channel by user ids
+        $channelName = collect([$this->receiver?->id, $this->sender->id])
+//            ->filter()
+            ->sort()
+            ->implode('-');
+
+        return [new PrivateChannel('chat.' . $channelName)];
     }
     public function BroadCastAs()
     {

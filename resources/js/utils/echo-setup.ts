@@ -36,7 +36,8 @@ export function setupEcho(authToken?: string) {
 
 // Create channel name for two users
 export function createChannelName(userIdA: number, userIdB: number): string {
-    const idA = Math.min(userIdA, userIdB)
-    const idB = Math.max(userIdA, userIdB)
-    return `chat.${idA}-${idB}`
+    // const idA = Math.min(userIdA, userIdB)
+    // const idB = Math.max(userIdA, userIdB)
+    return `chat.${[userIdA, userIdB].sort().join('-')}`;
+    // return `chat.${idA}-${idB}`
 }
