@@ -22,6 +22,7 @@ export const getColumns = (
                 }
                 onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
                 aria-label="Select all"
+                className="cursor-pointer"
             />
         ),
         cell: ({ row }) => (
@@ -42,11 +43,11 @@ export const getColumns = (
         accessorKey: "updated_at",
         header: ({ column }) => (
             <Button
-                variant="ghost"
+
                 onClick={() =>
                     column.toggleSorting(column.getIsSorted() === "asc")
                 }
-                className="h-auto p-0 inline-flex items-center gap-1 whitespace-nowrap"
+                className="cursor-pointer h-auto p-0 inline-flex items-center gap-1 whitespace-nowrap"
             >
                 <span>Updated</span>
                 <ArrowUpDown className="h-4 w-4 shrink-0" />

@@ -126,11 +126,6 @@ export default function DemoPage() {
         setSelectedUser(member)
         console.log('SelectedUserId: '+member.id)
         console.log('SelectedUserName: '+member.name)
-        // setMessageTo(member.name)
-        // setReceiver(member.id)
-        // onOpen()
-        //
-        // setChatLoading(true);
         setOpen(true);
     }
 
