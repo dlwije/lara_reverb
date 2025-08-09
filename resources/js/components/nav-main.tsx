@@ -9,14 +9,10 @@ import {
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 
-import { ChevronRight, Folder, Forward, LucideIcon, MoreHorizontal, Trash2 } from 'lucide-react';
+import { ChevronRight, Folder, Forward, LucideIcon, MoreHorizontal, Settings, Trash2 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem, DropdownMenuSeparator,
-    DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
+
+import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 
 export function NavMain({ items, }: {
     items: {
@@ -30,6 +26,7 @@ export function NavMain({ items, }: {
         }[]
     }[]
 }) {
+    const cleanup = useMobileNavigation();
     return (
         <SidebarGroup>
             <SidebarGroupLabel>Platform</SidebarGroupLabel>
@@ -46,7 +43,7 @@ export function NavMain({ items, }: {
                             >
                                 <SidebarMenuItem>
                                     <CollapsibleTrigger asChild>
-                                        <SidebarMenuButton tooltip={item.title}>
+                                        <SidebarMenuButton tooltip={item.title} className="cursor-pointer">
                                             {item.icon && <item.icon />}
                                             <span>{item.title}</span>
                                             <ChevronRight
@@ -57,10 +54,12 @@ export function NavMain({ items, }: {
                                         <SidebarMenuSub>
                                             {item.items?.map((subItem) => (
                                                 <SidebarMenuSubItem key={subItem.title}>
-                                                    <SidebarMenuSubButton asChild>
-                                                        <a href={subItem.url}>
+                                                    <SidebarMenuSubButton asChild className="cursor-pointer">
+                                                        <Link className="block w-full" href={route(subItem.url)} as="button" onClick={cleanup}>
+                                                            {/*<Settings className="mr-2" />*/}
+                                                            {/*{item.icon && <item.icon />}*/}
                                                             <span>{subItem.title}</span>
-                                                        </a>
+                                                        </Link>
                                                     </SidebarMenuSubButton>
                                                 </SidebarMenuSubItem>
                                             ))}
@@ -73,11 +72,12 @@ export function NavMain({ items, }: {
 
                     return (
                         <SidebarMenuItem key={item.title}>
-                            <SidebarMenuButton asChild>
-                                <a href={item.url}>
+                            <SidebarMenuButton asChild className="cursor-pointer">
+                                <Link className="block w-full" href={route(item.url)} as="button" onClick={cleanup}>
+                                    {/*<Settings className="mr-2" />*/}
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
-                                </a>
+                                </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     )

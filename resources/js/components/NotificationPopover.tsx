@@ -164,7 +164,7 @@ export default function NotificationPopover() {
     return (
         <Popover className="relative z-50">
             <Popover.Button
-                className="relative rounded-full bg-blue-600 p-2 text-white hover:bg-blue-700 focus:outline-none"
+                className="relative rounded-full bg-blue-600 p-1 text-white hover:bg-blue-700 focus:outline-none"
                 onClick={markAsRead}
             >
                 <motion.div animate={controls}>

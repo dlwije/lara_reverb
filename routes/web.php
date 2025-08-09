@@ -3,9 +3,9 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('.well-known/appspecific/com.chrome.devtools.json', function () {
-    return response('', 204);
-});
+//Route::get('.well-known/appspecific/com.chrome.devtools.json', function () {
+//    return response('', 204);
+//});
 
 Route::get('/', function () {
     return Inertia::render('welcome');

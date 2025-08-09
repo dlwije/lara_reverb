@@ -29,6 +29,7 @@ import { TeamSwitcher } from '@/components/team-switcher';
 import NotificationPopover from '@/components/NotificationPopover';
 import { useEffect, useState } from 'react';
 import useEcho from '@/lib/echo';
+import { NavItems } from '@/types/nav-list';
 
 interface User {
     id: number
@@ -43,7 +44,7 @@ interface User {
 }
 
 // This is sample data.
-const data = {
+const data:NavItems = {
     teams: [
         {
             name: "Acme Inc",
@@ -64,7 +65,7 @@ const data = {
     navMain: [
         {
             title: "Dashboard",
-            url: "/dashboard",
+            url: "dashboard",
             icon: IconDashboard,
         },
         {
@@ -75,72 +76,72 @@ const data = {
             items: [
                 {
                     title: "List",
-                    url: "auth/users/list",
+                    url: "auth.users.list",
                 }
             ],
         },
         {
             title: "Models",
-            url: "#",
+            url: "",
             icon: Bot,
             items: [
                 {
                     title: "Genesis",
-                    url: "#",
+                    url: "",
                 },
                 {
                     title: "Explorer",
-                    url: "#",
+                    url: "",
                 },
                 {
                     title: "Quantum",
-                    url: "#",
+                    url: "",
                 },
             ],
         },
         {
             title: "Documentation",
-            url: "#",
+            url: "",
             icon: BookOpen,
             items: [
                 {
                     title: "Introduction",
-                    url: "#",
+                    url: "",
                 },
                 {
                     title: "Get Started",
-                    url: "#",
+                    url: "",
                 },
                 {
                     title: "Tutorials",
-                    url: "#",
+                    url: "",
                 },
                 {
                     title: "Changelog",
-                    url: "#",
+                    url: "",
                 },
             ],
         },
         {
             title: "Settings",
-            url: "#",
+            url: "",
             icon: Settings2,
             items: [
                 {
                     title: "General",
-                    url: "#",
+                    url: "",
                 },
                 {
                     title: "Team",
-                    url: "#",
+                    url: "",
                 },
                 {
                     title: "Billing",
-                    url: "#",
+                    url: "",
                 },
                 {
                     title: "Limits",
-                    url: "#",
+                    url: "",
                 },
             ],
         },
@@ -148,17 +149,17 @@ const data = {
     projects: [
         {
             name: "Design Engineering",
-            url: "#",
+            url: "",
             icon: Frame,
         },
         {
             name: "Sales & Marketing",
-            url: "#",
+            url: "",
             icon: PieChart,
         },
         {
             name: "Travel",
-            url: "#",
+            url: "",
             icon: Map,
         },
     ],
