@@ -7,8 +7,6 @@ import { BreadcrumbItem, SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
-import { ChatInterface } from '@/components/chat-interface';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConversations } from '@/hooks/use-conversations';
 import { useEchoChat } from '@/hooks/use-echo-chat';
@@ -20,6 +18,7 @@ import { Button } from '@headlessui/react';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { AlertCircle, ArrowLeft, MessageCircle, Radio, Send, WifiOff } from 'lucide-react';
 import { ConversationList } from '@/components/conversation-list';
+import { ChatInterface } from '@/components/chat-interface';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -86,6 +85,7 @@ export default function DemoPage() {
     } = useEchoChat(user?.id, selectedConversation?.user.id || 0, authToken, selectedConversation?.conversation_id);
 
     const handleSelectConversation = async (conversation: Conversation) => {
+        console.log('handleSelectConversation', conversation);
         setSelectedConversation(conversation)
         setShowConversationList(false)
 
@@ -146,7 +146,9 @@ export default function DemoPage() {
             <div className="flex flex-1 flex-col">
                 <div className="@container/main flex flex-1 flex-col gap-2">
                     <div className="flex flex-col gap-4 py-4 md:gap-2 md:py-2">
-                        <button className="cursor-pointer inline-flex h-8 w-8 items-center justify-center rounded hover:bg-zinc-100 text-green-600" onClick={openChatWindow}>
+                        <button className="cursor-pointer inline-flex h-8 w-8 items-center justify-center rounded hover:bg-zinc-100 text-green-600"
+                                onClick={openChatWindow}
+                        >
                             <Send className="h-4 w-4" />
                         </button>
                         <div>
@@ -155,7 +157,7 @@ export default function DemoPage() {
                             ) : (
                                 // <DataTable columns={getColumns(setConfirmingUser, composeMessage)} data={users} />
                                 <ServerDataTable
-                                    columns={serverColumns(setConfirmingUser)}
+                                    columns={serverColumns(setConfirmingUser, composeMessage)}
                                     apiEndpoint="/api/v1/users/list/data" // Replace with your actual API endpoint
                                     title="Users Management"
                                     searchPlaceholder="Search by email..."
@@ -188,97 +190,60 @@ export default function DemoPage() {
 
                             <Sheet open={open} onOpenChange={setOpen}>
                                 <SheetTrigger asChild>
-                                    {/*<Button className="w-full" size="lg">*/}
-                                    {/*    <MessageCircle className="w-5 h-5 mr-2" />*/}
-                                    {/*    Open Messages*/}
-                                    {/*    {totalUnreadCount > 0 && (*/}
-                                    {/*        <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">{totalUnreadCount}</span>*/}
-                                    {/*    )}*/}
-                                    {/*</Button>*/}
                                 </SheetTrigger>
                                 <SheetContent className="w-full max-w-4xl bg-zinc-900 border-zinc-800 text-white p-0 flex">
                                     {/* Conversation List */}
-                                    {/*{(showConversationList || !selectedConversation) && (*/}
-                                    {/*    <ConversationList*/}
-                                    {/*        currentUserId={user?.id}*/}
-                                    {/*        onSelectConversation={handleSelectConversation}*/}
-                                    {/*        selectedConversationId={selectedConversation?.conversation_id}*/}
-                                    {/*    />*/}
-                                    {/*)}*/}
-                                    <SheetHeader className="p-6">
-                                        <SheetTitle>
-                                            <div className="flex items-center gap-3">
-                                                {!showConversationList && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={handleBackToList}
-                                                        className="text-zinc-400 hover:text-white lg:hidden"
-                                                    >
-                                                        <ArrowLeft className="w-4 h-4" />
-                                                    </Button>
-                                                )}
-
-                                                <div className="flex-1">
-                                                    {/*<h2 className="font-semibold text-lg">Chat with {selectedConversation?.user.name}</h2>*/}
-                                                    {/*<p className="text-zinc-400 text-sm">*/}
-                                                    {/*    {selectedConversation?.user.email}*/}
-                                                    {/*    {conversationId && <span className="ml-2">• Conv: {conversationId}</span>}*/}
-                                                    {/*    {otherUserTyping && <span className="text-green-400 ml-2">• typing...</span>}*/}
-                                                    {/*</p>*/}
-                                                </div>
-
-                                            </div>
-                                        </SheetTitle>
-                                    </SheetHeader>
-                                    <VisuallyHidden>
-                                        <SheetDescription className="p-6"></SheetDescription>
-                                    </VisuallyHidden>
-
-                                    {chatError && (
-                                        <div className="p-4 bg-red-900/20 border-b border-red-800">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2 text-red-400">
-                                                    {getErrorIcon()}
-                                                    <span className="text-sm">{chatError}</span>
-                                                </div>
-                                                {!isConnected && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={reconnect}
-                                                        className="text-red-400 hover:text-red-300"
-                                                    >
-                                                        Reconnect
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {chatLoading ? (
-                                        <div className="flex items-center space-x-4 p-6">
-                                            <Skeleton className="h-12 w-12 rounded-full" />
-                                            <div className="space-y-2">
-                                                <Skeleton className="h-4 w-[250px]" />
-                                                <Skeleton className="h-4 w-[200px]" />
-                                            </div>
-                                        </div>
-                                    ) : (
+                                    {(showConversationList || !selectedConversation) && (
                                         <ConversationList
-                                            user={{
-                                                id: selectedConversation?.user.id.toString(),
-                                                name: selectedConversation?.user.name,
-                                                email: selectedConversation?.user.email,
-                                                avatar: selectedConversation?.user.avatar || undefined,
-                                            }}
-                                            messages={messages}
-                                            onSendMessage={sendMessage}
-                                            sending={sending}
-                                            isConnected={isConnected}
-                                            otherUserTyping={otherUserTyping}
-                                            onTyping={handleTyping}
+                                            currentUserId={user?.id}
+                                            onSelectConversation={handleSelectConversation}
+                                            selectedConversationId={selectedConversation?.conversation_id}
                                         />
+                                    )}
+                                    {selectedConversation && !showConversationList && (
+                                        <div className="flex-1 flex flex-col">
+                                            <SheetHeader className="p-4 border-b border-zinc-800">
+                                                <SheetTitle>
+                                                    <div className="flex items-center gap-3">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={handleBackToList}
+                                                            className="text-zinc-400 hover:text-white lg:hidden"
+                                                        >
+                                                            <ArrowLeft className="w-4 h-4" />
+                                                        </Button>
+                                                        <div className="flex-1">
+                                                            <h2 className="font-semibold text-lg">Chat with {selectedConversation.user.name}</h2>
+                                                            <p className="text-zinc-400 text-sm">{selectedConversation.user.email}</p>
+                                                        </div>
+                                                    </div>
+                                                </SheetTitle>
+                                            </SheetHeader>
+
+                                            <VisuallyHidden>
+                                                <SheetDescription>Chat interface for selected conversation</SheetDescription>
+                                            </VisuallyHidden>
+
+                                            <ChatInterface
+                                                user={{
+                                                    id: selectedConversation.user.id.toString(),
+                                                    name: selectedConversation.user.name,
+                                                    email: selectedConversation.user.email,
+                                                    avatar: selectedConversation.user.avatar || undefined,
+                                                }}
+                                                messages={[]} // This will be populated by your chat hook
+                                                onSendMessage={(message) => {
+                                                    console.log("Sending message:", message)
+                                                    // Add your sendMessage logic here
+                                                }}
+                                                sending={false}
+                                                isConnected={true}
+                                                otherUserTyping={false}
+                                                onTyping={() => {}}
+                                                currentUserId={user?.id}
+                                            />
+                                        </div>
                                     )}
                                 </SheetContent>
                             </Sheet>

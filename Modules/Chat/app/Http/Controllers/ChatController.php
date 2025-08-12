@@ -33,7 +33,7 @@ class ChatController extends Controller
                 DB::raw('(SELECT COUNT(*)
                        FROM chat_messages
                        WHERE conversation_id = cm.conversation_id
-                         AND receiver_id = '.$authUserId.'
+                         AND receiver_id = ' . $authUserId . '
                          AND read_at IS NULL) as unread_count')
             )
             ->where(function ($q) use ($authUserId) {
@@ -156,11 +156,116 @@ class ChatController extends Controller
             broadcast(new NewMessage($receiver, $sender, $message));
 
             return self::success($message, 'Message saved successfully');
-        }catch (\Exception $ex){
+        } catch (\Exception $ex) {
             Log::error($ex);
             DB::rollBack();
             return self::error($ex->getMessage(), 500);
         }
+    }
+
+    public function getOrCreate(Request $request)
+    {
+        $request->validate([
+            'user1_id' => 'required|numeric|exists:users,id',
+            'user2_id' => 'required|numeric|exists:users,id',
+        ]);
+
+        $user1Id = $request->input('user1_id');
+        $user2Id = $request->input('user2_id');
+
+        // Ensure IDs are not the same
+        if ($user1Id === $user2Id) {
+            return self::error('Cannot create conversation with the same user.', 422);
+        }
+
+        // Check if conversation already exists
+        $conversation = ChatConversation::where('type', 'private')
+            ->whereHas('participants', fn($q) => $q->where('user_id', $user1Id))
+            ->whereHas('participants', fn($q) => $q->where('user_id', $user2Id))
+            ->first();
+
+        if ($conversation) {
+            return self::success([
+                'id' => $conversation->id,
+                'exists' => true,
+            ], 'Conversation already exists');
+        }
+
+        // Create new conversation
+        DB::beginTransaction();
+        try {
+            $conversation = ChatConversation::create([
+                'type' => 'private',
+                'created_by' => $user1Id,
+            ]);
+
+            $conversation->participants()->attach([$user1Id, $user2Id], [
+                'joined_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return self::success([
+                'id' => $conversation->id,
+                'exists' => false,
+            ], 'Conversation created successfully');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to create conversation: ' . $e);
+            return self::error('Failed to create conversation', 500);
+        }
+    }
+
+    public function markAsRead($conversationId)
+    {
+        $userId = auth('api')->id();
+
+        // 1. Ensure conversation exists & user is a participant
+        $conversation = ChatConversation::where('id', $conversationId)
+            ->whereHas('participants', function ($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })
+            ->first();
+
+        if (!$conversation) {
+            return self::error('Conversation not found or you are not a participant', 404);
+        }
+
+        // 2. Update pivot table last_read_at
+        $conversation->participants()
+            ->updateExistingPivot($userId, [
+                'last_read_at' => now(),
+            ]);
+
+        // (Optional) Update any cached unread counts if you have them
+        // e.g., Redis::del("user:{$userId}:conversation:{$conversationId}:unread_count");
+
+        return self::success([], 'Conversation marked as read');
+    }
+
+    public function getMessages($conversationId)
+    {
+        $userId = auth('api')->id();
+
+        // 1. Ensure the conversation exists & user is a participant
+        $conversation = ChatConversation::where('id', $conversationId)
+            ->whereHas('participants', function ($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })
+            ->first();
+
+        if (!$conversation) {
+            return self::error('Conversation not found or access denied', 404);
+        }
+
+        // 2. Fetch messages with sender info
+        $messages = ChatMessage::where('conversation_id', $conversationId)
+            ->with(['sender:id,name,email,avatar'])
+            ->orderBy('created_at', 'asc') // oldest first
+            ->get();
+
+        // 3. Return in your API format
+        return self::success($messages, 'Messages fetched successfully');
     }
 
     public function storeTyping(Request $request)

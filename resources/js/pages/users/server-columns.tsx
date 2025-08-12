@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 export const serverColumns = (
     onDelete: (user: User) => void,
-    // onMessage: (user: User) => void,
+    onMessage: (user: User) => void,
 ): ColumnDef<User>[] => [
     {
         id: "select",
@@ -116,7 +116,7 @@ export const serverColumns = (
                         variant="ghost"
                         size="icon"
                         aria-label="Send message"
-                        // onClick={() => onMessage(user)}
+                        onClick={() => onMessage(user)}
                         className="cursor-pointer inline-flex h-8 w-8 items-center justify-center rounded hover:bg-zinc-100 text-green-600"
                         title="Send message"
                     >

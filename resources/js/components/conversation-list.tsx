@@ -1,61 +1,61 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Search, MessageCircle, RefreshCw } from "lucide-react"
-import { fetchConversations, formatConversationTime } from '@/utils/chat-api'
+import { useState, useEffect } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Search, MessageCircle, RefreshCw } from 'lucide-react';
+import { fetchConversations, formatConversationTime } from '@/utils/chat-api';
 import { Conversation } from '@/types/chat';
 
 interface ConversationListProps {
-    currentUserId: number
-    onSelectConversation: (conversation: Conversation) => void
-    selectedConversationId?: number
+    currentUserId: number;
+    onSelectConversation: (conversation: Conversation) => void;
+    selectedConversationId?: number;
 }
 
 export function ConversationList({
                                      currentUserId,
                                      onSelectConversation,
-                                     selectedConversationId,
+                                     selectedConversationId
                                  }: ConversationListProps) {
-    const [conversations, setConversations] = useState<Conversation[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const [searchQuery, setSearchQuery] = useState("")
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-        loadConversations()
-    }, [currentUserId])
+        loadConversations();
+    }, [currentUserId]);
 
     const loadConversations = async () => {
-        setLoading(true)
-        setError(null)
+        setLoading(true);
+        setError(null);
 
         try {
-            const fetchedConversations = await fetchConversations(currentUserId)
-            setConversations(fetchedConversations)
+            const fetchedConversations = await fetchConversations(currentUserId);
+            setConversations(fetchedConversations);
         } catch (error) {
-            console.error("Failed to load conversations:", error)
-            setError(error instanceof Error ? error.message : "Failed to load conversations")
+            console.error('Failed to load conversations:', error);
+            setError(error instanceof Error ? error.message : 'Failed to load conversations');
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     const filteredConversations = conversations.filter(
         (conv) =>
             conv.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             conv.user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            conv.last_message.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
+            conv.last_message.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     const getTotalUnreadCount = () => {
-        return conversations.reduce((total, conv) => total + conv.unread_count, 0)
-    }
+        return conversations.reduce((total, conv) => total + conv.unread_count, 0);
+    };
 
     if (loading) {
         return (
@@ -75,7 +75,7 @@ export function ConversationList({
                     ))}
                 </div>
             </div>
-        )
+        );
     }
 
     return (
@@ -93,7 +93,7 @@ export function ConversationList({
                         )}
                     </h2>
                     <Button variant="ghost" size="sm" onClick={loadConversations} disabled={loading}>
-                        <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
                 </div>
 
@@ -124,7 +124,7 @@ export function ConversationList({
                 {filteredConversations.length === 0 ? (
                     <div className="p-8 text-center text-zinc-500">
                         <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p className="text-sm">{searchQuery ? "No conversations found" : "No conversations yet"}</p>
+                        <p className="text-sm">{searchQuery ? 'No conversations found' : 'No conversations yet'}</p>
                     </div>
                 ) : (
                     <div className="p-2">
@@ -133,28 +133,29 @@ export function ConversationList({
                                 key={conversation.conversation_id}
                                 onClick={() => onSelectConversation(conversation)}
                                 className={`w-full p-3 rounded-lg text-left hover:bg-zinc-800 transition-colors ${
-                                    selectedConversationId === conversation.conversation_id ? "bg-zinc-800 border border-zinc-700" : ""
+                                    selectedConversationId === conversation.conversation_id ? 'bg-zinc-800 border border-zinc-700' : ''
                                 }`}
                             >
                                 <div className="flex items-center gap-3">
                                     <div className="relative">
                                         <Avatar className="w-12 h-12">
                                             <AvatarImage
-                                                src={conversation.user.avatar || "/placeholder.svg?height=48&width=48"}
+                                                src={conversation.user.avatar || '/placeholder.svg?height=48&width=48'}
                                                 alt={conversation.user.name}
                                             />
                                             <AvatarFallback className="bg-zinc-700 text-white">
                                                 {conversation.user.name
-                                                    .split(" ")
+                                                    .split(' ')
                                                     .map((n: any) => n[0])
-                                                    .join("")
+                                                    .join('')
                                                     .toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
                                         {conversation.unread_count > 0 && (
-                                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                                            <div
+                                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
                         <span className="text-xs text-white font-medium">
-                          {conversation.unread_count > 9 ? "9+" : conversation.unread_count}
+                          {conversation.unread_count > 9 ? '9+' : conversation.unread_count}
                         </span>
                                             </div>
                                         )}
@@ -164,7 +165,7 @@ export function ConversationList({
                                         <div className="flex items-center justify-between mb-1">
                                             <h3
                                                 className={`font-medium truncate ${
-                                                    conversation.unread_count > 0 ? "text-white" : "text-zinc-300"
+                                                    conversation.unread_count > 0 ? 'text-white' : 'text-zinc-300'
                                                 }`}
                                             >
                                                 {conversation.user.name}
@@ -175,7 +176,7 @@ export function ConversationList({
                                         </div>
                                         <p
                                             className={`text-sm truncate ${
-                                                conversation.unread_count > 0 ? "text-zinc-300 font-medium" : "text-zinc-500"
+                                                conversation.unread_count > 0 ? 'text-zinc-300 font-medium' : 'text-zinc-500'
                                             }`}
                                         >
                                             {conversation.last_message}
@@ -188,5 +189,5 @@ export function ConversationList({
                 )}
             </ScrollArea>
         </div>
-    )
+    );
 }

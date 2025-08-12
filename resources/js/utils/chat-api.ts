@@ -15,7 +15,7 @@ import {
 export async function fetchMessagesByConversation(conversationId: number): Promise<BackendMessage[]> {
     try {
         console.log("🔄 Fetching messages for conversation ID:", conversationId)
-        const response: AxiosResponse<ApiResponse> = await apiClient.get(`/api/conversations/${conversationId}/messages`)
+        const response: AxiosResponse<ApiResponse> = await apiClient.get(`/api/v1/conversations/${conversationId}/messages`)
 
         console.log("📥 API Response:", response.data)
 
@@ -169,7 +169,7 @@ export async function getOrCreateConversation(
 ): Promise<{ id: number; exists: boolean }> {
     try {
         console.log("🔄 Getting/creating conversation between users:", userId1, userId2)
-        const response = await apiClient.post("/api/conversations/get-or-create", {
+        const response = await apiClient.post("/api/v1/conversations/get-or-create", {
             user1_id: userId1,
             user2_id: userId2,
         })
@@ -200,7 +200,7 @@ export async function getOrCreateConversation(
 export async function markConversationAsRead(conversationId: number): Promise<boolean> {
     try {
         console.log("🔄 Marking conversation as read:", conversationId)
-        const response = await apiClient.post(`/api/conversations/${conversationId}/mark-read`)
+        const response = await apiClient.post(`/api/v1/conversations/${conversationId}/mark-read`)
 
         console.log("📥 Mark as read response:", response.data)
 

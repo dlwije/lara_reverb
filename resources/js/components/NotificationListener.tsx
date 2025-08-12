@@ -115,7 +115,7 @@ export default function NotificationListener() {
                     console.log('Initial unread messages loaded:', res.data);
                     setUnreadMessages(res.data.length);
 
-                    const transformedMessages = res.data.map((msg: any) => ({
+                    const transformedMessages = res.data.data.map((msg: any) => ({
                         id: msg.id,
                         message: msg.message,
                         from: {

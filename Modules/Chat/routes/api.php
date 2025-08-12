@@ -16,4 +16,7 @@ Route::middleware(['auth:api'])->prefix('v1')->name('v1.')->group(function () {
     Route::post('/send-message', [ChatController::class, 'store'])->name('conversation.store');
     Route::get('/get-conversation/{user_id}', [ChatController::class, 'showConversation'])->name('conversation.show');
     Route::post('/typing-chat', [ChatController::class, 'storeTyping'])->name('typing.store');
+    Route::post('/conversations/get-or-create', [ChatController::class, 'getOrCreate'])->name('conversation.getorcreate');
+    Route::post('/conversations/{conversationId}/mark-read', [ChatController::class, 'markAsRead'])->name('conversation.markasread');
+    Route::get('/conversations/{conversationId}/messages', [ChatController::class, 'getMessages'])->name('conversation.messages');
 });

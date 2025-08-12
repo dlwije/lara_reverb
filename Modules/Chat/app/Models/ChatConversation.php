@@ -15,12 +15,12 @@ class ChatConversation extends Model
      */
     protected $fillable = ['type', 'title', 'created_by', 'last_message_id', 'last_message_at'];
 
-//    public function participants()
-//    {
-//        return $this->belongsToMany(User::class, 'chat_conversation_participants')
-//            ->withPivot('joined_at', 'last_read_at')
-//            ->withTimestamps();
-//    }
+    public function participants1()
+    {
+        return $this->belongsToMany(User::class, 'chat_conversation_participants')
+            ->withPivot('joined_at', 'last_read_at')
+            ->withTimestamps();
+    }
 
     public function participants()
     {
