@@ -9,7 +9,7 @@ use Modules\Chat\Http\Controllers\ChatController;
 
 Route::middleware(['auth:api'])->prefix('v1')->name('v1.')->group(function () {
 
-    Route::post('/get-unread-messages', [ChatController::class, 'getConversations'])->name('conversation.unread');
+    Route::get('/get-unread-messages', [ChatController::class, 'getConversations'])->name('conversation.unread');
 
 //    Route::post('/get-team-members', [TeamController::class, 'index']);
 

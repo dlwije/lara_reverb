@@ -8,13 +8,28 @@ export interface BackendMessage {
     isUser: boolean
 }
 
+export interface Conversation {
+    conversation_id: number
+    last_message_at: string
+    last_message: string
+    unread_count: number
+    user: User
+}
+
 export interface ApiResponse {
     status: boolean
     message: string
     data: BackendMessage[]
 }
 
+interface ConversationsResponse {
+    status: boolean
+    message: string
+    data: Conversation[]
+}
+
 export interface SendMessagePayload {
+    conversation_id?: number
     user_id: number
     from: number
     message: string

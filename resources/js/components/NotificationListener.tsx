@@ -108,7 +108,7 @@ export default function NotificationListener() {
         if (user?.id) {
             console.log('Loading initial unread messages for user:', user.id);
             apiClient
-                .post('/api/v1/get-unread-messages', {
+                .get('/api/v1/get-unread-messages', {
                     user_id: user.id,
                 })
                 .then(res => {

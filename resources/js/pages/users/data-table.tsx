@@ -128,12 +128,6 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
                 </div>
             </CardContent>
             <CardFooter className="flex-col gap-2">
-                {/*<Button type="submit" className="w-full">*/}
-                {/*    Login*/}
-                {/*</Button>*/}
-                {/*<Button variant="outline" className="w-full">*/}
-                {/*    Login with Google*/}
-                {/*</Button>*/}
             </CardFooter>
         </Card>
     );

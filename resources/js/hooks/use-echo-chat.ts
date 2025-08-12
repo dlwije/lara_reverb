@@ -4,8 +4,9 @@ import { debounce } from 'lodash';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import {
-    fetchMessages,
+    fetchMessagesByConversation,
     sendMessageToBackend,
+    getOrCreateConversation,
     determineIsUser,
     sortMessagesByDate,
     createCancelTokenSource,
@@ -14,7 +15,12 @@ import {
 import { setupEcho, createChannelName } from '@/utils/echo-setup';
 import { BackendMessage, MessageSentEventResponse, TypingEventResponse } from '@/types/chat';
 
-export function useEchoChat(currentUserId: number, chatUserId: number, authToken?: string) {
+export function useEchoChat(
+    currentUserId: number,
+    chatUserId: number,
+    authToken?: string,
+    initialConversationId?: number,
+) {
     console.log('useEchoChat: ' + chatUserId);
     const [messages, setMessages] = useState<BackendMessage[]>([]);
     const [loading, setLoading] = useState(true);
@@ -24,6 +30,7 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
     const [isConnected, setIsConnected] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
     const [otherUserTyping, setOtherUserTyping] = useState(false);
+    const [conversationId, setConversationId] = useState<number | null>(initialConversationId || null)
     const cancelTokenRef = useRef<any>(null);
     const echoRef = useRef<any>(null);
     const channelRef = useRef<any>(null);
@@ -154,20 +161,50 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
         };
     }, [currentUserId, chatUserId]);
 
-    // Load initial messages from database
-    useEffect(() => {
-        loadMessages();
+  // Initialize conversation and load messages
+  useEffect(() => {
+      if (initialConversationId) {
+          setConversationId(initialConversationId)
+          loadMessages(initialConversationId)
+      } else {
+          initializeConversation()
+      }
 
         return () => {
             if (cancelTokenRef.current) {
                 cancelTokenRef.current.cancel('Component unmounted');
             }
         };
-    }, [currentUserId, chatUserId]); // Add chatUserId to dependencies
+      }, [currentUserId, chatUserId, initialConversationId]) // Add chatUserId to dependencies
 
-    const loadMessages = async () => {
-        setLoading(true);
-        setError(null);
+    const initializeConversation = async () => {
+        setLoading(true)
+        setError(null)
+
+        try {
+            // Get or create conversation
+            console.log("🔄 Initializing conversation...")
+            const conversation = await getOrCreateConversation(currentUserId, chatUserId)
+            setConversationId(conversation.id)
+            console.log("✅ Conversation ID:", conversation.id)
+
+            // Load messages for this conversation
+            await loadMessages(conversation.id)
+        } catch (error) {
+            console.error("❌ Failed to initialize conversation:", error)
+            setError(error instanceof Error ? error.message : "Failed to initialize conversation")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const loadMessages = async (convId?: number) => {
+        console.log('useEchoChat: Loading messages for user on load messages:', chatUserId);
+        const targetConversationId = convId || conversationId
+        if (!targetConversationId) {
+            console.warn("⚠️ No conversation ID available for loading messages")
+            return
+        }
 
         if (cancelTokenRef.current) {
             cancelTokenRef.current.cancel('New request initiated');
@@ -176,8 +213,8 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
         cancelTokenRef.current = createCancelTokenSource();
 
         try {
-            console.log('📥 Loading messages for user:', currentUserId);
-            const fetchedMessages = await fetchMessages(currentUserId);
+            console.log("📥 Loading messages for conversation:", targetConversationId)
+            const fetchedMessages = await fetchMessagesByConversation(targetConversationId)
             console.log('📥 Fetched messages:', fetchedMessages.length);
 
             const messagesWithUserFlag = fetchedMessages.map(msg =>
@@ -194,8 +231,6 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
 
             console.error('Failed to load messages:', error);
             setError(error instanceof Error ? error.message : 'Unable to load messages');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -263,7 +298,7 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
     }, [isTyping, sendTypingEvent]);
 
     const sendMessage = async (messageText: string) => {
-        if (!messageText.trim() || sending) return;
+        if (!messageText.trim() || sending || !conversationId) return;
 
         setSending(true);
         setError(null);
@@ -293,6 +328,7 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
 
         try {
             const payload = {
+                conversation_id: conversationId,
                 user_id: chatUserId,
                 from: currentUserId,
                 message: messageText.trim()
@@ -300,7 +336,7 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
 
             const newMessage = await sendMessageToBackend(payload);
             if (newMessage) {
-                const messageWithUserFlag = determineIsUser(newMessage, currentUserId);
+                const messageWithUserFlag = determineIsUser(newMessage, chatUserId);
                 // Replace optimistic message with real one from backend
                 setMessages(prev =>
                     prev.map(msg =>
@@ -369,8 +405,9 @@ export function useEchoChat(currentUserId: number, chatUserId: number, authToken
         error,
         isConnected,
         otherUserTyping,
+        conversationId,
         sendMessage,
-        refreshMessages: loadMessages,
+        refreshMessages: () => loadMessages(),
         reconnect,
         handleTyping
     };

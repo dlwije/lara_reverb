@@ -70,7 +70,7 @@ class ApiAuthController extends Controller
                 ->make(true);
 
         } catch (\Exception $e) {
-            Log::error('User List Getting Error:', ['error' => $e->getMessage()]);
+            Log::error('User List Getting Error:', ['error' => $e]);
             return self::error(__('messages.something_went_wrong'), 500);
         }
     }
