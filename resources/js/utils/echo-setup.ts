@@ -35,9 +35,25 @@ export function setupEcho(authToken?: string) {
 }
 
 // Create channel name for two users
+// export function createChannelName(userIdA: number, userIdB: number): string {
+//     // const idA = Math.min(userIdA, userIdB)
+//     // const idB = Math.max(userIdA, userIdB)
+//     return `chat.${[userIdA, userIdB].sort().join('-')}`;
+//     // return `chat.${idA}-${idB}`
+// }
+
+// Create channel name for two users
 export function createChannelName(userIdA: number, userIdB: number): string {
-    // const idA = Math.min(userIdA, userIdB)
-    // const idB = Math.max(userIdA, userIdB)
-    return `chat.${[userIdA, userIdB].sort().join('-')}`;
-    // return `chat.${idA}-${idB}`
+    const idA = Math.min(userIdA, userIdB)
+    const idB = Math.max(userIdA, userIdB)
+    const channelName = `chat.${idA}-${idB}`
+
+    console.log("🏷️ Creating channel name:", {
+        userIdA,
+        userIdB,
+        sortedIds: { idA, idB },
+        channelName,
+    })
+
+    return channelName
 }

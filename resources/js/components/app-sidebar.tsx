@@ -29,6 +29,7 @@ import { useEffect, useState } from 'react';
 import useEcho from '@/lib/echo';
 import { NavItems } from '@/types/nav-list';
 import NotificationPopover from '@/components/NotificationPopover';
+import { NavUserWithChat } from '@/components/nav-user-with-chat';
 
 interface User {
     id: number
@@ -233,7 +234,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarContent>
             <SidebarFooter>
                 <NotificationPopover />
-                <NavUser />
+                <NavUserWithChat />
             </SidebarFooter>
             <SidebarRail />
         </Sidebar>

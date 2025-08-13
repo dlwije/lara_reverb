@@ -7,7 +7,7 @@ import {
     fetchMessagesByConversation,
     sendMessageToBackend,
     getOrCreateConversation,
-    determineIsUser,
+    transformMessage,
     sortMessagesByDate,
     createCancelTokenSource,
     sendTypingEventToBackend
@@ -17,11 +17,16 @@ import { BackendMessage, MessageSentEventResponse, TypingEventResponse } from '@
 
 export function useEchoChat(
     currentUserId: number,
-    chatUserId: number,
+    chatUserId: number, // This should be the OTHER user's ID, not the current user
     authToken?: string,
     initialConversationId?: number,
 ) {
-    console.log('useEchoChat: ' + chatUserId);
+    console.log("useEchoChat initialized with:", {
+        currentUserId,
+        chatUserId,
+        initialConversationId,
+        channelWillBe: `chat.${Math.min(currentUserId, chatUserId)}-${Math.max(currentUserId, chatUserId)}`,
+    })
     const [messages, setMessages] = useState<BackendMessage[]>([]);
     const [loading, setLoading] = useState(true);
     const [channelName, setChannelName] = useState<string | null>(null);
@@ -67,31 +72,38 @@ export function useEchoChat(
         };
     }, [authToken]);
 
-    // Setup chat channel subscription
-    useEffect(() => {
-        if (!echoRef.current || !currentUserId || !chatUserId) return;
+  // Setup chat channel subscription
+  useEffect(() => {
+    if (!echoRef.current || !currentUserId || !chatUserId || currentUserId === chatUserId) {
+      console.warn("⚠️ Invalid user IDs for chat channel:", { currentUserId, chatUserId })
+      return
+    }
 
         const channelName = createChannelName(currentUserId, chatUserId);
         // const groupChannelName = `chat.conversation.${conversationId}`;
         setChannelName(channelName);
         console.log('🔄 Attempting to join chat channel:', channelName);
+        console.log("📋 Channel participants:", { currentUserId, chatUserId })
 
         try {
             const channel = echoRef.current.private(channelName);
             channelRef.current = channel;
             channel
                 .subscribed(() => {
-                    console.log('✅ Successfully subscribed to chat channel:', channelName);
+                    console.log('✅ Successfully subscribed to chat channel:', channelName)
+                    console.log("👥 Channel participants:", { currentUserId, otherUserId: chatUserId })
                     setIsConnected(true);
                     setError(null);
                 })
                 .listen('.MessageSent', (e: MessageSentEventResponse) => {
                     console.log('📨 MessageSent received:', e);
+                    console.log("🔍 Message sender:", e.message.sender_id, "Current user:", currentUserId)
 
                     // Only add message if it's NOT from the current user
                     // (to prevent duplicates since we already show optimistic updates)
-                    if (e.message.sender_id !== chatUserId) {
-                        const newMessage = convertMessageSentEventResponse(e, chatUserId);
+                    if (e.message.sender_id !== currentUserId) {
+                        const newMessage = convertMessageSentEventResponse(e, currentUserId)
+                        console.log("✅ Adding message from other user:", newMessage)
 
                         setMessages(prev => {
                             // Check if message already exists
@@ -116,6 +128,7 @@ export function useEchoChat(
                 })
                 .listen('.UserTyping', (e: TypingEventResponse) => {
                     console.log('⌨️ UserTyping event received:', e);
+                    console.log("🔍 Typing user:", e.user_id, "Current user:", currentUserId)
 
                     // Only show typing indicator for other users
                     if (e.user_id !== currentUserId) {
@@ -138,15 +151,6 @@ export function useEchoChat(
                     setIsConnected(false);
                 });
 
-            // Group chat example
-            // echoRef.current.private(groupChannelName).subscribed(() => {
-            //     console.log('✅ Successfully subscribed to group chat channel:', groupChannelName);
-            //     setIsConnected(true);
-            //     setError(null);
-            // }).listen('.MessageSent', (e: MessageSentEventResponse) => {
-            //
-            // });
-
         } catch (error) {
             console.error('❌ Failed to setup chat channel:', error);
             setError('Failed to setup chat channel');
@@ -166,7 +170,7 @@ export function useEchoChat(
       if (initialConversationId) {
           setConversationId(initialConversationId)
           loadMessages(initialConversationId)
-      } else {
+      } else if (currentUserId && chatUserId) {
           initializeConversation()
       }
 
@@ -199,10 +203,11 @@ export function useEchoChat(
     }
 
     const loadMessages = async (convId?: number) => {
-        console.log('useEchoChat: Loading messages for user on load messages:', chatUserId);
+        console.log("Loading messages for conversation:", convId)
         const targetConversationId = convId || conversationId
         if (!targetConversationId) {
             console.warn("⚠️ No conversation ID available for loading messages")
+            setLoading(false)
             return
         }
 
@@ -217,22 +222,23 @@ export function useEchoChat(
             const fetchedMessages = await fetchMessagesByConversation(targetConversationId)
             console.log('📥 Fetched messages:', fetchedMessages.length);
 
-            const messagesWithUserFlag = fetchedMessages.map(msg =>
-                determineIsUser(msg, chatUserId)
-            );
-            const sortedMessages = sortMessagesByDate(messagesWithUserFlag);
-            setMessages(sortedMessages);
-            console.log('✅ Messages loaded and sorted');
-        } catch (error) {
-            if (axios.isCancel(error)) {
-                console.log('Request canceled:', error.message);
-                return;
-            }
+      // Transform messages to match our interface
+      const transformedMessages = fetchedMessages.map((msg) => transformMessage(msg, currentUserId))
+      const sortedMessages = sortMessagesByDate(transformedMessages)
+      setMessages(sortedMessages)
+      console.log("✅ Messages loaded and sorted")
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log("Request canceled:", error.message)
+        return
+      }
 
-            console.error('Failed to load messages:', error);
-            setError(error instanceof Error ? error.message : 'Unable to load messages');
-        }
-    };
+      console.error("Failed to load messages:", error)
+      setError(error instanceof Error ? error.message : "Unable to load messages")
+    } finally {
+      setLoading(false)
+    }
+  }
 
     // Enhanced sendTypingEvent with better error handling
     const sendTypingEvent = useCallback(
@@ -334,26 +340,22 @@ export function useEchoChat(
                 message: messageText.trim()
             };
 
-            const newMessage = await sendMessageToBackend(payload);
-            if (newMessage) {
-                const messageWithUserFlag = determineIsUser(newMessage, chatUserId);
-                // Replace optimistic message with real one from backend
-                setMessages(prev =>
-                    prev.map(msg =>
-                        msg.id === optimisticMessage.id ? messageWithUserFlag : msg
-                    )
-                );
-                console.log('✅ Message sent and replaced with backend response');
-            } else {
-                // Remove optimistic message on failure
-                setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
-                setError('Failed to send message');
-            }
-        } catch (error) {
-            if (axios.isCancel(error)) {
-                console.log('Send message request canceled:', error.message);
-                return;
-            }
+      const newMessage = await sendMessageToBackend(payload)
+      if (newMessage) {
+        const messageWithUserFlag = transformMessage(newMessage, currentUserId)
+        // Replace optimistic message with real one from backend
+        setMessages((prev) => prev.map((msg) => (msg.id === optimisticMessage.id ? messageWithUserFlag : msg)))
+        console.log("✅ Message sent and replaced with backend response")
+      } else {
+        // Remove optimistic message on failure
+        setMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessage.id))
+        setError("Failed to send message")
+      }
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log("Send message request canceled:", error.message)
+        return
+      }
 
             console.error('Failed to send message:', error);
             setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
@@ -367,24 +369,16 @@ export function useEchoChat(
     function convertMessageSentEventResponse(
         laravelMsg: MessageSentEventResponse,
         currentUserId: number
-    ): {
-        id: number
-        user_id: number
-        from: number
-        message: string
-        created_at: string
-        updated_at: string
-        isUser: boolean
-    } {
+    ): BackendMessage {
         return {
-            id: laravelMsg.message.id || Date.now(), // Use backend ID if available
+            id: laravelMsg.message.id || Date.now(),
             user_id: laravelMsg.message.receiver_id,
             from: laravelMsg.message.sender_id,
             message: laravelMsg.message.message,
             created_at: laravelMsg.message.created_at,
-            updated_at: laravelMsg.message.created_at,
-            isUser: laravelMsg.message.sender_id === currentUserId
-        };
+            updated_at: laravelMsg.message.updated_at,
+            isUser: laravelMsg.message.sender_id === currentUserId,
+        }
     }
 
     const reconnect = useCallback(() => {

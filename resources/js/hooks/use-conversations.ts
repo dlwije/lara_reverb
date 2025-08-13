@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { fetchConversations, markConversationAsRead, type Conversation } from "../utils/chat-api"
+import { fetchConversations, markConversationAsRead, type Conversation } from '@/utils/chat-api'
 
 export function useConversations(currentUserId: number) {
     const [conversations, setConversations] = useState<Conversation[]>([])

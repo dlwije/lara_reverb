@@ -5,17 +5,9 @@ import {
     DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
-import { UserInfo } from '@/components/user-info';
-import { UserMenuContent } from '@/components/user-menu-content';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
 import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, Sparkles } from 'lucide-react';
-import { motion, useAnimation } from 'framer-motion';
-import { Howl } from 'howler'
-import { useEffect, useState } from 'react';
-import useEcho from '@/lib/echo';
-import { axios } from '@/lib/axios';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 

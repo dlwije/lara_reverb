@@ -16,9 +16,10 @@ import { Conversation } from '@/types/chat';
 import { setupEcho } from '@/utils/echo-setup';
 import { Button } from '@headlessui/react';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { AlertCircle, ArrowLeft, MessageCircle, Radio, Send, WifiOff } from 'lucide-react';
+import { AlertCircle, ArrowLeft, MessageCircle, Plus, Radio, Send, WifiOff } from 'lucide-react';
 import { ConversationList } from '@/components/conversation-list';
 import { ChatInterface } from '@/components/chat-interface';
+import { ComposeMessageDialog } from '@/components/compose-message-dialog';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -53,6 +54,9 @@ export default function DemoPage() {
 
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
     const [showConversationList, setShowConversationList] = useState(true);
+
+    const [chatOpen, setChatOpen] = useState(false)
+    const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null)
 
     // Get auth token from your auth system
     const authToken = auth.accessToken; // Replace with actual token
@@ -138,6 +142,13 @@ export default function DemoPage() {
         setOpen(true);
     }
 
+    const handleMessageSent = (conversationId: number, targetUser: User) => {
+        console.log(`✅ Message sent to ${targetUser.name}, conversation ID: ${conversationId}`)
+        // Optionally open the chat window to show the new conversation
+        setSelectedConversationId(conversationId)
+        setChatOpen(true)
+    }
+
     // const { messages, loading, sending, error, sendMessage, refreshMessages } = useChat(selectedUser?.id, user?.id)
 
     return (
@@ -146,11 +157,19 @@ export default function DemoPage() {
             <div className="flex flex-1 flex-col">
                 <div className="@container/main flex flex-1 flex-col gap-2">
                     <div className="flex flex-col gap-4 py-4 md:gap-2 md:py-2">
-                        <button className="cursor-pointer inline-flex h-8 w-8 items-center justify-center rounded hover:bg-zinc-100 text-green-600"
-                                onClick={openChatWindow}
-                        >
-                            <Send className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center justify-between">
+                        <ComposeMessageDialog
+                            currentUser={user}
+                            authToken={authToken}
+                            onMessageSent={handleMessageSent}
+                            trigger={
+                                <Button>
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Compose Message
+                                </Button>
+                            }
+                        />
+                        </div>
                         <div>
                             {chatLoading ? (
                                 <p className="text-center">Loading...</p>

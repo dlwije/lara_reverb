@@ -1,188 +1,154 @@
-'use client';
+"use client"
 
-import { useEffect, useState } from 'react';
-import type { Conversation } from '@/types/chat'; // Assuming Conversation type is defined here
-import { Badge, MessageCircle, RefreshCw, Search } from 'lucide-react'; // Assuming these icons are imported from lucide-react
-import { fetchConversations, formatConversationTime } from '@/utils/chat-api';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import type React from "react"
 
-interface ConversationListProps {
-    currentUserId: number;
-    onSelectConversation: (conversation: Conversation) => void;
-    selectedConversationId?: number;
+import { useState, useEffect, useRef } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ArrowUp, Loader2, Radio } from "lucide-react"
+import { formatMessageTime, type BackendMessage } from "@/utils/chat-api"
+import { User } from '@/types';
+
+interface ChatInterfaceProps {
+  user: User | null
+  messages: BackendMessage[]
+  onSendMessage: (message: string) => void
+  sending?: boolean
+  isConnected?: boolean
+  otherUserTyping?: boolean
+  onTyping?: () => void
 }
 
-export function ChatInterface({ currentUserId, onSelectConversation, selectedConversationId }: ConversationListProps) {
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
+export function ChatInterface({
+  user,
+  messages,
+  onSendMessage,
+  sending = false,
+  isConnected = false,
+  otherUserTyping = false,
+  onTyping,
+}: ChatInterfaceProps) {
+  const [inputValue, setInputValue] = useState("")
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => {
-        loadConversations();
-    }, [currentUserId]);
-
-    const loadConversations = async () => {
-        setLoading(true);
-        setError(null);
-
-        try {
-            const fetchedConversations = await fetchConversations(currentUserId);
-            setConversations(fetchedConversations);
-        } catch (error) {
-            console.error('Failed to load conversations:', error);
-            setError(error instanceof Error ? error.message : 'Failed to load conversations');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const filteredConversations = conversations.filter(
-        (conv) =>
-            conv.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            conv.user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            conv.last_message.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    const getTotalUnreadCount = () => {
-        return conversations.reduce((total, conv) => total + conv.unread_count, 0);
-    };
-
-    if (loading) {
-        return (
-            <div className="w-100 border-r border-zinc-800 bg-zinc-900 flex flex-col">
-                <div className="p-4 border-b border-zinc-800">
-                    <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="flex-1 p-4 space-y-4">
-                    {[...Array(5)].map((_, i) => (
-                        <div key={i} className="flex items-center space-x-3">
-                            <Skeleton className="h-12 w-12 rounded-full" />
-                            <div className="space-y-2 flex-1">
-                                <Skeleton className="h-4 w-3/4" />
-                                <Skeleton className="h-3 w-1/2" />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
+  // Auto-scroll to bottom when messages change or when typing indicator appears
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      })
     }
+  }, [messages, otherUserTyping])
 
-    return (
-        <div className="w-100 border-r border-zinc-800 bg-zinc-900 flex flex-col">
-            {/* Header */}
-            <div className="p-4 border-b border-zinc-800">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <MessageCircle className="w-5 h-5" />
-                        Messages
-                        {getTotalUnreadCount() > 0 && (
-                            <Badge variant="destructive" className="ml-2">
-                                {getTotalUnreadCount()}
-                            </Badge>
-                        )}
-                    </h2>
-                    <Button variant="ghost" size="sm" onClick={loadConversations} disabled={loading}>
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                    </Button>
-                </div>
+  const handleSendMessage = () => {
+    if (inputValue.trim() && !sending) {
+      onSendMessage(inputValue.trim())
+      setInputValue("")
+    }
+  }
 
-                {/* Search */}
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4" />
-                    <Input
-                        placeholder="Search conversations..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
-                    />
-                </div>
-            </div>
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
 
-            {/* Error State */}
-            {error && (
-                <div className="p-4 bg-red-900/20 border-b border-red-800">
-                    <p className="text-red-400 text-sm">{error}</p>
-                    <Button variant="ghost" size="sm" onClick={loadConversations} className="mt-2 text-red-400">
-                        Try Again
-                    </Button>
-                </div>
-            )}
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value)
+    // Trigger typing event
+    if (onTyping) {
+      onTyping()
+    }
+  }
 
-            {/* Conversations List */}
-            <ScrollArea className="flex-1">
-                {filteredConversations.length === 0 ? (
-                    <div className="p-8 text-center text-zinc-500">
-                        <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p className="text-sm">{searchQuery ? 'No conversations found' : 'No conversations yet'}</p>
-                    </div>
-                ) : (
-                    <div className="p-2">
-                        {filteredConversations.map((conversation) => (
-                            <button
-                                key={conversation.conversation_id}
-                                onClick={() => onSelectConversation(conversation)}
-                                className={`w-full p-3 rounded-lg text-left hover:bg-zinc-800 transition-colors ${
-                                    selectedConversationId === conversation.conversation_id ? 'bg-zinc-800 border border-zinc-700' : ''
-                                }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="relative">
-                                        <Avatar className="w-12 h-12">
-                                            <AvatarImage
-                                                src={conversation.user.avatar || '/placeholder.svg?height=48&width=48'}
-                                                alt={conversation.user.name}
-                                            />
-                                            <AvatarFallback className="bg-zinc-700 text-white">
-                                                {conversation.user.name
-                                                    .split(' ')
-                                                    .map((n: any) => n[0])
-                                                    .join('')
-                                                    .toUpperCase()}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        {conversation.unread_count > 0 && (
-                                            <div
-                                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white font-medium">
-                          {conversation.unread_count > 9 ? '9+' : conversation.unread_count}
-                        </span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <h3
-                                                className={`font-medium truncate ${
-                                                    conversation.unread_count > 0 ? 'text-white' : 'text-zinc-300'
-                                                }`}
-                                            >
-                                                {conversation.user.name}
-                                            </h3>
-                                            <span className="text-xs text-zinc-500 flex-shrink-0">
-                        {formatConversationTime(conversation.last_message_at)}
-                      </span>
-                                        </div>
-                                        <p
-                                            className={`text-sm truncate ${
-                                                conversation.unread_count > 0 ? 'text-zinc-300 font-medium' : 'text-zinc-500'
-                                            }`}
-                                        >
-                                            {conversation.last_message}
-                                        </p>
-                                    </div>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </ScrollArea>
+  const TypingIndicator = () => (
+    <div className="flex justify-start mb-4">
+      <div className="bg-zinc-800 text-white rounded-2xl rounded-bl-md px-4 py-3 max-w-[80%]">
+        <div className="flex items-center space-x-1">
+          <div className="flex space-x-1">
+            <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+            <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+          </div>
+          <span className="text-xs text-zinc-400 ml-2">{user?.name} is typing...</span>
         </div>
-    );
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      {/* Messages Container - Scrollable */}
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0">
+        {messages.length === 0 && !sending ? (
+          <div className="flex flex-col items-center justify-center h-full text-zinc-500 space-y-2">
+            <p>No messages yet. Start the conversation!</p>
+            {isConnected && (
+              <div className="flex items-center gap-2 text-green-400 text-sm">
+                <Radio className="w-3 h-3" />
+                <span>Real-time updates active</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {messages.map((message) => (
+              <div
+                key={`${message.id}-${message.created_at}`}
+                className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[80%] px-4 py-3 rounded-2xl ${
+                    message.isUser ? "bg-zinc-300 text-zinc-900 rounded-br-md" : "bg-zinc-800 text-white rounded-bl-md"
+                  }`}
+                >
+                  <p className="text-sm leading-relaxed">{message.message}</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs opacity-60">{formatMessageTime(message.created_at)}</p>
+                    {message.isUser && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-1 h-1 bg-current opacity-60 rounded-full"></div>
+                        <div className="w-1 h-1 bg-current opacity-60 rounded-full"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Typing Indicator */}
+            {otherUserTyping && <TypingIndicator />}
+          </>
+        )}
+        {/* Invisible element to scroll to */}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input Area - Fixed at bottom */}
+      <div className="p-6 border-t border-zinc-800 flex-shrink-0">
+        <div className="relative">
+          <Input
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyPress={handleKeyPress}
+            placeholder={isConnected ? "Type your message..." : "Connecting..."}
+            disabled={sending || !isConnected}
+            className="w-full bg-zinc-800 border-zinc-700 rounded-2xl px-4 py-3 pr-12 text-white placeholder:text-zinc-500 focus:ring-2 focus:ring-zinc-600 focus:border-transparent disabled:opacity-50"
+          />
+          <Button
+            onClick={handleSendMessage}
+            size="icon"
+            disabled={!inputValue.trim() || sending || !isConnected}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 w-8 h-8"
+          >
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4" />}
+          </Button>
+        </div>
+        {!isConnected && <p className="text-xs text-zinc-500 mt-2 text-center">Waiting for real-time connection...</p>}
+      </div>
+    </div>
+  )
 }

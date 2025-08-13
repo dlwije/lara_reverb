@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Laravel\Reverb\Loggers\Log;
+use Illuminate\Support\Facades\Log;
 use Modules\Chat\Events\MessageSent;
 use Modules\Chat\Events\MessageTyping;
 use Modules\Chat\Events\NewMessage;
@@ -227,6 +227,8 @@ class ChatController extends Controller
             })
             ->first();
 
+        Log::error('Conversation on mark as read: ', ['convo' => $conversation?->toArray(), 'user' => $userId, 'id' => $conversationId]);
+
         if (!$conversation) {
             return self::error('Conversation not found or you are not a participant', 404);
         }
@@ -260,12 +262,33 @@ class ChatController extends Controller
 
         // 2. Fetch messages with sender info
         $messages = ChatMessage::where('conversation_id', $conversationId)
-            ->with(['sender:id,name,email,avatar'])
+            ->with(['sender:id,name,email,avatar', 'receiver:id,name,email,avatar'])
             ->orderBy('created_at', 'asc') // oldest first
             ->get();
 
         // 3. Return in your API format
         return self::success($messages, 'Messages fetched successfully');
+    }
+    public function getAvailableUsers(Request $request)
+    {
+        // Get all users except the authenticated one
+        $authUserId = auth('api')->id();
+        $query = $request->get('q', '');
+
+        $users = User::query()
+            ->select('id', 'name', 'email', 'avatar')
+            ->where('id', '!=', $authUserId)
+            ->when($query, function ($q) use ($query) {
+                $q->where(function ($inner) use ($query) {
+                    $inner->where('name', 'like', "%{$query}%")
+                        ->orWhere('email', 'like', "%{$query}%");
+                });
+            })
+            ->orderBy('name', 'asc')
+            ->limit(20)
+            ->get();
+
+       return self::success($users, 'Available users retrieved successfully');
     }
 
     public function storeTyping(Request $request)

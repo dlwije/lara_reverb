@@ -10,12 +10,20 @@ import {
     SendTypingResponse,
 } from '@/types/chat';
 
+// Helper function to get route - you'll need to implement this based on your routing system
+// function route(routeName: string): string {
+//   const routes: Record<string, string> = {
+//     "api.v1.conversation.store": "/api/v1/conversations",
+//     "api.v1.typing.store": "/api/v1/typing",
+//   }
+//   return routes[routeName] || routeName
+// }
 
 // Utility function to fetch messages by conversation ID
 export async function fetchMessagesByConversation(conversationId: number): Promise<BackendMessage[]> {
     try {
         console.log("🔄 Fetching messages for conversation ID:", conversationId)
-        const response: AxiosResponse<ApiResponse> = await apiClient.get(`/api/v1/conversations/${conversationId}/messages`)
+        const response: AxiosResponse<ApiResponse> = await apiClient.get(`api/v1/conversations/${conversationId}/messages`)
 
         console.log("📥 API Response:", response.data)
 
@@ -62,8 +70,11 @@ export async function fetchConversations(userId: number): Promise<Conversation[]
             throw new Error(response.data.message || "Failed to fetch conversations")
         }
 
-        console.log("✅ Successfully fetched", response.data.data.length, "conversations")
-        return response.data.data
+        // Process conversations to ensure we get the OTHER participant's data
+        const processedConversations = processConversations(response.data.data, userId)
+
+        console.log("✅ Successfully fetched and processed", processedConversations.length, "conversations")
+        return processedConversations
     } catch (error) {
         if (axios.isAxiosError(error)) {
             console.error("Axios error fetching conversations:", {
@@ -220,6 +231,58 @@ export async function markConversationAsRead(conversationId: number): Promise<bo
     }
 }
 
+// NEW: Process conversations to ensure we get the OTHER participant's data
+function processConversations(conversations: any[], currentUserId: number): Conversation[] {
+    return conversations.map((conv) => {
+        console.log("🔍 Processing conversation:", conv)
+
+        // If the conversation has participants array, find the other user
+        if (conv.participants && Array.isArray(conv.participants)) {
+            const otherParticipant = conv.participants.find((p: any) => p.id !== currentUserId)
+            if (otherParticipant) {
+                return {
+                    ...conv,
+                    user: {
+                        id: otherParticipant.id,
+                        name: otherParticipant.name,
+                        email: otherParticipant.email,
+                        avatar: otherParticipant.avatar,
+                    },
+                }
+            }
+        }
+
+        // If the conversation has user1 and user2 fields
+        if (conv.user1 && conv.user2) {
+            const otherUser = conv.user1.id === currentUserId ? conv.user2 : conv.user1
+            return {
+                ...conv,
+                user: {
+                    id: otherUser.id,
+                    name: otherUser.name,
+                    email: otherUser.email,
+                    avatar: otherUser.avatar,
+                },
+            }
+        }
+
+        // If the conversation already has a user field, check if it's the current user
+        if (conv.user && conv.user.id === currentUserId) {
+            console.warn("⚠️ Conversation contains current user data instead of other participant:", conv)
+            // Try to find other participant data in the conversation object
+            if (conv.other_user) {
+                return {
+                    ...conv,
+                    user: conv.other_user,
+                }
+            }
+        }
+
+        console.log("✅ Processed conversation user:", conv.user)
+        return conv
+    })
+}
+
 // Utility function to send typing event to your backend
 export async function sendTypingEventToBackend(payload: {
     user_id: number;
@@ -267,6 +330,19 @@ export function determineIsUser(message: BackendMessage, currentUserId: number):
     }
 }
 
+// Transform message from API response to match our interface
+export function transformMessage(apiMessage: any, currentUserId: number): BackendMessage {
+  return {
+    id: apiMessage.id,
+    user_id: apiMessage.receiver_id || apiMessage.user_id,
+    from: apiMessage.sender_id || apiMessage.from,
+    message: apiMessage.message,
+    created_at: apiMessage.created_at,
+    updated_at: apiMessage.updated_at,
+    isUser: (apiMessage.sender_id || apiMessage.from) === currentUserId,
+  }
+}
+
 // Utility function to sort messages by creation date
 export function sortMessagesByDate(messages: BackendMessage[]): BackendMessage[] {
     return messages.sort((a, b) =>
@@ -294,6 +370,27 @@ export function formatConversationTime(dateString: string): string {
     }
 }
 
+// Utility function to format message time
+export function formatMessageTime(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+
+  if (diffInHours < 24) {
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  } else {
+    return date.toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+}
+
 // Utility function to cancel ongoing requests
 export function cancelRequest(source: any) {
     if (source) {
@@ -305,3 +402,34 @@ export function cancelRequest(source: any) {
 export function createCancelTokenSource() {
     return axios.CancelToken.source()
 }
+
+// NEW: Search users function
+export async function searchUsers(query: string, authToken: string): Promise<any[]> {
+  try {
+    console.log("🔍 Searching users with query:", query)
+    const response = await apiClient.get(`/api/v1/users/search?q=${encodeURIComponent(query)}`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    })
+
+    console.log("📥 Search response:", response.data)
+
+    if (!response.data.status) {
+      throw new Error(response.data.message || "Failed to search users")
+    }
+
+    return response.data.data || []
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error("Axios error searching users:", error.response?.data)
+      throw new Error(error.response?.data?.message || "Failed to search users")
+    }
+
+    console.error("Unexpected error searching users:", error)
+    return []
+  }
+}
+
+// Export types
+export type { Conversation, BackendMessage }

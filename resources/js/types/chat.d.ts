@@ -1,6 +1,23 @@
+// Base user interface for chat functionality
+export interface ChatUser {
+  id: number
+  name: string
+  email: string
+  avatar?: string | null
+}
+
+// Extended user interface for data tables and full user management
+export interface User extends ChatUser {
+  phone?: string | null
+  user_type?: string
+  updated_at?: string
+  role?: string
+  DT_RowIndex?: number
+}
+
 export interface BackendMessage {
     id: number
-    user_id: number
+    name: number
     from: number
     message: string
     created_at: string
@@ -8,12 +25,28 @@ export interface BackendMessage {
     isUser: boolean
 }
 
+interface MessageReceiver {
+    id: number
+    name: string
+    email: string
+    avatar?: string | null
+}
+
+interface MessageSender {
+    id: number
+    name: string
+    email: string
+    avatar?: string | null
+}
+
 export interface Conversation {
-    conversation_id: number
-    last_message_at: string
-    last_message: string
-    unread_count: number
-    user: User
+  conversation_id: number
+  last_message_at: string
+  last_message: string
+  unread_count: number
+  user: ChatUser // Use ChatUser here since conversations only need basic user info
+  sender: MessageSender
+  receiver: MessageReceiver
 }
 
 export interface ApiResponse {
@@ -22,10 +55,10 @@ export interface ApiResponse {
     data: BackendMessage[]
 }
 
-interface ConversationsResponse {
-    status: boolean
-    message: string
-    data: Conversation[]
+export interface ConversationsResponse {
+  status: boolean
+  message: string
+  data: Conversation[]
 }
 
 export interface SendMessagePayload {
