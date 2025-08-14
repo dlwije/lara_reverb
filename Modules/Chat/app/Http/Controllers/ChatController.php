@@ -34,7 +34,17 @@ class ChatController extends Controller
                        FROM chat_messages
                        WHERE conversation_id = cm.conversation_id
                          AND receiver_id = ' . $authUserId . '
-                         AND read_at IS NULL) as unread_count')
+                         AND read_at IS NULL) as unread_count'),
+                DB::raw('(SELECT sender_id
+                      FROM chat_messages
+                      WHERE conversation_id = cm.conversation_id
+                      ORDER BY created_at DESC
+                      LIMIT 1) as last_sender_id'),
+                DB::raw('(SELECT receiver_id
+                      FROM chat_messages
+                      WHERE conversation_id = cm.conversation_id
+                      ORDER BY created_at DESC
+                      LIMIT 1) as last_receiver_id')
             )
             ->where(function ($q) use ($authUserId) {
                 $q->where('cm.sender_id', $authUserId)
