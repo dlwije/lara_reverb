@@ -167,7 +167,7 @@ const data:NavItems = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
     const [onlineUsers, setOnlineUsers] = useState<User[]>([]);
-    const echo = useEcho()
+    const echo = useEcho('from-app-sidebar')
     const { auth } = usePage<SharedData>().props;
 
     useEffect(() => {

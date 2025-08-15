@@ -61,7 +61,7 @@ export default function NotificationListener() {
             return;
         }
 
-        const senderName = data.sender.name; // Placeholder for missing sender name
+        const senderName = data.receiver.name; // Placeholder for missing sender name
 
         const newMessage = {
             id: data.message_id,
@@ -108,7 +108,7 @@ export default function NotificationListener() {
         if (user?.id) {
             console.log('Loading initial unread messages for user:', user.id);
             apiClient
-                .get('/api/v1/get-unread-messages', {
+                .get(`/api/v1/get-unread-messages/${user.id}`, {
                     user_id: user.id,
                 })
                 .then(res => {

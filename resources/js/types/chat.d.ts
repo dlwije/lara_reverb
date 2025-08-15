@@ -45,8 +45,9 @@ export interface Conversation {
   last_message: string
   unread_count: number
   user: ChatUser // Use ChatUser here since conversations only need basic user info
-  sender: MessageSender
-  receiver: MessageReceiver
+  user2: ChatUser // Use ChatUser here since conversations only need basic user info
+  // sender: MessageSender
+  // receiver: MessageReceiver
 }
 
 export interface ApiResponse {

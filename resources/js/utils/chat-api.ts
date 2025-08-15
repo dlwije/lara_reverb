@@ -62,7 +62,7 @@ export async function fetchMessagesByConversation(conversationId: number): Promi
 export async function fetchConversations(userId: number): Promise<Conversation[]> {
     try {
         console.log("🔄 Fetching conversations for user ID:", userId)
-        const response: AxiosResponse<ConversationsResponse> = await apiClient.get(`/api/v1/get-unread-messages`)
+        const response: AxiosResponse<ConversationsResponse> = await apiClient.get(`/api/v1/get-unread-messages/${userId}`)
 
         console.log("📥 Conversations API Response:", response.data)
 

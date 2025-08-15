@@ -20,6 +20,8 @@ import { AlertCircle, ArrowLeft, MessageCircle, Plus, Radio, Send, WifiOff } fro
 import { ConversationList } from '@/components/conversation-list';
 import { ChatInterface } from '@/components/chat-interface';
 import { ComposeMessageDialog } from '@/components/compose-message-dialog';
+import { DebugServerDataTable } from '@/pages/users/debug-server-data-table';
+import { ApiConnectionTest } from '@/components/api-connection-test';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -171,10 +173,12 @@ export default function DemoPage() {
                         />
                         </div>
                         <div>
-                            {chatLoading ? (
-                                <p className="text-center">Loading...</p>
-                            ) : (
-                                // <DataTable columns={getColumns(setConfirmingUser, composeMessage)} data={users} />
+                            {/* API Connection Test */}
+                            {/*<ApiConnectionTest authToken={authToken} userId={user?.id} />*/}
+                            {/*{chatLoading ? (*/}
+                            {/*    <p className="text-center">Loading...</p>*/}
+                            {/*) : (*/}
+                            {/*     <DataTable columns={getColumns(setConfirmingUser, composeMessage)} data={users} />*/}
                                 <ServerDataTable
                                     columns={serverColumns(setConfirmingUser, composeMessage)}
                                     apiEndpoint="/api/v1/users/list/data" // Replace with your actual API endpoint
@@ -182,7 +186,7 @@ export default function DemoPage() {
                                     searchPlaceholder="Search by email..."
                                     searchColumn="email"
                                 />
-                            )}
+                            {/*)}*/}
 
                             {/* Modal */}
                             {confirmingUser && (

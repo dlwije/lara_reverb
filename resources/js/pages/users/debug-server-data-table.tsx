@@ -10,7 +10,7 @@ import {
     getCoreRowModel,
     useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { ChevronDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,7 +23,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import apiClient from '@/lib/apiClient';
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import apiClient from "@/lib/apiClient"
 
 interface ServerDataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -41,18 +42,20 @@ interface ServerResponse<TData> {
     disableOrdering?: boolean
 }
 
-export function ServerDataTable<TData, TValue>({
-  columns,
-  apiEndpoint,
-  title = "Data Table",
-  searchPlaceholder = "Search...",
-  searchColumn = "email",
-}: ServerDataTableProps<TData, TValue>) {
-  // Server state
-  const [data, setData] = React.useState<TData[]>([])
-  const [loading, setLoading] = React.useState(false)
-  const [totalRecords, setTotalRecords] = React.useState(0)
-  const [filteredRecords, setFilteredRecords] = React.useState(0)
+export function DebugServerDataTable<TData, TValue>({
+                                                        columns,
+                                                        apiEndpoint,
+                                                        title = "Data Table",
+                                                        searchPlaceholder = "Search...",
+                                                        searchColumn = "email",
+                                                    }: ServerDataTableProps<TData, TValue>) {
+    // Server state
+    const [data, setData] = React.useState<TData[]>([])
+    const [loading, setLoading] = React.useState(false)
+    const [totalRecords, setTotalRecords] = React.useState(0)
+    const [filteredRecords, setFilteredRecords] = React.useState(0)
+    const [error, setError] = React.useState<string | null>(null)
+    const [debugInfo, setDebugInfo] = React.useState<any>(null)
 
     // Table state
     const [sorting, setSorting] = React.useState<SortingState>([])
@@ -84,7 +87,13 @@ export function ServerDataTable<TData, TValue>({
 
     // Fetch data from server
     const fetchData = React.useCallback(async () => {
+        console.log("🔄 Starting data fetch...")
+        console.log("📍 API Endpoint:", apiEndpoint)
+        console.log("📊 Current state:", { pageIndex, pageSize, debouncedSearch, sorting })
+
         setLoading(true)
+        setError(null)
+
         try {
             const params = new URLSearchParams({
                 start: (pageIndex * pageSize).toString(),
@@ -93,11 +102,17 @@ export function ServerDataTable<TData, TValue>({
             })
 
             const backendColumns = columns.filter((column) => {
-                // Safely access column properties
                 const columnId = column.id || ("accessorKey" in column ? column.accessorKey : undefined)
-                // Exclude select checkbox column and row index column
                 return columnId !== "select" && columnId !== "DT_RowIndex" && columnId !== "actions"
             })
+
+            console.log(
+                "📋 Backend columns:",
+                backendColumns.map((col) => ({
+                    id: col.id,
+                    accessorKey: "accessorKey" in col ? col.accessorKey : undefined,
+                })),
+            )
 
             backendColumns.forEach((column, index) => {
                 const columnId = column.id || ("accessorKey" in column ? column.accessorKey : `column_${index}`)
@@ -109,39 +124,111 @@ export function ServerDataTable<TData, TValue>({
                 params.append(`columns[${index}][orderable]`, column.enableSorting !== false ? "true" : "false")
             })
 
-      // Add search parameter
-      if (debouncedSearch) {
-        params.append("search[value]", debouncedSearch)
-        params.append("search[regex]", "false")
-      }
+            // Add search parameter
+            if (debouncedSearch) {
+                params.append("search[value]", debouncedSearch)
+                params.append("search[regex]", "false")
+            }
 
-      if (sorting.length > 0) {
-        const sort = sorting[0]
-        // Find the column index by matching the column ID
-        const columnIndex = backendColumns.findIndex((col) => {
-          // Handle both string IDs and accessor functions
-          if (typeof col.id === "string") return col.id === sort.id
-            if ("accessorKey" in col && col.accessorKey) return col.accessorKey === sort.id
-          return false
-        })
+            if (sorting.length > 0) {
+                const sort = sorting[0]
+                const columnIndex = backendColumns.findIndex((col) => {
+                    if (typeof col.id === "string") return col.id === sort.id
+                    if ("accessorKey" in col && col.accessorKey) return col.accessorKey === sort.id
+                    return false
+                })
 
-        if (columnIndex !== -1) {
-          params.append("order[0][column]", columnIndex.toString())
-          params.append("order[0][dir]", sort.desc ? "desc" : "asc")
-        }
-      }
+                if (columnIndex !== -1) {
+                    params.append("order[0][column]", columnIndex.toString())
+                    params.append("order[0][dir]", sort.desc ? "desc" : "asc")
+                }
+            }
+
+            const fullUrl = `${apiEndpoint}?${params}`
+            console.log("🌐 Full request URL:", fullUrl)
+            console.log("📤 Request params:", Object.fromEntries(params))
+
+            // Check if apiClient is properly configured
+            console.log("🔧 API Client config:", {
+                baseURL: apiClient.defaults.baseURL,
+                timeout: apiClient.defaults.timeout,
+                headers: apiClient.defaults.headers,
+            })
 
             const response = await apiClient.get(`${apiEndpoint}?${params}`)
+
+            console.log("📥 Response status:", response.status)
+            console.log("📥 Response headers:", response.headers)
+            console.log("📥 Response data:", response.data)
+
+            // Validate response structure
+            if (!response.data) {
+                throw new Error("No data in response")
+            }
+
             const result: ServerResponse<TData> = response.data
 
-            setData(result.data)
-            setTotalRecords(result.recordsTotal)
-            setFilteredRecords(result.recordsFiltered)
-        } catch (error) {
-            console.error("Failed to fetch data:", error)
+            // Check if response has expected structure
+            if (
+                typeof result.recordsTotal === "undefined" ||
+                typeof result.recordsFiltered === "undefined" ||
+                !Array.isArray(result.data)
+            ) {
+                console.warn("⚠️ Response doesn't match expected DataTables format:", result)
+                setDebugInfo({
+                    responseStructure: Object.keys(result),
+                    expectedStructure: ["draw", "recordsTotal", "recordsFiltered", "data"],
+                    actualData: result,
+                })
+            }
+
+            setData(result.data || [])
+            setTotalRecords(result.recordsTotal || 0)
+            setFilteredRecords(result.recordsFiltered || 0)
+
+            console.log("✅ Data loaded successfully:", {
+                dataCount: result.data?.length || 0,
+                totalRecords: result.recordsTotal,
+                filteredRecords: result.recordsFiltered,
+            })
+        } catch (error: any) {
+            console.error("❌ Failed to fetch data:", error)
+
+            let errorMessage = "Failed to fetch data"
+
+            if (error.response) {
+                // Server responded with error status
+                console.error("📥 Error response:", {
+                    status: error.response.status,
+                    statusText: error.response.statusText,
+                    data: error.response.data,
+                })
+                errorMessage = `Server error: ${error.response.status} ${error.response.statusText}`
+                if (error.response.data?.message) {
+                    errorMessage += ` - ${error.response.data.message}`
+                }
+            } else if (error.request) {
+                // Request was made but no response received
+                console.error("📡 No response received:", error.request)
+                errorMessage = "No response from server. Check if the API endpoint is accessible."
+            } else {
+                // Something else happened
+                console.error("⚠️ Request setup error:", error.message)
+                errorMessage = error.message
+            }
+
+            setError(errorMessage)
             setData([])
             setTotalRecords(0)
             setFilteredRecords(0)
+
+            setDebugInfo({
+                error: error.message,
+                errorType: error.response ? "response" : error.request ? "request" : "setup",
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                responseData: error.response?.data,
+            })
         } finally {
             setLoading(false)
         }
@@ -149,7 +236,7 @@ export function ServerDataTable<TData, TValue>({
 
     // Fetch data when dependencies change
     React.useEffect(() => {
-        console.log('fetching data');
+        console.log("🔄 Effect triggered - fetching data")
         fetchData()
     }, [fetchData])
 
@@ -191,10 +278,26 @@ export function ServerDataTable<TData, TValue>({
         <Card className="ms-2 me-2 gap-0">
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
+                {error && (
+                    <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
+                {debugInfo && (
+                    <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                            <details>
+                                <summary className="cursor-pointer font-medium">Debug Information</summary>
+                                <pre className="mt-2 text-xs overflow-auto max-h-40">{JSON.stringify(debugInfo, null, 2)}</pre>
+                            </details>
+                        </AlertDescription>
+                    </Alert>
+                )}
             </CardHeader>
             <CardContent>
                 <div className="flex w-full items-center gap-3 py-4">
-                    {/* Auto-expanding search */}
                     <div className="relative min-w-0 flex-1">
                         <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-500" />
                         <Input
@@ -206,7 +309,6 @@ export function ServerDataTable<TData, TValue>({
                         />
                     </div>
 
-                    {/* Columns selector pinned to right */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
@@ -254,7 +356,19 @@ export function ServerDataTable<TData, TValue>({
                             {loading ? (
                                 <TableRow>
                                     <TableCell colSpan={columns.length} className="h-24 text-center">
-                                        Loading...
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                                            <span>Loading...</span>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ) : error ? (
+                                <TableRow>
+                                    <TableCell colSpan={columns.length} className="h-24 text-center text-red-600">
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <AlertCircle className="h-4 w-4" />
+                                            <span>Failed to load data</span>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ) : table.getRowModel().rows?.length ? (
@@ -268,7 +382,7 @@ export function ServerDataTable<TData, TValue>({
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={columns.length} className="h-24 text-center">
-                                        No results.
+                                        No results found.
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -302,7 +416,7 @@ export function ServerDataTable<TData, TValue>({
 
                 <div className="flex items-center space-x-6 lg:space-x-8">
                     <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                        Page {currentPage} of {totalPages}
+                        Page {currentPage} of {totalPages || 1}
                     </div>
                     <div className="flex items-center space-x-2">
                         <Button

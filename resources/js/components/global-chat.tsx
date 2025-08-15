@@ -234,10 +234,10 @@ export function GlobalChat({ currentUser, authToken, trigger, className, open: e
                             <div className="min-h-0 flex-1">
                                 <ChatInterface
                                     user={{
-                                        id: selectedConversation.user.id.toString(),
-                                        name: selectedConversation.user.name,
-                                        email: selectedConversation.user.email,
-                                        avatar: selectedConversation.user.avatar || undefined,
+                                        id: selectedConversation.user2.id.toString(),
+                                        name: selectedConversation.user2.name,
+                                        email: selectedConversation.user2.email,
+                                        avatar: selectedConversation.user2.avatar || undefined,
                                     }}
                                     messages={messages}
                                     onSendMessage={sendMessage}

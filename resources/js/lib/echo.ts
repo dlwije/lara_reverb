@@ -1,9 +1,10 @@
 import Echo from "laravel-echo";
 import { useEffect, useState } from 'react';
 
-const useEcho = () => {
+const useEcho = (iniState?:string) => {
     const [echoInstance, setEchoInstance] = useState<Echo<T> | null>(null);
 
+    console.log('SSR: useEcho called with iniState:', iniState);
     useEffect(() => {
         const token = localStorage.getItem('acc_token'); // Passport token
         // console.log('Token:', token); // Debug

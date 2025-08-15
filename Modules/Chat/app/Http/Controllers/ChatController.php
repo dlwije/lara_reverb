@@ -17,34 +17,35 @@ class ChatController extends Controller
 {
 
     //Conversation List with Last Message + Unread Count
-    public function getConversations(Request $request)
+    public function getConversations($user_id)
     {
-        $authUserId = auth('api')->id();
+        $authUserId = $user_id;
+        Log::info('Passed User ID: ' . $user_id);
 
         $conversations = DB::table('chat_messages as cm')
             ->select(
                 'cm.conversation_id',
                 DB::raw('MAX(cm.created_at) as last_message_at'),
                 DB::raw('(SELECT message
-                       FROM chat_messages
-                       WHERE conversation_id = cm.conversation_id
-                       ORDER BY created_at DESC
-                       LIMIT 1) as last_message'),
+                     FROM chat_messages
+                     WHERE conversation_id = cm.conversation_id
+                     ORDER BY created_at DESC
+                     LIMIT 1) as last_message'),
                 DB::raw('(SELECT COUNT(*)
-                       FROM chat_messages
-                       WHERE conversation_id = cm.conversation_id
-                         AND receiver_id = ' . $authUserId . '
-                         AND read_at IS NULL) as unread_count'),
+                     FROM chat_messages
+                     WHERE conversation_id = cm.conversation_id
+                       AND receiver_id = ' . $authUserId . '
+                       AND read_at IS NULL) as unread_count'),
                 DB::raw('(SELECT sender_id
-                      FROM chat_messages
-                      WHERE conversation_id = cm.conversation_id
-                      ORDER BY created_at DESC
-                      LIMIT 1) as last_sender_id'),
+                     FROM chat_messages
+                     WHERE conversation_id = cm.conversation_id
+                     ORDER BY created_at DESC
+                     LIMIT 1) as last_sender_id'),
                 DB::raw('(SELECT receiver_id
-                      FROM chat_messages
-                      WHERE conversation_id = cm.conversation_id
-                      ORDER BY created_at DESC
-                      LIMIT 1) as last_receiver_id')
+                     FROM chat_messages
+                     WHERE conversation_id = cm.conversation_id
+                     ORDER BY created_at DESC
+                     LIMIT 1) as last_receiver_id')
             )
             ->where(function ($q) use ($authUserId) {
                 $q->where('cm.sender_id', $authUserId)
@@ -54,18 +55,14 @@ class ChatController extends Controller
             ->orderByDesc('last_message_at')
             ->get();
 
-        // Attach other participant's profile
+        // Always attach the user that is NOT the logged-in user
         $conversations->transform(function ($conv) use ($authUserId) {
-            $otherUserId = DB::table('chat_messages')
-                ->where('conversation_id', $conv->conversation_id)
-                ->where(function ($q) use ($authUserId) {
-                    $q->where('sender_id', '!=', $authUserId)
-                        ->orWhere('receiver_id', '!=', $authUserId);
-                })
-                ->value('sender_id'); // or receiver_id depending on position
+            $otherUserId = $conv->last_sender_id == $authUserId
+                ? $conv->last_receiver_id   // if I sent it → other one is receiver
+                : $conv->last_sender_id;    // else → other one is sender
 
-            $conv->user = User::select('id', 'name', 'email', 'avatar')
-                ->find($otherUserId);
+            $conv->user = User::select('id', 'name', 'email', 'avatar')->find($otherUserId);
+            $conv->user2 = User::select('id', 'name', 'email', 'avatar')->find($authUserId);
 
             return $conv;
         });

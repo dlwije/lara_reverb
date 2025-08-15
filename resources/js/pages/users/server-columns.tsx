@@ -112,16 +112,16 @@ export const serverColumns = (
                     >
                         <Trash2 className="h-4 w-4" />
                     </button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Send message"
-                        onClick={() => onMessage(user)}
-                        className="cursor-pointer inline-flex h-8 w-8 items-center justify-center rounded hover:bg-zinc-100 text-green-600"
-                        title="Send message"
-                    >
-                        <Send className="h-4 w-4" />
-                    </Button>
+                    {/*<Button*/}
+                    {/*    variant="ghost"*/}
+                    {/*    size="icon"*/}
+                    {/*    aria-label="Send message"*/}
+                    {/*    onClick={() => onMessage(user)}*/}
+                    {/*    className="cursor-pointer inline-flex h-8 w-8 items-center justify-center rounded hover:bg-zinc-100 text-green-600"*/}
+                    {/*    title="Send message"*/}
+                    {/*>*/}
+                    {/*    <Send className="h-4 w-4" />*/}
+                    {/*</Button>*/}
                 </div>
             )
         },
