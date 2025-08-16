@@ -7,21 +7,15 @@ import { BreadcrumbItem, SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
-import { Skeleton } from '@/components/ui/skeleton';
-import { useConversations } from '@/hooks/use-conversations';
-import { useEchoChat } from '@/hooks/use-echo-chat';
+import { ChatInterface } from '@/components/chat-interface';
+import { ConversationList } from '@/components/conversation-list';
+import { TableActions } from '@/components/table-actions';
 import { serverColumns } from '@/pages/users/server-columns';
 import { ServerDataTable } from '@/pages/users/server-data-table';
-import { Conversation } from '@/types/chat';
-import { setupEcho } from '@/utils/echo-setup';
+import { ChatUser, Conversation } from '@/types/chat';
 import { Button } from '@headlessui/react';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { AlertCircle, ArrowLeft, MessageCircle, Plus, Radio, Send, WifiOff } from 'lucide-react';
-import { ConversationList } from '@/components/conversation-list';
-import { ChatInterface } from '@/components/chat-interface';
-import { ComposeMessageDialog } from '@/components/compose-message-dialog';
-import { DebugServerDataTable } from '@/pages/users/debug-server-data-table';
-import { ApiConnectionTest } from '@/components/api-connection-test';
+import { ArrowLeft } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -44,94 +38,75 @@ interface User {
 
 export default function DemoPage() {
     const { auth } = usePage<SharedData>().props;
-    const echo = setupEcho();
-
-    const [users, setUsers] = useState<User[]>([]);
-    const [userLoading, setUserLoading] = useState(true);
     const [confirmingUser, setConfirmingUser] = useState<User | null>(null);
+    const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
 
-    const user = auth.user;
+    // Chat specific states
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [open, setOpen] = useState(false);
-
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+    const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
     const [showConversationList, setShowConversationList] = useState(true);
 
-    const [chatOpen, setChatOpen] = useState(false)
-    const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null)
+    const user = auth.user;
+    const authToken = auth.accessToken;
 
-    // Get auth token from your auth system
-    const authToken = auth.accessToken; // Replace with actual token
-
-    // Use conversations hook
-    const {
-        conversations,
-        loading: conversationsLoading,
-        error: conversationsError,
-        loadConversations,
-        markAsRead,
-        updateLastMessage,
-        incrementUnreadCount,
-        getTotalUnreadCount,
-    } = useConversations(user?.id);
-
-    // Use chat hook only when conversation is selected
-    const {
-        messages,
-        loading: chatLoading,
-        sending,
-        error: chatError,
-        isConnected,
-        otherUserTyping,
-        conversationId,
-        sendMessage,
-        refreshMessages,
-        reconnect,
-        handleTyping,
-    } = useEchoChat(user?.id, selectedConversation?.user.id || 0, authToken, selectedConversation?.conversation_id);
+    // Convert auth user to ChatUser format
+    const currentChatUser: ChatUser = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+    };
 
     const handleSelectConversation = async (conversation: Conversation) => {
         console.log('handleSelectConversation', conversation);
-        setSelectedConversation(conversation)
-        setShowConversationList(false)
+        setSelectedConversation(conversation);
+        setShowConversationList(false);
 
         // Mark conversation as read
-        if (conversation.unread_count > 0) {
-            await markAsRead(conversation.conversation_id)
-        }
-    }
-
-    const handleBackToList = () => {
-        setSelectedConversation(null)
-        setShowConversationList(true)
-    }
-
-    const getConnectionStatus = () => {
-        if (isConnected) {
-            return (
-                <div className="flex items-center gap-2 text-green-400">
-                    <Radio className="w-4 h-4" />
-                    <span className="text-xs">Live</span>
-                </div>
-            )
-        }
-        return (
-            <div className="flex items-center gap-2 text-yellow-400">
-                <WifiOff className="w-4 h-4" />
-                <span className="text-xs">Offline</span>
-            </div>
-        )
-    }
-
-    const getErrorIcon = () => {
-        if (chatError?.includes("timeout") || chatError?.includes("connection")) {
-            return <WifiOff className="w-4 h-4" />
-        }
-        return <AlertCircle className="h-4 w-4" />;
+        // if (conversation.unread_count > 0) {
+        //     await markAsRead(conversation.conversation_id)
+        // }
     };
 
+    const handleBackToList = () => {
+        setSelectedConversation(null);
+        setShowConversationList(true);
+    };
 
-    const totalUnreadCount = getTotalUnreadCount()
+    const handleMessageSent = (conversationId: number, targetUser: ChatUser) => {
+        console.log(`✅ Message sent to ${targetUser.name}, conversation ID: ${conversationId}`);
+        // Handle message sent logic here
+    };
+
+    const handleExport = () => {
+        console.log('Exporting users...');
+        // Add export logic here
+    };
+
+    const handleFilter = () => {
+        console.log('Opening filters...');
+        // Add filter logic here
+    };
+
+    const handleBulkAction = (action: string) => {
+        console.log(`Bulk action: ${action}`);
+        switch (action) {
+            case 'delete':
+                console.log('Deleting selected users:', selectedUsers);
+                break;
+            case 'refresh':
+                console.log('Refreshing data...');
+                break;
+            case 'import':
+                console.log('Opening import dialog...');
+                break;
+            case 'settings':
+                console.log('Opening table settings...');
+                break;
+        }
+    };
 
     const composeMessage = (member) => {
         setSelectedUser(member);
@@ -140,18 +115,12 @@ export default function DemoPage() {
         setOpen(true);
     };
 
-    const openChatWindow = async () => {
-        setOpen(true);
-    }
-
-    const handleMessageSent = (conversationId: number, targetUser: User) => {
-        console.log(`✅ Message sent to ${targetUser.name}, conversation ID: ${conversationId}`)
-        // Optionally open the chat window to show the new conversation
-        setSelectedConversationId(conversationId)
-        setChatOpen(true)
-    }
-
-    // const { messages, loading, sending, error, sendMessage, refreshMessages } = useChat(selectedUser?.id, user?.id)
+    // const handleMessageSent = (conversationId: number, targetUser: User) => {
+    //     console.log(`✅ Message sent to ${targetUser.name}, conversation ID: ${conversationId}`)
+    //     // Optionally open the chat window to show the new conversation
+    //     setSelectedConversationId(conversationId)
+    //     setChatOpen(true)
+    // }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -159,34 +128,26 @@ export default function DemoPage() {
             <div className="flex flex-1 flex-col">
                 <div className="@container/main flex flex-1 flex-col gap-2">
                     <div className="flex flex-col gap-4 py-4 md:gap-2 md:py-2">
-                        <div className="flex items-center justify-between">
-                        <ComposeMessageDialog
-                            currentUser={user}
+                        <TableActions
+                            currentUser={currentChatUser}
                             authToken={authToken}
                             onMessageSent={handleMessageSent}
-                            trigger={
-                                <Button>
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Compose Message
-                                </Button>
-                            }
+                            onExport={handleExport}
+                            onFilter={handleFilter}
+                            onBulkAction={handleBulkAction}
+                            selectedCount={selectedUsers.length}
                         />
-                        </div>
                         <div>
                             {/* API Connection Test */}
                             {/*<ApiConnectionTest authToken={authToken} userId={user?.id} />*/}
-                            {/*{chatLoading ? (*/}
-                            {/*    <p className="text-center">Loading...</p>*/}
-                            {/*) : (*/}
-                            {/*     <DataTable columns={getColumns(setConfirmingUser, composeMessage)} data={users} />*/}
-                                <ServerDataTable
-                                    columns={serverColumns(setConfirmingUser, composeMessage)}
-                                    apiEndpoint="/api/v1/users/list/data" // Replace with your actual API endpoint
-                                    title="Users Management"
-                                    searchPlaceholder="Search by email..."
-                                    searchColumn="email"
-                                />
-                            {/*)}*/}
+
+                            <ServerDataTable
+                                columns={serverColumns(setConfirmingUser, composeMessage)}
+                                apiEndpoint="/api/v1/users/list/data" // Replace with your actual API endpoint
+                                title="Users Management"
+                                searchPlaceholder="Search by email..."
+                                searchColumn="email"
+                            />
 
                             {/* Modal */}
                             {confirmingUser && (
@@ -212,9 +173,8 @@ export default function DemoPage() {
                             )}
 
                             <Sheet open={open} onOpenChange={setOpen}>
-                                <SheetTrigger asChild>
-                                </SheetTrigger>
-                                <SheetContent className="w-full max-w-4xl bg-zinc-900 border-zinc-800 text-white p-0 flex">
+                                <SheetTrigger asChild></SheetTrigger>
+                                <SheetContent className="flex w-full max-w-4xl border-zinc-800 bg-zinc-900 p-0 text-white">
                                     {/* Conversation List */}
                                     {(showConversationList || !selectedConversation) && (
                                         <ConversationList
@@ -224,8 +184,8 @@ export default function DemoPage() {
                                         />
                                     )}
                                     {selectedConversation && !showConversationList && (
-                                        <div className="flex-1 flex flex-col">
-                                            <SheetHeader className="p-4 border-b border-zinc-800">
+                                        <div className="flex flex-1 flex-col">
+                                            <SheetHeader className="border-b border-zinc-800 p-4">
                                                 <SheetTitle>
                                                     <div className="flex items-center gap-3">
                                                         <Button
@@ -234,11 +194,11 @@ export default function DemoPage() {
                                                             onClick={handleBackToList}
                                                             className="text-zinc-400 hover:text-white lg:hidden"
                                                         >
-                                                            <ArrowLeft className="w-4 h-4" />
+                                                            <ArrowLeft className="h-4 w-4" />
                                                         </Button>
                                                         <div className="flex-1">
-                                                            <h2 className="font-semibold text-lg">Chat with {selectedConversation.user.name}</h2>
-                                                            <p className="text-zinc-400 text-sm">{selectedConversation.user.email}</p>
+                                                            <h2 className="text-lg font-semibold">Chat with {selectedConversation.user.name}</h2>
+                                                            <p className="text-sm text-zinc-400">{selectedConversation.user.email}</p>
                                                         </div>
                                                     </div>
                                                 </SheetTitle>
@@ -257,7 +217,7 @@ export default function DemoPage() {
                                                 }}
                                                 messages={[]} // This will be populated by your chat hook
                                                 onSendMessage={(message) => {
-                                                    console.log("Sending message:", message)
+                                                    console.log('Sending message:', message);
                                                     // Add your sendMessage logic here
                                                 }}
                                                 sending={false}
