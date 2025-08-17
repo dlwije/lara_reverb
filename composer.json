@@ -20,6 +20,7 @@
         "nwidart/laravel-modules": "^12.0",
         "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-permission": "^6.21",
+        "spatie/laravel-sluggable": "^3.7",
         "tightenco/ziggy": "^2.4",
         "yajra/laravel-datatables": "^12.0"
     },

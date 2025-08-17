@@ -18,7 +18,7 @@ class WorkorderController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(): \Inertia\Response
     {
         return Inertia::render('workorder/index');
     }
