@@ -80,42 +80,42 @@ class Model extends EloquentModel
         return $query;
     }
 
-    protected static function booted()
-    {
-        static::addGlobalScope('of_company', function (Builder $builder) {
-            $table = with(new static)->getTable();
-            $builder->where($table . '.company_id', get_company_id());
-        });
-
-        if(static::$userRecords) {
-            $user = auth()->user();
-            if($user && ! $user->hasRole('Super Admin') && $user->cant('read-all')) {
-                static::addGlobalScope('mine', fn ($q) => $q->where('user_id', $user->id));
-            }
-        }
-
-        static::creating(function ($model) {
-            if(! $model->company_id) {
-                $model->company_id = get_company_id();
-            }
-            if ($model::$hasReference && ! $model->reference) {
-                $model->reference = get_reference($model);
-            }
-            if ($model::$hasRegister && ! $model->register_id) {
-                $model->register_id = session('open_register_id') ?: auth()->user()?->openedRegister?->id;
-            }
-            if ($model::$hasSku && ! $model->sku) {
-                $model->sku = ulid();
-            }
-            if ($model::$hasStore && ! $model->store_id) {
-                $model->store_id = session('selected_store_id', config('app.default_store_id'));
-            }
-            if ($model->setHash && ! $model->hash) {
-                $model->hash = uuid4();
-            }
-            if ($model::$hasUser && ! $model->user_id) {
-                $model->user_id = auth()->id();
-            }
-        });
-    }
+//    protected static function booted()
+//    {
+//        static::addGlobalScope('of_company', function (Builder $builder) {
+//            $table = with(new static)->getTable();
+//            $builder->where($table . '.company_id', get_company_id());
+//        });
+//
+//        if(static::$userRecords) {
+//            $user = auth()->user();
+//            if($user && ! $user->hasRole('Super Admin') && $user->cant('read-all')) {
+//                static::addGlobalScope('mine', fn ($q) => $q->where('user_id', $user->id));
+//            }
+//        }
+//
+//        static::creating(function ($model) {
+//            if(! $model->company_id) {
+//                $model->company_id = get_company_id();
+//            }
+//            if ($model::$hasReference && ! $model->reference) {
+//                $model->reference = get_reference($model);
+//            }
+//            if ($model::$hasRegister && ! $model->register_id) {
+//                $model->register_id = session('open_register_id') ?: auth()->user()?->openedRegister?->id;
+//            }
+//            if ($model::$hasSku && ! $model->sku) {
+//                $model->sku = ulid();
+//            }
+//            if ($model::$hasStore && ! $model->store_id) {
+//                $model->store_id = session('selected_store_id', config('app.default_store_id'));
+//            }
+//            if ($model->setHash && ! $model->hash) {
+//                $model->hash = uuid4();
+//            }
+//            if ($model::$hasUser && ! $model->user_id) {
+//                $model->user_id = auth()->id();
+//            }
+//        });
+//    }
 }

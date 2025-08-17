@@ -1,4 +1,5 @@
 {
     "ApiAuth": true,
-    "Chat": true
+    "Chat": true,
+    "Workorder": true
 }

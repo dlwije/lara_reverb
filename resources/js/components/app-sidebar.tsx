@@ -81,6 +81,17 @@ const data:NavItems = {
             ],
         },
         {
+            title: "Workorders",
+            url: "#",
+            icon: User2,
+            items: [
+                {
+                    title: "List",
+                    url: "admin.workorder.list",
+                }
+            ],
+        },
+        {
             title: "Models",
             url: "",
             icon: Bot,

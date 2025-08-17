@@ -39,7 +39,7 @@ class ApiAuthController extends Controller
                 'users.name',
                 'users.email',
                 'users.phone',
-                'users.user_type',
+//                'users.user_type',
                 'users.updated_at',
                 DB::raw('GROUP_CONCAT(DISTINCT roles.name SEPARATOR ", ") as role_name')
             ])
