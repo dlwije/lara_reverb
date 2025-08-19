@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\Router;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -10,7 +11,7 @@ use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-return Application::configure(basePath: dirname(__DIR__))
+$app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
@@ -38,12 +39,21 @@ return Application::configure(basePath: dirname(__DIR__))
 //            'Sms' => Prgayman\Sms\Facades\Sms::class,
 //            'SmsHistory' => Prgayman\Sms\Facades\SmsHistory::class,
 //            'Countries' => Webpatser\Countries\CountriesFacade::class,
+            'language' => App\Http\Middleware\Language::class,
+            'store'    => App\Http\Middleware\SelectStore::class,
+            'register' => App\Http\Middleware\OpenRegister::class,
+            'installed'=> App\Http\Middleware\RedirectIfNotInstalled::class,
         ]);
 
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+        ]);
+
+        $middleware->web(append: [
+            App\Http\Middleware\Language::class,
+            App\Http\Middleware\InertiaShareViewData::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
@@ -93,3 +103,7 @@ return Application::configure(basePath: dirname(__DIR__))
             return $response;
         });
     })->create();
+
+$app->singleton('router', fn ($app) => new Router($app['events'], $app));
+
+return $app;
