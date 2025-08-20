@@ -2,12 +2,12 @@
 
 namespace App\Models\Sma\Order;
 
-use App\Models\User;
-use App\Models\Model;
 use App\Casts\AppDate;
-use App\Traits\Trackable;
-use App\Models\Sma\Setting\Store;
+use App\Models\Model;
 use App\Models\Sma\People\Customer;
+use App\Models\Sma\Setting\Store;
+use App\Models\User;
+use App\Traits\Trackable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class GiftCard extends Model

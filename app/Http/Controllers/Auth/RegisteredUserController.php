@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,7 +37,10 @@ class RegisteredUserController extends Controller
     public function store(UserRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $data['username'] = $data['name'] ?? NULL;
 
+//        echo "<pre>";
+//        print_r($data);exit();
         // Ensure roles are provided or fall back to ['customer']
         $data['roles'] = $request->input('roles', [RoleEnum::customer->name]);;
         $data['team_id'] = $data['team_id'] ?? 1; // or get team ID dynamically
@@ -67,6 +71,7 @@ class RegisteredUserController extends Controller
             return redirect()->intended(route('dashboard', absolute: false));
         }catch (\Throwable $th) {
 
+            Log::error($th);
             return back()->with('error', __('{model} cannot be {action}.', [
                 'model'  => __('User'),
                 'action' => __('deleted'),

@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
-abstract class Controller
+use App\Traits\Authorizable;
+use Illuminate\Routing\Controller as RoutingController;
+abstract class Controller extends RoutingController
 {
+//    use Authorizable;
     public static function inertiaSuccess($data, $redirectRouteName = 'dashboard', $message = 'Success', $statusCode = 200): \Illuminate\Http\JsonResponse
     {
         return response()->json([
