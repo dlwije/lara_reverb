@@ -32,9 +32,9 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'name', 'phone', 'email', 'username', 'password', 'locale',
+        'customer_id', 'supplier_id', 'store_id', 'employee', 'active',
+        'bulk_actions',  'edit_all', 'read-all', 'can_be_impersonated',
     ];
 
     /**
@@ -45,6 +45,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_recovery_codes', 'two_factor_secret'
     ];
     public function sentMessages()
     {
