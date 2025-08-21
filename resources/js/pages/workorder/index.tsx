@@ -76,13 +76,6 @@ export default function DemoPage() {
         setOpen(true);
     };
 
-    // const handleMessageSent = (conversationId: number, targetUser: User) => {
-    //     console.log(`✅ Message sent to ${targetUser.name}, conversation ID: ${conversationId}`)
-    //     // Optionally open the chat window to show the new conversation
-    //     setSelectedConversationId(conversationId)
-    //     setChatOpen(true)
-    // }
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Users" />

@@ -51,6 +51,37 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
 
                     <form onSubmit={submit} className="space-y-6">
                         <div className="grid gap-2">
+                            <Label htmlFor="avatar">Profile Picture</Label>
+
+                            <input
+                                id="avatar"
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => setData('avatar', e.target.files ? e.target.files[0] : null)}
+                                className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                            />
+
+                            <InputError className="mt-2" message={errors.avatar} />
+
+                            {/* show current avatar */}
+                            {auth.user.profile_photo_path && !data.avatar && (
+                                <img
+                                    src={`/storage/${auth.user.profile_photo_path}`}
+                                    alt="Current avatar"
+                                    className="mt-2 h-16 w-16 rounded-full object-cover"
+                                />
+                            )}
+
+                            {/* preview new avatar */}
+                            {data.avatar && (
+                                <img
+                                    src={URL.createObjectURL(data.avatar)}
+                                    alt="Preview avatar"
+                                    className="mt-2 h-16 w-16 rounded-full object-cover"
+                                />
+                            )}
+                        </div>
+                        <div className="grid gap-2">
                             <Label htmlFor="name">Name</Label>
 
                             <Input
