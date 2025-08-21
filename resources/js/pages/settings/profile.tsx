@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import TwoFactorAuth from '@/pages/settings/TwoFactorAuth';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -119,6 +120,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                         </div>
                     </form>
                 </div>
+                <TwoFactorAuth />
 
                 <DeleteUser />
             </SettingsLayout>

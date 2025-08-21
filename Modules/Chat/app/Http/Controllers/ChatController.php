@@ -61,8 +61,8 @@ class ChatController extends Controller
                 ? $conv->last_receiver_id   // if I sent it → other one is receiver
                 : $conv->last_sender_id;    // else → other one is sender
 
-            $conv->user = User::select('id', 'name', 'email', 'avatar')->find($otherUserId);
-            $conv->user2 = User::select('id', 'name', 'email', 'avatar')->find($authUserId);
+            $conv->user = User::select(['id', 'name', 'email', DB::raw('profile_photo_path as avatar')])->find($otherUserId);
+            $conv->user2 = User::select(['id', 'name', 'email', DB::raw('profile_photo_path as avatar')])->find($authUserId);
 
             return $conv;
         });
@@ -82,12 +82,16 @@ class ChatController extends Controller
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
-        $messages = ChatMessage::with(['sender:id,name,email,avatar', 'receiver:id,name,email,avatar'])
+        $messages = ChatMessage::with(['sender:id,name,email,profile_photo_path', 'receiver:id,name,email,profile_photo_path'])
             ->where('conversation_id', $conversationId)
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(function ($msg) use ($authUserId) {
                 $msg->isUser = $msg->sender_id == $authUserId;
+
+                // Optional: if you still want profile_photo_path as well
+                $msg->sender->avatar = $msg->sender->profile_photo_path;
+                $msg->receiver->avatar = $msg->receiver->profile_photo_path;
                 return $msg;
             });
 
@@ -150,12 +154,20 @@ class ChatController extends Controller
             ]);
 
             // Load sender and receiver info
-            $sender = User::select('id', 'name', 'email', 'avatar')->find($senderId);
+            $sender = User::select('id', 'name', 'email', 'profile_photo_path')->find($senderId);
+
+            if ($sender) {
+                $sender->avatar = $sender->profile_photo_path;
+            }
 
             // For private chats, load receiver user
             $receiver = $conversation->type === 'private'
-                ? User::select('id', 'name', 'email', 'avatar')->find($receiverId)
+                ? User::select('id', 'name', 'email', 'profile_photo_path')->find($receiverId)
                 : null;
+
+            if ($receiver) {
+                $receiver->avatar = $receiver->profile_photo_path;
+            }
 
             DB::commit();
             // Broadcast events
@@ -269,9 +281,16 @@ class ChatController extends Controller
 
         // 2. Fetch messages with sender info
         $messages = ChatMessage::where('conversation_id', $conversationId)
-            ->with(['sender:id,name,email,avatar', 'receiver:id,name,email,avatar'])
+            ->with(['sender:id,name,email,profile_photo_path', 'receiver:id,name,email,profile_photo_path'])
             ->orderBy('created_at', 'asc') // oldest first
             ->get();
+
+        // Then, if you want to rename `profile_photo_path` to `avatar`:
+        $messages->transform(function ($message) {
+            $message->sender->avatar = $message->sender->profile_photo_path;
+            $message->receiver->avatar = $message->receiver->profile_photo_path;
+            return $message;
+        });
 
         // 3. Return in your API format
         return self::success($messages, 'Messages fetched successfully');
@@ -283,7 +302,7 @@ class ChatController extends Controller
         $query = $request->get('q', '');
 
         $users = User::query()
-            ->select('id', 'name', 'email', 'avatar')
+            ->select(['id', 'name', 'email', DB::raw('profile_photo_path as avatar')])
             ->where('id', '!=', $authUserId)
             ->when($query, function ($q) use ($query) {
                 $q->where(function ($inner) use ($query) {

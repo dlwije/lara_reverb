@@ -9,7 +9,7 @@ use Illuminate\Routing\Router as BaseRouter;
 
 class Router extends BaseRouter
 {
-    public function __construct(Dispatcher $events, Container $container = null)
+    public function __construct(Dispatcher $events, Container|null $container = null)
     {
         parent::__construct($events, $container);
     }
