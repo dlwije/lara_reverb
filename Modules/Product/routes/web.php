@@ -10,5 +10,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['language', 'auth', config('jetstream.auth_session')])->group(function () {
     Route::extendedResources([
         'products' => ProductController::class
+    ], [
+        'prefix'     => 'admin',
+        'as'         => 'admin',
     ]);
 });

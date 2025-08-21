@@ -20,6 +20,8 @@ export default defineConfig({
     resolve: {
         alias: {
             'ziggy-js': resolve(__dirname, 'vendor/tightenco/ziggy'),
+            // '@': resolve(__dirname, 'resources/js'),
+            // '@lang': resolve(__dirname, 'lang'), // 👈 add alias to lang folder
         },
     },
 });

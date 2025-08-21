@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
+import AuthHeader from '@/layouts/auth/AuthHeader';
 
 type RegisterForm = {
     name: string;
@@ -50,8 +51,9 @@ export default function Register() {
     return (
         <AuthLayout title="Create an account" description="Enter your details below to create your account">
             <Head title="Register" />
-            <form className="flex flex-col gap-6" onSubmit={submit}>
-                <div className="grid gap-6">
+            <form className="p-8" onSubmit={submit}>
+                <div className="flex flex-col gap-6">
+                    <AuthHeader title="Taggo.ae" description="Sign up to your Taggo Inc account" />
                     <div className="grid gap-2">
                         <Label htmlFor="name">Name</Label>
                         <Input

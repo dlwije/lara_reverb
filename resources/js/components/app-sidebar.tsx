@@ -92,22 +92,14 @@ const data:NavItems = {
             ],
         },
         {
-            title: "Models",
+            title: "Products",
             url: "",
             icon: Bot,
             items: [
                 {
-                    title: "Genesis",
-                    url: "",
-                },
-                {
-                    title: "Explorer",
-                    url: "",
-                },
-                {
-                    title: "Quantum",
-                    url: "",
-                },
+                    title: "List",
+                    url: "admin.products.index",
+                }
             ],
         },
         {

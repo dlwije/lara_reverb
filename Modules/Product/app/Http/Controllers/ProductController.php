@@ -29,7 +29,7 @@ class ProductController extends Controller
             $filters['store'] = session('selected_store_id');
         }
 
-        return $dataArray = [
+        $dataArray = [
             'custom_fields' => CustomField::ofModel('product')->get(),
             'stores'        => Store::active()->get(['id as value', 'name as label']),
 
@@ -39,7 +39,9 @@ class ProductController extends Controller
             )->filter($filters)->latest('id')->orderBy('name')->paginate()->withQueryString()),
         ];
 
-        return Inertia::render('Product/Index', $dataArray);
+        return $dataArray;
+
+        return Inertia::render('product/Index', $dataArray);
 
 //        return inertia('Product/Index', []);
     }

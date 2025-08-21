@@ -5,6 +5,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import { configureEcho } from '@laravel/echo-react';
+import { I18nProvider } from "./components/i18n-provider"
 
 configureEcho({
     broadcaster: 'reverb',
@@ -22,7 +23,11 @@ createInertiaApp({
     setup({ el, App, props }) {
         const root = createRoot(el);
 
-        root.render(<App {...props} />);
+        root.render(
+            <I18nProvider locale={props.initialPage.props.locale}>
+            <App {...props} />
+            </I18nProvider>
+        );
     },
     progress: {
         color: '#4B5563',

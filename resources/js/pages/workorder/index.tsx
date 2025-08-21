@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { TableActions } from '@/components/table-actions';
 import { serverColumns } from '@/pages/workorder/server-columns';
 import { ServerDataTable } from '@/pages/workorder/server-data-table';
+import { useTranslation } from 'react-i18next';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -30,6 +31,8 @@ interface User {
 }
 
 export default function DemoPage() {
+    const { t } = useTranslation()
+
     const { auth } = usePage<SharedData>().props;
     const [confirmingUser, setConfirmingUser] = useState<User | null>(null);
     const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
@@ -98,7 +101,7 @@ export default function DemoPage() {
                             <ServerDataTable
                                 columns={serverColumns(setConfirmingUser, composeMessage)}
                                 apiEndpoint="/api/v1/workorder/list/data" // Replace with your actual API endpoint
-                                title="Workorder Management"
+                                title={t('Workorder Management')}
                                 searchPlaceholder="Search by email..."
                                 searchColumn="email"
                             />
