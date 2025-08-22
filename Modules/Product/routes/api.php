@@ -8,9 +8,5 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
 });
 
 Route::middleware('auth:api')->prefix('v1')->name('v1.')->group(function () {
-    Route::get('product/list/data', [ProductController::class, 'index'])->name('products.list.data');
-
-//    Route::extendedResources([
-//        'products' => ProductController::class
-//    ]);
+    Route::get('product/list/data', [ProductController::class, 'tableList'])->name('products.list.data');
 });

@@ -2,13 +2,13 @@
 
 import { Head, usePage } from "@inertiajs/react"
 import { useState } from "react"
-import AdminLayout from "@/Layouts/AdminLayout"
 import type { BreadcrumbItem, SharedData } from "@/types"
 import { TableActions } from "@/components/table-actions"
-import { ServerDataTable } from "@/components/server-data-table"
 import { productColumns } from "./product-columns"
 import { Modal } from "@/components/ui/modal"
 import { QuickView } from "./QuickView"
+import AppLayout from '@/layouts/app-layout';
+import { ServerDataTable } from '@/pages/users/server-data-table';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -111,7 +111,7 @@ export default function ProductsTable({ pagination, taxes, selected_store, store
     }
 
     return (
-        <AdminLayout breadcrumbs={breadcrumbs}>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Products" />
             <div className="flex flex-1 flex-col">
                 <div className="@container/main flex flex-1 flex-col gap-2">
@@ -135,7 +135,7 @@ export default function ProductsTable({ pagination, taxes, selected_store, store
                         <div>
                             <ServerDataTable
                                 columns={productColumns(viewRow, editRow, deleteRow, setPhoto, selected_store, deleting, deleted)}
-                                apiEndpoint="/api/v1/products/data"
+                                apiEndpoint="/api/v1/product/list/data"
                                 title="Product Management"
                                 searchPlaceholder="Search products..."
                                 searchColumn="name"
@@ -161,6 +161,6 @@ export default function ProductsTable({ pagination, taxes, selected_store, store
                     <img alt="" src={photo || ""} className="rounded-md w-full h-full max-w-full min-h-24 max-h-screen" />
                 </div>
             </Modal>
-        </AdminLayout>
+        </AppLayout>
     )
 }

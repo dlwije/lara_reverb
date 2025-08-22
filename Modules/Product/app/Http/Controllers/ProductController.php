@@ -39,11 +39,26 @@ class ProductController extends Controller
             )->filter($filters)->latest('id')->orderBy('name')->paginate()->withQueryString()),
         ];
 
-        return $dataArray;
+//        return $dataArray;
 
-        return Inertia::render('product/Index', $dataArray);
+        return Inertia::render('product/ProductsTable', $dataArray);
 
 //        return inertia('Product/Index', []);
+    }
+    public function tableList(Request $request)
+    {
+        $filters = $request->input('filters');
+
+        if (! ($filters['store'] ?? null) && session('selected_store_id', null)) {
+            $filters['store'] = session('selected_store_id');
+        }
+
+        return [
+            'pagination' => Product::with(
+                'supplier:id,name,company', 'taxes:id,name', 'stocks',
+                'brand:id,name', 'category:id,name,category_id', 'unit:id,code,name',
+            )->filter($filters)->latest('id')->orderBy('name')->paginate()->withQueryString()
+        ];
     }
 
     /**
