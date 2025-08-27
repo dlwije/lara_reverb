@@ -53,11 +53,24 @@ class ProductController extends Controller
             $filters['store'] = session('selected_store_id');
         }
 
+        // Get per_page from filters or use the default from Paginatable trait
+        $perPage = $filters['per_page'] ?? null;
+
+        $query = Product::with(
+            'supplier:id,name,company', 'taxes:id,name', 'stocks',
+            'brand:id,name', 'category:id,name,category_id', 'unit:id,code,name',
+        )->filter($filters)->latest('id')->orderBy('name');
+
+        // If per_page is provided, use it, otherwise let the Paginatable trait handle it
+        if ($perPage) {
+            $pagination = $query->paginate($perPage)->withQueryString();
+        } else {
+            $pagination = $query->paginate()->withQueryString();
+        }
+
         return [
-            'pagination' => Product::with(
-                'supplier:id,name,company', 'taxes:id,name', 'stocks',
-                'brand:id,name', 'category:id,name,category_id', 'unit:id,code,name',
-            )->filter($filters)->latest('id')->orderBy('name')->paginate()->withQueryString()
+            'stores' => Store::active()->get(['id as value', 'name as label']),
+            'pagination' => $pagination
         ];
     }
 

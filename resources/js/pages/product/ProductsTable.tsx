@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/modal"
 import { QuickView } from "./QuickView"
 import AppLayout from '@/layouts/app-layout';
 import { ServerDataTable } from '@/pages/users/server-data-table';
+import { InertiaServerDataTable } from '@/components/inertia-server-data-table';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -57,6 +58,7 @@ export default function ProductsTable({ pagination, taxes, selected_store, store
     const [deleted, setDeleted] = useState(false)
     const [deleting, setDeleting] = useState(false)
     const [selectedProducts, setSelectedProducts] = useState<Product[]>([])
+    const [selectedStore, setSelectedStore] = useState<string | number | null>(null);
 
     const viewRow = (row: Product) => {
         setCurrent(row)
@@ -133,7 +135,7 @@ export default function ProductsTable({ pagination, taxes, selected_store, store
                         />
 
                         <div>
-                            <ServerDataTable
+                            <InertiaServerDataTable
                                 columns={productColumns(viewRow, editRow, deleteRow, setPhoto, selected_store, deleting, deleted)}
                                 apiEndpoint="/api/v1/product/list/data"
                                 title="Product Management"
@@ -144,6 +146,12 @@ export default function ProductsTable({ pagination, taxes, selected_store, store
                                     store: selected_store,
                                     stores: stores,
                                 }}
+                                useFilterFormat={true}
+                                stores={stores} // Pass the stores array
+                                selectedStore={selected_store} // Pass the selected store
+                                onStoreChange={setSelectedStore} // Pass the setter function
+                                // Trash filter props
+                                trashFilter={true} // Enable trash filtering
                             />
                         </div>
                     </div>
@@ -158,9 +166,9 @@ export default function ProductsTable({ pagination, taxes, selected_store, store
             {/* Photo Modal */}
             <Modal show={!!photo} onClose={() => setPhoto(null)} maxWidth="2xl" transparent>
                 <div className="flex items-center justify-center">
-                    <img alt="" src={photo || ""} className="rounded-md w-full h-full max-w-full min-h-24 max-h-screen" />
+                    <img alt="" src={photo || ''} className="h-full max-h-screen min-h-24 w-full max-w-full rounded-md" />
                 </div>
             </Modal>
         </AppLayout>
-    )
+    );
 }
