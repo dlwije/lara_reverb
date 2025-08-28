@@ -39,11 +39,7 @@ class ProductController extends Controller
             )->filter($filters)->latest('id')->orderBy('name')->paginate()->withQueryString()),
         ];
 
-//        return $dataArray;
-
         return Inertia::render('product/ProductsTable', $dataArray);
-
-//        return inertia('Product/Index', []);
     }
     public function tableList(Request $request)
     {
@@ -87,8 +83,8 @@ class ProductController extends Controller
             'units'         => Unit::onlyBase()->with('subunits')->get(['id', 'name', 'unit_id']),
             'categories'    => Category::onlyParent()->with('children')->active()->get(['id', 'name', 'category_id']),
         ];
-        return $dataArray;
-        return Inertia::render('Sma/Product/Form', $dataArray);
+//        return $dataArray;
+        return Inertia::render('product/Form', $dataArray);
     }
 
     /**

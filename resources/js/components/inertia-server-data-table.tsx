@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '@/lib/apiClient';
+import { Link } from '@inertiajs/react';
 
 interface Store {
     value: string | number;
@@ -41,15 +42,15 @@ interface ServerDataTableProps<TData, TValue> {
     searchColumn?: string;
     initialData?: any;
     filters?: Record<string, any>;
-    useFilterFormat?: boolean; // Add flag to use filter format
-    defaultPageSize?: number
-    stores?: Store[] // Add stores prop
-    selectedStore?: string | number | null // Add selected store prop
-    onStoreChange?: (storeId: string | number | null) => void // Add store change callback
+    useFilterFormat?: boolean; // Add a flag to use a filter format
+    defaultPageSize?: number;
+    stores?: Store[]; // Add stores prop
+    selectedStore?: string | number | null; // Add a selected store prop
+    onStoreChange?: (storeId: string | number | null) => void; // Add store change callback
     // Add trash filter props
     trashFilter?: boolean; // Enable/disable trash filtering
-    selectedTrashStatus?: 'not' | 'with' | 'only'; // Updated to match backend params
-    onTrashStatusChange?: (status: 'not' | 'with' | 'only') => void;
+    selectedTrashStatus?: 'not' | 'with' | 'only' | null; // Updated to match backend params
+    onTrashStatusChange?: (status: 'not' | 'with' | 'only' | null) => void;
 }
 
 interface ServerResponse<TData> {
@@ -93,14 +94,14 @@ export function InertiaServerDataTable<TData, TValue>({
     initialData,
     filters = {},
     useFilterFormat = true, // Default to using filter format
-                                                          defaultPageSize = 10,
-                                                          stores = [], // Default empty array
-                                                          selectedStore = null, // Default no selection
-                                                          onStoreChange, // Callback function
-                                                          // Trash filter props
-                                                          trashFilter = false, // Default to disabled
-                                                          selectedTrashStatus = 'not', // Default to "not trashed"
-                                                          onTrashStatusChange,
+    defaultPageSize = 10,
+    stores = [], // Default empty array
+    selectedStore = null, // Default no selection
+    onStoreChange, // Callback function
+    // Trash filter props
+    trashFilter = false, // Default to disabled
+    selectedTrashStatus = 'not', // Default to "not trashed"
+    onTrashStatusChange,
 }: ServerDataTableProps<TData, TValue>) {
     // Server state
     const [data, setData] = React.useState<TData[]>(initialData?.pagination?.data || initialData?.data || []);
@@ -122,11 +123,11 @@ export function InertiaServerDataTable<TData, TValue>({
     const [searchValue, setSearchValue] = React.useState('');
     const [debouncedSearch, setDebouncedSearch] = React.useState('');
 
-    // Local state for store filter if not controlled from parent
-    const [localSelectedStore, setLocalSelectedStore] = React.useState<string | number | null>(selectedStore)
+    // Local state for store filter if not controlled from the parent
+    const [localSelectedStore, setLocalSelectedStore] = React.useState<string | number | null>(selectedStore);
 
     // Local state for trash filter if not controlled from parent
-    const [localTrashStatus, setLocalTrashStatus] = React.useState<'not' | 'with' | 'only'>(selectedTrashStatus);
+    const [localTrashStatus, setLocalTrashStatus] = React.useState<'not' | 'with' | 'only' | null>(selectedTrashStatus);
 
     // Debounce search input
     React.useEffect(() => {
@@ -137,7 +138,7 @@ export function InertiaServerDataTable<TData, TValue>({
         return () => clearTimeout(timer);
     }, [searchValue]);
 
-    // Reset to first page when search or filters change
+    // Reset to the first page when search or filters change
     React.useEffect(() => {
         console.log('Filters changed, resetting page index');
         setPageIndex(0);
@@ -148,26 +149,26 @@ export function InertiaServerDataTable<TData, TValue>({
         console.log('Handle store change:', storeId);
         if (onStoreChange) {
             console.log('Calling onStoreChange with:', storeId);
-            onStoreChange(storeId)
-            setLocalSelectedStore(storeId)
+            onStoreChange(storeId);
+            setLocalSelectedStore(storeId);
         } else {
             console.log('Setting local selected store:', storeId);
         }
-    }
+    };
 
     // Use the appropriate store value
-    const currentStore = localSelectedStore
+    const currentStore = localSelectedStore;
     console.log('Current store:', localSelectedStore);
 
     // Handle trash status change
-    const handleTrashStatusChange = (status: 'not' | 'with' | 'only') => {
+    const handleTrashStatusChange = (status: 'not' | 'with' | 'only' | null) => {
         console.log('Handle trash status change:', status);
         if (onTrashStatusChange) {
             onTrashStatusChange(status);
         } else {
             setLocalTrashStatus(status);
         }
-    }
+    };
 
     // Use the appropriate trash status value
     const currentTrashStatus = onTrashStatusChange ? selectedTrashStatus : localTrashStatus;
@@ -180,8 +181,7 @@ export function InertiaServerDataTable<TData, TValue>({
         if (useFilterFormat) {
             params.append('filters[page]', (pageIndex + 1).toString());
             params.append('filters[per_page]', pageSize.toString());
-        }
-        else {
+        } else {
             params.append('page', (pageIndex + 1).toString());
             params.append('per_page', pageSize.toString());
             params.append('start', (pageIndex * pageSize).toString());
@@ -195,9 +195,9 @@ export function InertiaServerDataTable<TData, TValue>({
             if (useFilterFormat) {
                 console.log('Using filter format');
                 console.log('Current store:', currentStore);
-                params.append('filters[store]', currentStore.toString())
+                params.append('filters[store]', currentStore.toString());
             } else {
-                params.append('store', currentStore.toString())
+                params.append('store', currentStore.toString());
             }
         }
 
@@ -284,7 +284,19 @@ export function InertiaServerDataTable<TData, TValue>({
         }
 
         return params;
-    }, [pageIndex, pageSize, debouncedSearch, sorting, filters, columns, currentStore, currentTrashStatus, useFilterFormat, searchColumn, trashFilter]);
+    }, [
+        pageIndex,
+        pageSize,
+        debouncedSearch,
+        sorting,
+        filters,
+        columns,
+        currentStore,
+        currentTrashStatus,
+        useFilterFormat,
+        searchColumn,
+        trashFilter,
+    ]);
 
     // Fetch data from server
     const fetchData = React.useCallback(async () => {
@@ -371,15 +383,11 @@ export function InertiaServerDataTable<TData, TValue>({
                             {/* Store Filter */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 gap-1 px-2"
-                                    >
+                                    <Button variant="ghost" size="sm" className="h-7 gap-1 px-2">
                                         <Filter className="h-3.5 w-3.5" />
-                                        <span className="text-xs max-w-16 truncate">
-                                {currentStore ? stores.find(store => store.value === currentStore)?.label : "Store"}
-                            </span>
+                                        <span className="max-w-16 truncate text-xs">
+                                            {currentStore ? stores.find((store) => store.value === currentStore)?.label : 'Store'}
+                                        </span>
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48">
@@ -392,9 +400,9 @@ export function InertiaServerDataTable<TData, TValue>({
                                                 checked={currentStore === store.value}
                                                 onCheckedChange={(checked) => {
                                                     if (checked) {
-                                                        handleStoreChange(store.value)
+                                                        handleStoreChange(store.value);
                                                     } else {
-                                                        handleStoreChange(null)
+                                                        handleStoreChange(null);
                                                     }
                                                 }}
                                             >
@@ -405,7 +413,7 @@ export function InertiaServerDataTable<TData, TValue>({
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                         onClick={() => handleStoreChange(null)}
-                                        className="justify-center text-center text-muted-foreground"
+                                        className="text-muted-foreground justify-center text-center"
                                     >
                                         Clear Filter
                                     </DropdownMenuItem>
@@ -413,22 +421,17 @@ export function InertiaServerDataTable<TData, TValue>({
                             </DropdownMenu>
 
                             {/* Separator */}
-                            <div className="h-4 w-px bg-border" />
+                            <div className="bg-border h-4 w-px" />
 
                             {/* Status Filter */}
                             {trashFilter && (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-7 gap-1 px-2"
-                                        >
+                                        <Button variant="ghost" size="sm" className="h-7 gap-1 px-2">
                                             <Trash2 className="h-3.5 w-3.5" />
                                             <span className="text-xs capitalize">
-                                    {currentTrashStatus === 'not' ? 'Not' :
-                                        currentTrashStatus === 'with' ? 'With' : 'Only'}
-                                </span>
+                                                {currentTrashStatus === 'not' ? 'Not' : currentTrashStatus === 'with' ? 'With' : 'Only'}
+                                            </span>
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
@@ -452,16 +455,27 @@ export function InertiaServerDataTable<TData, TValue>({
                                         >
                                             Only Trashed
                                         </DropdownMenuCheckboxItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            onClick={() => handleTrashStatusChange(null)}
+                                            className="text-muted-foreground justify-center text-center"
+                                        >
+                                            Clear Filter
+                                        </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             )}
                         </div>
 
                         {/* Add Product Button */}
-                        <Button variant="default" size="sm" className="h-8 gap-1">
+                        <Link size="sm" className="h-8 gap-1" href={route('admin.products.create')} as="button">
                             <Plus className="h-4 w-4" />
                             Add
-                        </Button>
+                        </Link>
+                        {/*<Button variant="default" size="sm" className="h-8 gap-1">*/}
+                        {/*    <Plus className="h-4 w-4" />*/}
+                        {/*    Add*/}
+                        {/*</Button>*/}
                     </div>
                 </CardAction>
             </CardHeader>
