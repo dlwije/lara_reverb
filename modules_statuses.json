@@ -2,5 +2,6 @@
     "ApiAuth": true,
     "Chat": true,
     "Workorder": true,
-    "Product": true
+    "Product": true,
+    "Wallet": true
 }

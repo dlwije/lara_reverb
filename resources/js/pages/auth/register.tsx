@@ -1,6 +1,7 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
-import { FormEventHandler, useEffect } from 'react';
+import { FormEventHandler, useEffect, useState } from 'react';
+
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
 import AuthHeader from '@/layouts/auth/AuthHeader';
+import { registerSchema } from '@/schemas/registerSchema';
 
 type RegisterForm = {
     name: string;
@@ -18,15 +20,48 @@ type RegisterForm = {
 };
 
 export default function Register() {
-    const { data, setData, post, processing, errors, reset } = useForm<Required<RegisterForm>>({
+    // const { data, setData, post, processing, errors, reset } = useForm<Required<RegisterForm>>({
+    //     name: '',
+    //     email: '',
+    //     password: '',
+    //     password_confirmation: '',
+    // });
+
+    // Inertia useForm
+    const form = useForm<Required<RegisterForm>>({
         name: '',
         email: '',
         password: '',
         password_confirmation: '',
     });
+    const { data, setData, post, processing, errors, reset, clearErrors } = form;
+
+    // 4️⃣ Local state for client-side validation errors
+    const [validationErrors, setValidationErrors] = useState<
+        Partial<Record<keyof RegisterForm, string>>
+    >({});
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        const result = registerSchema.safeParse(data);
+
+        if (!result.success) {
+            const fieldErrors: Partial<Record<keyof RegisterForm, string>> = {};
+            for (const [key, error] of Object.entries(result.error.format())) {
+                if ('_errors' in error && error._errors.length) {
+                    fieldErrors[key as keyof RegisterForm] = error._errors[0];
+                }
+            }
+            setValidationErrors(fieldErrors);
+            return;
+        }
+
+        //Clear previous server-side (Inertia) errors
+        form.clearErrors();
+
+        // Clear previous validation errors
+        setValidationErrors({});
+
         post(route('register'), {
             onFinish: () => reset('password', 'password_confirmation'),
         });
@@ -68,7 +103,7 @@ export default function Register() {
                             disabled={processing}
                             placeholder="Full name"
                         />
-                        <InputError message={errors.name} className="mt-2" />
+                        <InputError message={validationErrors.name || errors.name} className="mt-2" />
                     </div>
 
                     <div className="grid gap-2">
@@ -84,7 +119,7 @@ export default function Register() {
                             disabled={processing}
                             placeholder="email@example.com"
                         />
-                        <InputError message={errors.email} />
+                        <InputError message={validationErrors.email || errors.email} />
                     </div>
 
                     <div className="grid gap-2">
@@ -100,7 +135,7 @@ export default function Register() {
                             disabled={processing}
                             placeholder="Password"
                         />
-                        <InputError message={errors.password} />
+                        <InputError message={validationErrors.password || errors.password} />
                     </div>
 
                     <div className="grid gap-2">
@@ -116,7 +151,12 @@ export default function Register() {
                             disabled={processing}
                             placeholder="Confirm password"
                         />
-                        <InputError message={errors.password_confirmation} />
+                        <InputError
+                            message={
+                                validationErrors.password_confirmation ||
+                                errors.password_confirmation
+                            }
+                        />
                     </div>
 
                     <Button type="submit" className="mt-2 w-full" tabIndex={5} disabled={processing}>
