@@ -20,7 +20,7 @@ export default function Wallet() {
     const handleAddCard = () => {
         // Add your card addition logic here
         console.log("Add card clicked")
-        window.location.href = "/settings/add-card"
+        window.location.href = "/wallet/add-card"
     }
 
     const handleAddAccount = () => {

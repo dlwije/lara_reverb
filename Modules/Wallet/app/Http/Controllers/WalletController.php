@@ -21,6 +21,11 @@ class WalletController extends Controller
         return Inertia::render('settings/wallet-statement');
     }
 
+    public function addCard()
+    {
+        return Inertia::render('settings/add-card');
+    }
+
     /**
      * Show the form for creating a new resource.
      */
