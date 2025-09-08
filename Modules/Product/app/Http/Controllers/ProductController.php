@@ -84,7 +84,7 @@ class ProductController extends Controller
             'categories'    => Category::onlyParent()->with('children')->active()->get(['id', 'name', 'category_id']),
         ];
 //        return $dataArray;
-        return Inertia::render('product/Form', $dataArray);
+        return Inertia::render('product/new-form', $dataArray);
     }
 
     /**

@@ -8,7 +8,6 @@ import { productColumns } from "./product-columns"
 import { Modal } from "@/components/ui/modal"
 import { QuickView } from "./QuickView"
 import AppLayout from '@/layouts/app-layout';
-import { ServerDataTable } from '@/pages/users/server-data-table';
 import { InertiaServerDataTable } from '@/components/inertia-server-data-table';
 
 const breadcrumbs: BreadcrumbItem[] = [

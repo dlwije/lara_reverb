@@ -468,10 +468,12 @@ export function InertiaServerDataTable<TData, TValue>({
                         </div>
 
                         {/* Add Product Button */}
-                        <Link size="sm" className="h-8 gap-1" href={route('admin.products.create')} as="button">
-                            <Plus className="h-4 w-4" />
-                            Add
-                        </Link>
+                        <Button size="sm" className="flex h-8 gap-1" asChild>
+                            <Link href={route('admin.products.create')}>
+                                <Plus className="h-4 w-4" />
+                                Add
+                            </Link>
+                        </Button>
                         {/*<Button variant="default" size="sm" className="h-8 gap-1">*/}
                         {/*    <Plus className="h-4 w-4" />*/}
                         {/*    Add*/}
