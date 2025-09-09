@@ -9,10 +9,11 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import type { BreadcrumbItem } from '@/types';
-import { ArrowLeft, HelpCircle, Shield } from 'lucide-react';
+import { ArrowLeft, HelpCircle, LoaderCircle, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import { cardFormSchema } from '@/schemas/cardFormSchema';
+import InputError from '@/components/input-error';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -24,6 +25,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 type CardForm = {
     cardholder_name: string,
     card_number: string,
+    expiry_date: string,
     expiry_month: string,
     expiry_year: string,
     cvv: string,
@@ -33,6 +35,7 @@ export default function AddCardPage() {
     const form = useForm<Required<CardForm>>({
         cardholder_name: '',
         card_number: '',
+        expiry_date: '',
         expiry_month: '',
         expiry_year: '',
         cvv: '',
@@ -40,6 +43,7 @@ export default function AddCardPage() {
 
     const { data, setData, post, processing, errors, clearErrors } = form;
 
+    const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
     const [validationErrors, setValidationErrors] = useState<
         Partial<Record<keyof CardForm, string>>
     >({});
@@ -62,7 +66,56 @@ export default function AddCardPage() {
         }
 
         // 🔒 send to backend (but never store card raw data — use Stripe or gateway!)
-        post(route('cards.store'));
+        post(route("cards.store"), {
+            onError: (errors) => {
+                setValidationErrors(errors as Partial<Record<keyof CardForm, string>>);
+            },
+            onSuccess: () => {
+                setData({
+                    card_number: "",
+                    expiry_date: "",
+                    cvv: "",
+                    cardholder_name: "",
+                });
+                setValidationErrors({});
+                setTouched({});
+            },
+        });
+    };
+
+    const handleBack = () => {
+        window.history.back();
+    };
+
+    const formatCardNumber = (value: string) => {
+        // Remove all non-digits
+        const digits = value.replace(/\D/g, '');
+        // Add spaces every 4 digits
+        return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+    };
+
+    const formatExpiryDate = (value: string) => {
+        // Remove all non-digits
+        const digits = value.replace(/\D/g, '');
+        // Add slash after 2 digits
+        if (digits.length >= 2) {
+            return digits.slice(0, 2) + '/' + digits.slice(2, 4);
+        }
+        return digits;
+    };
+
+    const validateField = (field: keyof CardForm, value: any) => {
+        const partialData = { [field]: value };
+
+        const fieldSchema = cardFormSchema.pick({ [field]: true });
+
+        const result = fieldSchema.safeParse(partialData);
+
+        if (!result.success) {
+            return result.error.errors[0]?.message || "Invalid value";
+        }
+
+        return null;
     };
 
     return (
@@ -88,7 +141,7 @@ export default function AddCardPage() {
                         </div>
 
                         {/* Form */}
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={submit} className="space-y-6">
                             {/* Card Number */}
                             <div className="space-y-2">
                                 <Label htmlFor="cardNumber" className="text-base font-medium">
@@ -98,12 +151,14 @@ export default function AddCardPage() {
                                     id="cardNumber"
                                     type="text"
                                     placeholder="1234 5678 9012 3456"
-                                    value={formatCardNumber(formData.cardNumber)}
-                                    onChange={(e) => handleInputChange('cardNumber', e.target.value)}
-                                    className={`h-12 ${errors.cardNumber ? 'border-red-500' : ''}`}
+                                    value={formatCardNumber(data.card_number)}
+                                    onChange={(e) => setData('card_number', e.target.value)}
+                                    className={`h-12 ${validationErrors.card_number || errors.card_number ? 'border-red-500' : ''}`}
                                     maxLength={19} // 16 digits + 3 spaces
+                                    disabled={processing}
                                 />
-                                {errors.cardNumber && <p className="text-sm text-red-500">{errors.cardNumber}</p>}
+                                {/*{errors.cardNumber && <p className="text-sm text-red-500">{errors.cardNumber}</p>}*/}
+                                <InputError message={validationErrors.card_number || errors.card_number} />
                             </div>
 
                             {/* Expiry Date and CVV */}
@@ -117,12 +172,14 @@ export default function AddCardPage() {
                                         id="expiryDate"
                                         type="text"
                                         placeholder="MM/YY"
-                                        value={formatExpiryDate(formData.expiryDate)}
-                                        onChange={(e) => handleInputChange('expiryDate', e.target.value)}
-                                        className={`h-12 ${errors.expiryDate ? 'border-red-500' : ''}`}
+                                        value={formatExpiryDate(data.expiry_date)}
+                                        onChange={(e) => setData('expiry_date', e.target.value)}
+                                        className={`h-12 ${validationErrors.expiry_date || errors.expiry_date ? 'border-red-500' : ''}`}
                                         maxLength={5}
+                                        disabled={processing}
                                     />
-                                    {errors.expiryDate && <p className="text-sm text-red-500">{errors.expiryDate}</p>}
+                                    {/*{errors.expiryDate && <p className="text-sm text-red-500">{errors.expiryDate}</p>}*/}
+                                    <InputError message={validationErrors.expiry_date || errors.expiry_date} />
                                 </div>
 
                                 <div className="space-y-2">
@@ -134,12 +191,14 @@ export default function AddCardPage() {
                                         id="cvv"
                                         type="text"
                                         placeholder="123"
-                                        value={formData.cvv}
-                                        onChange={(e) => handleInputChange('cvv', e.target.value.replace(/\D/g, ''))}
-                                        className={`h-12 ${errors.cvv ? 'border-red-500' : ''}`}
+                                        value={data.cvv}
+                                        onChange={(e) => setData('cvv', e.target.value.replace(/\D/g, ''))}
+                                        className={`h-12 ${validationErrors.cvv || errors.cvv ? 'border-red-500' : ''}`}
                                         maxLength={4}
+                                        disabled={processing}
                                     />
-                                    {errors.cvv && <p className="text-sm text-red-500">{errors.cvv}</p>}
+                                    {/*{errors.cvv && <p className="text-sm text-red-500">{errors.cvv}</p>}*/}
+                                    <InputError message={validationErrors.cvv || errors.cvv} />
                                 </div>
                             </div>
 
@@ -151,10 +210,11 @@ export default function AddCardPage() {
                                 <Input
                                     id="nickname"
                                     type="text"
-                                    placeholder="My main card"
-                                    value={formData.nickname}
-                                    onChange={(e) => handleInputChange('nickname', e.target.value)}
-                                    className="h-12"
+                                    placeholder="Peter Mcdonalds"
+                                    value={data.cardholder_name}
+                                    onChange={(e) => setData('cardholder_name', e.target.value)}
+                                    className={`h-12 ${errors.cardholder_name ? 'border-red-500' : ''}`}
+                                    disabled={processing}
                                 />
                             </div>
 
@@ -178,7 +238,8 @@ export default function AddCardPage() {
                             </div>
 
                             {/* Submit Button */}
-                            <Button type="submit" className="h-12 w-full text-base font-medium">
+                            <Button type="submit" className="h-12 w-full text-base font-medium" disabled={processing} tabIndex={5}>
+                                {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
                                 Add Card
                             </Button>
                         </form>
