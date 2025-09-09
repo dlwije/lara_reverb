@@ -11,6 +11,13 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
+Route::post('/locale', function (\Illuminate\Http\Request $request) {
+    $locale = $request->input('locale', 'en');
+    session(['locale' => $locale]);
+    app()->setLocale($locale);
+    return back();
+})->name('locale.change');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');

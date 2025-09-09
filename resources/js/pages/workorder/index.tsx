@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { TableActions } from '@/components/table-actions';
 import { serverColumns } from '@/pages/workorder/server-columns';
 import { ServerDataTable } from '@/pages/workorder/server-data-table';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from "@/hooks/use-translation"
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
