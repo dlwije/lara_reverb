@@ -20,7 +20,7 @@ class ChatController extends Controller
     public function getConversations($user_id)
     {
         $authUserId = $user_id;
-        Log::info('Passed User ID: ' . $user_id);
+//        Log::info('Passed User ID: ' . $user_id);
 
         $conversations = DB::table('chat_messages as cm')
             ->select(

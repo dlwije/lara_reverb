@@ -16,6 +16,7 @@ export function useTranslation() {
     const { t, i18n } = useReactTranslation()
     const { props } = usePage<{ props: SharedProps }>()
 
+    console.log('props.language', props.language);
     const serverLocale = props.language || "en"
 
     const changeLanguage = (locale: string) => {
@@ -24,10 +25,10 @@ export function useTranslation() {
 
         // Make Inertia request to sync with server
         router.post(
-            "/locale",
+            route('locale.change'),
             { locale },
             { preserveState: true, preserveScroll: true,
-                only: [], // Don't reload any props
+                // only: [], // Don't reload any props
             }
         )
     }

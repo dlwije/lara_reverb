@@ -22,19 +22,19 @@ export default function LanguageSelector({ selectId = 'lang' }) {
                 <GlobeIcon size={16} aria-hidden={true} />
                 {currentLang && (
                     <span className="ml-1 flex items-center gap-2">
-            <span className="me-1">{getFlagEmoji(currentLang.flag)}</span>
-            <span className="hidden sm:inline-flex">{currentLang.value}</span>
-          </span>
+                        <span className="me-1">{getFlagEmoji(currentLang.flag)}</span>
+                        <span className="hidden sm:inline-flex">{currentLang.value}</span>
+                    </span>
                 )}
             </SelectTrigger>
 
             <SelectContent>
                 {languages.map((lang) => (
                     <SelectItem key={lang.value} value={lang.value}>
-            <span className="flex items-center gap-2">
-              <span className="me-2">{getFlagEmoji(lang.flag)}</span>
-              <span className="truncate">{lang.label}</span>
-            </span>
+                        <span className="flex items-center gap-2">
+                            <span className="me-2">{getFlagEmoji(lang.flag)}</span>
+                            <span className="truncate">{lang.label}</span>
+                        </span>
                     </SelectItem>
                 ))}
             </SelectContent>

@@ -13,6 +13,7 @@ Route::get('/', function () {
 
 Route::post('/locale', function (\Illuminate\Http\Request $request) {
     $locale = $request->input('locale', 'en');
+//    \Illuminate\Support\Facades\Log::info($locale);
     session(['locale' => $locale]);
     app()->setLocale($locale);
     return back();
