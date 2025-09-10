@@ -3,5 +3,7 @@
     "Chat": true,
     "Workorder": true,
     "Product": true,
-    "Wallet": true
+    "Wallet": true,
+    "GiftCard": true,
+    "PromoRules": true
 }
