@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('gift_cards', function (Blueprint $table) {
+        Schema::create('st_gift_cards', function (Blueprint $table) {
             $table->id();
 
             $table->string('code')->unique();
@@ -37,6 +37,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('gift_cards');
+        Schema::dropIfExists('st_gift_cards');
     }
 };

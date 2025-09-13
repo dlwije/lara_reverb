@@ -21,7 +21,7 @@ return new class extends Migration
             $table->timestamp('expires_at')->nullable();
             $table->timestamps();
 
-            $table->index('wallet_id');
+//            $table->index('wallet_id');
             $table->index('expires_at');
         });
     }

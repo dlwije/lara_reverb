@@ -23,8 +23,8 @@ return new class extends Migration
             $table->text('user_agent')->nullable();
             $table->timestamp('created_at');
 
-            $table->index(['actor_type', 'actor_id']);
-            $table->index(['entity_type', 'entity_id']);
+//            $table->index(['actor_type', 'actor_id']);
+//            $table->index(['entity_type', 'entity_id']);
             $table->index('event');
             $table->index('created_at');
         });

@@ -13,7 +13,7 @@ return new class extends Migration
         Schema::table('wallet_transactions', function (Blueprint $table) {
             $table->decimal('base_value', 12, 2)->nullable()->after('amount');
             $table->decimal('bonus_value', 12, 2)->nullable()->after('base_value');
-            $table->foreignId('gift_card_id')->nullable()->constrained('gift_cards')->onDelete('set null')->after('bonus_value');
+            $table->foreignId('gift_card_id')->nullable()->constrained('st_gift_cards')->onDelete('set null')->after('bonus_value');
             $table->foreignId('promo_rule_id')->nullable()->constrained('promo_rules')->onDelete('set null')->after('gift_card_id');
 
             // Add more specific type for gift card transactions
@@ -33,7 +33,8 @@ return new class extends Migration
      */
     public function down(): void {
         Schema::table('wallet_transactions', function (Blueprint $table) {
-            $table->dropForeign(['gift_card_id', 'promo_rule_id']);
+            $table->dropForeign('gift_card_id');
+            $table->dropForeign('promo_rule_id');
             $table->enum('type', ['redeem', 'purchase', 'refund_credit', 'admin_adjustment'])->change();
             $table->dropColumn(['base_value', 'bonus_value', 'gift_card_id', 'promo_rule_id']);
         });

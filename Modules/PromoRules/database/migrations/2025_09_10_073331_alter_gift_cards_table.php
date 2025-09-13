@@ -10,9 +10,9 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void {
-        Schema::table('gift_cards', function (Blueprint $table) {
+        Schema::table('st_gift_cards', function (Blueprint $table) {
             // Remove the existing promo_multiplier column if it exists
-            if (Schema::hasColumn('gift_cards', 'promo_multiplier')) {
+            if (Schema::hasColumn('st_gift_cards', 'promo_multiplier')) {
                 $table->dropColumn('promo_multiplier');
             }
 
@@ -31,7 +31,7 @@ return new class extends Migration
      * Reverse the migrations.
      */
     public function down(): void {
-        Schema::table('gift_cards', function (Blueprint $table) {
+        Schema::table('st_gift_cards', function (Blueprint $table) {
             $table->dropForeign(['promo_rule_id']);
             $table->renameColumn('original_value', 'face_value');
             $table->dropColumn(['base_value', 'bonus_value', 'promo_rule_id', 'final_credit']);;
