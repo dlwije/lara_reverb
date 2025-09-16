@@ -5,6 +5,7 @@ namespace Modules\GiftCard\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Modules\GiftCard\Http\Requests\RedeemGiftCardRequest;
 use Modules\GiftCard\Services\GiftCardService;
 use Modules\Wallet\Models\WalletTransaction;
 
@@ -16,13 +17,8 @@ class GiftCardController extends Controller
     /**
      * Redeem a gift card
      */
-    public function redeem(Request $request)
+    public function redeem(RedeemGiftCardRequest $request)
     {
-        $request->validate([
-            'code' => 'required|string|max:50',
-            'otp' => 'sometimes|required|string'
-        ]);
-
         try {
             $user = auth()->user();
             $result = $this->giftCardService->redeemGiftCard($user, $request->code, $request->otp);
@@ -35,21 +31,84 @@ class GiftCardController extends Controller
     }
 
     /**
+     * Validate gift card without redeeming
+     */
+    public function validateCard(Request $request)
+    {
+        try {
+            $request->validate(['code' => 'required|string|max:50']);
+
+            $result = $this->giftCardService->validateGiftCard($request->code);
+
+            return self::success($result, 'Gift Card Validated successfully!');
+        }catch (\Exception $e) {
+            Log::error($e);
+            return self::error($e->getMessage(), 422);
+        }
+    }
+
+    /**
+     * Preview gift card redemption
+     */
+    public function previewRedemption(Request $request)
+    {
+        try{
+            $user = auth()->user();
+            $request->validate(['code' => 'required|string|max:50']);
+
+            $preview = $this->giftCardService->previewRedemption($user, $request->code);
+
+            return self::success($preview, 'Gift Card Previewed successfully!');
+        }catch (\Exception $e) {
+            Log::error($e);
+            return self::error($e->getMessage(), 422);
+        }
+    }
+
+    /**
      * Get user's gift card redemption history
      */
     public function redemptionHistory(Request $request)
     {
-        $user = auth()->user();
-        $perPage = $request->input('per_page', 15);
+        try {
+            $user = auth()->user();
+            $perPage = $request->input('per_page', 15);
 
-        $redemptions = WalletTransaction::where('user_id', $user->id)
-            ->where('type', 'gift_card_redeem')
-            ->with('giftCard')
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+            $redemptions = WalletTransaction::where('user_id', $user->id)
+                ->where('type', 'gift_card_redeem')
+                ->with(['giftCard', 'walletLot'])
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
 
-        return self::success($redemptions, 'Gift Card Redemption History retrieved successfully!');
+            return self::success($redemptions, 'Gift Card Redemption History retrieved successfully!');
+        }catch (\Exception $e) {
+            Log::error($e);
+            return self::error($e->getMessage(), 422);
+        }
     }
+
+    /**
+     * Bulk redeem gift cards (admin function)
+     */
+    public function bulkRedeem(Request $request)
+    {
+        try {
+            $request->validate([
+                'codes' => 'required|array',
+                'codes.*' => 'string|max:50',
+                'user_id' => 'required|exists:users,id',
+            ]);
+
+            $result = $this->giftCardService->bulkRedeemGiftCards($request->codes, $request->user_id);
+
+            return self::success($result, 'Gift Card bulk redemption completed successfully!');
+        }catch (\Exception $e) {
+            Log::error($e);
+            return self::error($e->getMessage(), 422);
+        }
+    }
+
+
     /**
      * Display a listing of the resource.
      */

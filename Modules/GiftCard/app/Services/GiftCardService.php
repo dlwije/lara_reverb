@@ -11,16 +11,22 @@ use Modules\PromoRules\Models\PromoRule;
 use Modules\Wallet\Models\Wallet;
 use Modules\Wallet\Models\WalletLot;
 use Modules\Wallet\Models\WalletTransaction;
+use Modules\Wallet\Services\KYCService;
+use Modules\Wallet\Services\WalletService;
 
 class GiftCardService
 {
+    public function __construct(
+        public WalletService $walletService,
+        public KYCService $kycService
+    ) {}
     /**
      * Redeem a gift card
      */
     public function redeemGiftCard(User $user, string $code, ?string $otp = null) {
         return DB::transaction(function () use ($user, $code, $otp) {
-            // Find and validate the gift card
-            $giftCard = GiftCard::where('code', $code)->where('status', 'active')->first();
+            // Validate gift card
+            $giftCard = GiftCard::where('code', $code)->where('status', 'active')->firstOrFail();
 
             if($giftCard->isExpired()) {
                 throw new \Exception(__('Gift card has expired'));
@@ -30,52 +36,26 @@ class GiftCardService
                 throw new \Exception(__('Gift card has already been redeemed'));
             }
 
+            // Check KYC requirements
+            $this->kycService->blockIfKycRequired($user, $giftCard->final_credit);
+
             //Apply promo multiplier if available
             $finalCredit = $this->calculateFinalCredit($giftCard, $user);
             $bonusValue = $finalCredit - $giftCard->original_value;
 
-            // Create wallet lot
-            $walletLot = WalletLot::create([
-                'user_id' => $user->id,
-                'source' => 'gift_card',
-                'amount' => $finalCredit,
-                'base_value' => $giftCard->original_value,
-                'bonus_value' => $bonusValue,
-                'currency' => $giftCard->currency,
-                'acquired_at' => now(),
-                'expires_at' => $giftCard->expires_at,
-                'gift_card_id' => $giftCard->id,
-                'promo_rule_id' => $giftCard->promo_rule_id,
-                'status' => 'active',
-            ]);
-
-            // Create transaction
-            $transaction = WalletTransaction::create([
-                'user_id' => $user->id,
-                'direction' => 'CR',
-                'amount' => $finalCredit,
-                'base_value' => $giftCard->original_value,
-                'bonus_value' => $bonusValue,
-                'currency' => $giftCard->currency,
-                'type' => 'gift_card_redeem',
-                'status' => 'completed',
-                'ref_type' => GiftCard::class,
-                'ref_id' => $giftCard->id,
-                'gift_card_id' => $giftCard->id,
-                'promo_rule_id' => $giftCard->promo_rule_id,
-                'ip' => request()->ip(),
-                'user_agent' => request()->userAgent(),
-            ]);
-
-            // Update wallet balance
-            $wallet = Wallet::firstOrCreate(
-                ['user_id' => $user->id],
-                ['total_available' => 0, 'total_pending' => 0]
+            // Add funds to wallet
+            $result = $this->addToWallet(
+                $user,
+                $finalCredit,
+                'gift_card',
+                $giftCard->original_value,
+                $bonusValue,
+                $giftCard->id,
+                $giftCard->currency,
+                $giftCard->promo_rule_id
             );
 
-            $wallet->increment('total_available', $finalCredit);
-
-            //mark gift card as redeemed
+            // Mark the gift card as redeemed
             $giftCard->update([
                 'status' => 'redeemed',
                 'redeemed_by' => $user->id,
@@ -84,10 +64,116 @@ class GiftCardService
                 'bonus_value' => $bonusValue,
             ]);
 
+            // Create wallet lot
+//            $walletLot = WalletLot::create([
+//                'user_id' => $user->id,
+//                'source' => 'gift_card',
+//                'amount' => $finalCredit,
+//                'base_value' => $giftCard->original_value,
+//                'bonus_value' => $bonusValue,
+//                'currency' => $giftCard->currency,
+//                'acquired_at' => now(),
+//                'expires_at' => $giftCard->expires_at,
+//                'gift_card_id' => $giftCard->id,
+//                'promo_rule_id' => $giftCard->promo_rule_id,
+//                'status' => 'active',
+//            ]);
+
+            // Create transaction
+//            $transaction = WalletTransaction::create([
+//                'user_id' => $user->id,
+//                'direction' => 'CR',
+//                'amount' => $finalCredit,
+//                'base_value' => $giftCard->original_value,
+//                'bonus_value' => $bonusValue,
+//                'currency' => $giftCard->currency,
+//                'type' => 'gift_card_redeem',
+//                'status' => 'completed',
+//                'ref_type' => GiftCard::class,
+//                'ref_id' => $giftCard->id,
+//                'gift_card_id' => $giftCard->id,
+//                'promo_rule_id' => $giftCard->promo_rule_id,
+//                'ip' => request()->ip(),
+//                'user_agent' => request()->userAgent(),
+//            ]);
+
+            // Update wallet balance
+//            $wallet = Wallet::firstOrCreate(
+//                ['user_id' => $user->id],
+//                ['total_available' => 0, 'total_pending' => 0]
+//            );
+//
+//            $wallet->increment('total_available', $finalCredit);
+//
+//            //mark gift card as redeemed
+//            $giftCard->update([
+//                'status' => 'redeemed',
+//                'redeemed_by' => $user->id,
+//                'redeemed_at' => now(),
+//                'final_credit' => $finalCredit,
+//                'bonus_value' => $bonusValue,
+//            ]);
+
+            return array_merge($result, [
+                'gift_card' => $giftCard,
+                'base_value' => $giftCard->original_value,
+                'bonus_value' => $bonusValue,
+                'total_credit' => $finalCredit,
+            ]);
+        });
+    }
+
+    /**
+     * Add funds to wallet with proper lot creation
+     */
+    public function addToWallet(User $user, float $amount, string $source, float $baseValue, float $bonusValue, ?int $giftCardId = null, string $currency = 'AED', ?int $promoRuleId = null)
+    {
+        return DB::transaction(function () use ($user, $amount, $source, $baseValue, $bonusValue, $giftCardId, $currency, $promoRuleId) {
+            $walletLot = WalletLot::create([
+                'user_id' => $user->id,
+                'source' => $source,
+                'amount' => $amount,
+                'base_value' => $baseValue,
+                'bonus_value' => $bonusValue,
+                'remaining' => $amount,
+                'currency' => $currency,
+                'acquired_at' => now(),
+                'expires_at' => now()->addDays(360),
+                'status' => 'active',
+                'gift_card_id' => $giftCardId,
+                'promo_rule_id' => $promoRuleId,
+            ]);
+
+            // Create a transaction record
+            $transaction = WalletTransaction::create([
+                'user_id' => $user->id,
+                'direction' => 'CR',
+                'amount' => $amount,
+                'base_value' => $baseValue,
+                'bonus_value' => $bonusValue,
+                'currency' => $currency,
+                'type' => 'gift_card_redeem',
+                'status' => 'completed',
+                'ref_type' => GiftCard::class,
+                'ref_id' => $giftCardId,
+                'gift_card_id' => $giftCardId,
+                'promo_rule_id' => $promoRuleId,
+                'lot_allocation' => [['lot_id' => $walletLot->id, 'amount' => $amount]],
+                'ip' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+
+            // Update wallet balance
+            $wallet = Wallet::firstOrCreate(
+                ['user_id' => $user->id],
+                ['total_available' => 0, 'total_pending' => 0, 'status' => 'active']
+            );
+
+            $wallet->increment('total_available', $amount);
+
             return [
                 'lot' => $walletLot,
                 'transaction' => $transaction,
-                'gift_card' => $giftCard,
                 'new_balance' => $wallet->fresh()->total_available,
             ];
         });
@@ -126,7 +212,91 @@ class GiftCardService
         // - Minimum amount conditions
         // - etc.
 
-        return null; // Return the first applicable rule or null
+        return PromoRule::where('is_active', true)
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->orderBy('multiplier', 'desc')
+            ->first();
+    }
+
+    /**
+     * Bulk redeem gift cards (admin function)
+     */
+    public function bulkRedeemGiftCards(array $codes, int $userId): array
+    {
+        $results = [];
+
+        foreach ($codes as $code) {
+            try {
+                $user = User::findOrFail($userId);
+                $result = $this->redeemGiftCard($user, $code);
+                $results[] = [
+                    'code' => $code,
+                    'success' => true,
+                    'data' => $result,
+                ];
+            } catch (\Exception $e) {
+                $results[] = [
+                    'code' => $code,
+                    'success' => false,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+        return $results;
+    }
+
+    /**
+     * Validate gift card without redeeming
+     */
+    public function validateGiftCard(string $code): array
+    {
+        $giftCard = GiftCard::where('code', $code)->first();
+
+        if(!$giftCard){
+            throw new \Exception(__('Gift card not found. Invalid gift card code.'));
+        }
+
+        return [
+            'valid' => $giftCard->isActive(),
+            'gift_card' => $giftCard,
+            'status' => $giftCard->status,
+            'is_expired' => $giftCard->isExpired(),
+            'is_redeemed' => $giftCard->isRedeemed(),
+            'original_value' => $giftCard->original_value,
+            'final_credit' => $giftCard->final_credit ?? $giftCard->original_value,
+            'expires_at' => $giftCard->expires_at,
+            'days_until_expiry' => $giftCard->daysUntilExpiry(now()),
+        ];
+    }
+
+    /**
+     * Preview gift card redemption
+     */
+    public function previewRedemption(User $user, string $code): array
+    {
+        $validation = $this->validateGiftCard($code);
+
+        if(!$validation['valid']){
+            throw new \Exception(__('Gift card is not valid for redemption.'));
+        }
+
+        $giftCard = $validation['gift_card'];
+        $finalCredit = $this->calculateFinalCredit($giftCard, $user);
+        $bonusValue = $finalCredit - $giftCard->original_value;
+        $wallet_available = Wallet::where('user_id', $user->id)->value('total_available');
+
+        return [
+            'gift_card' => $giftCard,
+            'original_value' => $giftCard->original_value,
+            'final_credit' => $finalCredit,
+            'bonus_value' => $bonusValue,
+            'bonus_percentage' => $bonusValue > 0 ? round(($bonusValue / $giftCard->original_value) * 100, 2) : 0,
+            'expires_at' => $giftCard->expires_at,
+            'will_expire' => now()->addDays(360)->toISOString(),
+            'current_balance' => $wallet_available ?? 0,
+            'new_balance' => ($wallet_available ?? 0) + $finalCredit,
+        ];
     }
 
     /**

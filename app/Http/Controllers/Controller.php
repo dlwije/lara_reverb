@@ -30,12 +30,13 @@ abstract class Controller extends RoutingController
         return response()->json($data, $statusCode);
     }
 
-    public static function error($message = 'An error occurred', $statusCode = 400, $errors = [])
+    public static function error($message = 'An error occurred', $statusCode = 400, $errors = [], $extraData = [])
     {
         return response()->json([
             'status' => false,
             'message' => $message,
             'errors' => $errors,
+            'extra_data' => $extraData,
         ], $statusCode);
     }
 

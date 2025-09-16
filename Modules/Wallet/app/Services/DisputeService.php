@@ -10,6 +10,8 @@ use Modules\Wallet\Models\Dispute;
 use Modules\Wallet\Models\DisputeEvidence;
 use Modules\Wallet\Models\WalletLot;
 use Modules\Wallet\Models\WalletTransaction;
+use Modules\Wallet\Notifications\DisputeCreatedNotification;
+use Modules\Wallet\Notifications\DisputeResolvedNotification;
 
 class DisputeService
 {
@@ -361,5 +363,278 @@ class DisputeService
             ->select(DB::raw('avg(TIMESTAMPDIFF(HOUR, created_at, resolved_at)) as avg_hours'))
             ->value('avg_hours'),
         ];
+    }
+
+    /**
+     * Escalate dispute priority
+     */
+    public function escalateDispute(int $disputeId, string $newPriority, string $reason): Dispute
+    {
+        $dispute = Dispute::findOrFail($disputeId);
+
+        $dispute->update([
+            'priority' => $newPriority,
+            'notes' => $dispute->notes ? $dispute->notes . '\nEscalation:' . $reason : $reason,
+        ]);
+
+        // Notify admin team
+        $this->notifyAdmins('dispute_escalated', $dispute);
+
+        AuditLog::create([
+            'actor_type' => User::class,
+            'actor_id' => auth()->id(),
+            'event' => 'dispute_escalated',
+            'entity_type' => Dispute::class,
+            'entity_id' => $disputeId,
+            'after' => json_encode([
+                'old_priority' => $dispute->getOriginal('priority'),
+                'new_priority' => $newPriority,
+                'reason' => $reason
+            ])
+        ]);
+
+        return $dispute;
+    }
+
+    /**
+     * Change dispute status to under review
+     */
+    public function markUnderReview(int $disputeId, int $reviewerId): Dispute
+    {
+        $dispute = Dispute::findOrFail($disputeId);
+
+        $dispute->update([
+            'status' => 'under_review',
+            'notes' => $dispute->notes ? $dispute->notes . "\nAssigned to reviewer: " . $reviewerId : "Assigned to reviewer: " . $reviewerId
+//            'under_review_by' => $reviewerId,
+//            'under_review_at' => now(),
+        ]);
+
+        AuditLog::create([
+            'actor_type' => User::class,
+            'actor_id' => auth()->id(),
+            'event' => 'dispute_under_review',
+            'entity_type' => Dispute::class,
+            'entity_id' => $disputeId,
+            'after' => json_encode(['reviewer_id' => $reviewerId])
+        ]);
+
+        return $dispute;
+    }
+
+    /**
+     * Add internal note to dispute
+     */
+    public function addInternalNote(int $disputeId, string $note, bool $isInternal = true): Dispute
+    {
+        $dispute = Dispute::findOrFail($disputeId);
+
+        $prefix = $isInternal ? "[INTERNAL] " : "";
+        $dispute->update([
+            'notes' => $dispute->notes ? $dispute->notes . "\n" . $prefix . $note : $prefix . $note
+        ]);
+
+        AuditLog::create([
+            'actor_type' => User::class,
+            'actor_id' => auth()->id(),
+            'event' => 'dispute_note_added',
+            'entity_type' => Dispute::class,
+            'entity_id' => $disputeId,
+            'after' => json_encode([
+                'note' => $note,
+                'is_internal' => $isInternal
+            ])
+        ]);
+
+        return $dispute;
+    }
+
+    /**
+     * Reopen a resolved dispute
+     */
+    public function reopenDispute(int $disputeId, string $reason): Dispute
+    {
+        $dispute = Dispute::findOrFail($disputeId);
+
+        if ($dispute->status !== 'resolved') {
+            throw new \Exception('Only resolved disputes can be reopened');
+        }
+
+        $dispute->update([
+            'status' => 'under_review',
+            'resolution' => null,
+            'resolved_by' => null,
+            'resolved_at' => null,
+            'notes' => $dispute->notes ? $dispute->notes . "\nReopened: " . $reason : "Reopened: " . $reason
+        ]);
+
+        // Freeze funds again if needed
+        $transaction = $dispute->transaction;
+        if ($transaction->direction === 'DR') {
+            $this->freezeRelatedFunds($transaction);
+        }
+
+        // Notify admins
+        $this->notifyAdmins('dispute_reopened', $dispute);
+
+        AuditLog::create([
+            'actor_type' => User::class,
+            'actor_id' => auth()->id(),
+            'event' => 'dispute_reopened',
+            'entity_type' => Dispute::class,
+            'entity_id' => $disputeId,
+            'after' => json_encode(['reason' => $reason])
+        ]);
+
+        return $dispute;
+    }
+
+    /**
+     * Get disputes assigned to specific admin
+     */
+    public function getAssignedDisputes(int $adminId, array $filters = [], int $perPage = 15)
+    {
+        $query = Dispute::with(['user', 'transaction', 'evidence'])
+            ->where('status', '!=', 'resolved')
+            ->where('status', '!=', 'cancelled');
+
+        // Add filters
+        if (!empty($filters['priority'])) {
+            $query->where('priority', $filters['priority']);
+        }
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        return $query->orderBy('priority', 'desc')
+            ->orderBy('created_at', 'asc')
+            ->paginate($perPage);
+    }
+
+    /**
+     * Calculate suggested refund amount
+     */
+    public function calculateSuggestedRefund(int $disputeId): float
+    {
+        $dispute = Dispute::with('transaction')->findOrFail($disputeId);
+        $transaction = $dispute->transaction;
+
+        // Default to full amount
+        $suggestedRefund = $transaction->amount;
+
+        // Apply business logic for partial refunds
+        if ($this->isPartialRefundScenario($dispute)) {
+            $suggestedRefund = $transaction->amount * 0.5; // 50% for partial scenarios
+        }
+
+        return round($suggestedRefund, 2);
+    }
+
+    /**
+     * Check if dispute qualifies for partial refund
+     */
+    private function isPartialRefundScenario(Dispute $dispute): bool
+    {
+        // Implement business logic for partial refund scenarios
+        $partialKeywords = ['partial', '50%', 'half', 'portion', 'some'];
+        $reason = strtolower($dispute->reason);
+
+        foreach ($partialKeywords as $keyword) {
+            if (str_contains($reason, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Export disputes report
+     */
+    public function exportDisputesReport(array $filters)
+    {
+        $disputes = $this->getDisputes($filters, 1000); // Large limit for export
+
+        $filename = "disputes_report_" . now()->format('Y-m-d_His') . ".csv";
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=$filename",
+        ];
+
+        $callback = function () use ($disputes) {
+            $file = fopen('php://output', 'w');
+
+            // CSV headers
+            fputcsv($file, [
+                'ID', 'User', 'Transaction ID', 'Amount', 'Reason', 'Status',
+                'Priority', 'Resolution', 'Created At', 'Resolved At', 'Notes'
+            ]);
+
+            foreach ($disputes as $dispute) {
+                fputcsv($file, [
+                    $dispute->id,
+                    $dispute->user->email,
+                    $dispute->transaction_id,
+                    $dispute->transaction->amount,
+                    $dispute->reason,
+                    $dispute->status,
+                    $dispute->priority,
+                    $dispute->resolution,
+                    $dispute->created_at->format('Y-m-d H:i:s'),
+                    $dispute->resolved_at?->format('Y-m-d H:i:s'),
+                    substr($dispute->notes ?? '', 0, 100) // First 100 chars
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Get dispute timeline
+     */
+    public function getDisputeTimeline(int $disputeId)
+    {
+        $dispute = Dispute::findOrFail($disputeId);
+
+        return AuditLog::where('entity_type', Dispute::class)
+            ->where('entity_id', $disputeId)
+            ->orWhere(function ($query) use ($dispute) {
+                $query->where('entity_type', WalletTransaction::class)
+                    ->where('entity_id', $dispute->transaction_id);
+            })
+            ->with('actor')
+            ->orderBy('created_at', 'asc')
+            ->get();
+    }
+
+    /**
+     * Bulk update dispute statuses
+     */
+    public function bulkUpdateStatuses(array $disputeIds, string $status, string $reason): int
+    {
+        $updated = 0;
+
+        foreach ($disputeIds as $disputeId) {
+            try {
+                $dispute = Dispute::find($disputeId);
+                if ($dispute) {
+                    $dispute->update([
+                        'status' => $status,
+                        'notes' => $dispute->notes ? $dispute->notes . "\nBulk update: " . $reason : "Bulk update: " . $reason
+                    ]);
+                    $updated++;
+                }
+            } catch (\Exception $e) {
+                // Continue with other disputes
+                continue;
+            }
+        }
+
+        return $updated;
     }
 }

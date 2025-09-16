@@ -128,7 +128,7 @@ class AdminGiftCardController extends Controller
     }
 
     /**
-     * Activate gift card
+     * Activate a gift card
      */
     public function activate($id) {
         try {
@@ -142,7 +142,7 @@ class AdminGiftCardController extends Controller
     }
 
     /**
-     * Deactivate gift card
+     * Deactivate a gift card
      */
     public function deactivate($id) {
         try {
