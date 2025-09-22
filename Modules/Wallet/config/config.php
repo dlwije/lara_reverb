@@ -2,6 +2,9 @@
 
 return [
     'name' => 'Wallet',
+    'kyc' => [
+        'enabled' => env('WALLET_KYC_ENABLED', false)
+    ],
     'kyc_tier_limits' => [
         0 => 1000,   // Tier 0: AED 1,000 max balance
         1 => 5000,   // Tier 1: AED 5,000 max balance

@@ -401,36 +401,187 @@ class WalletService
     }
 
     /**
-     * Get wallet balance summary with lot breakdown
+     * Get comprehensive wallet summary
      */
     public function getWalletSummary(User $user): array
     {
         $wallet = Wallet::where('user_id', $user->id)->firstOrFail();
 
-        $lots = WalletLot::where('user_id', $user->id)
-            ->where('status', 'active')
+        return [
+            'balance' => [
+                'total' => $wallet->total_available,
+                'formatted_total' => number_format($wallet->total_available, 2) . ' AED',
+                'pending' => $wallet->total_pending,
+                'formatted_pending' => number_format($wallet->total_pending, 2) . ' AED',
+                'spendable' => $wallet->spendable_balance,
+                'formatted_spendable' => number_format($wallet->spendable_balance, 2) . ' AED',
+            ],
+
+            'monthly_stats' => [
+                'spent' => $wallet->current_month_spent,
+                'formatted_spent' => $wallet->formatted_current_month_spent,
+                'deposited' => $wallet->current_month_deposited,
+                'formatted_deposited' => number_format($wallet->current_month_deposited, 2) . ' AED',
+                'net_flow' => $wallet->current_month_deposited - $wallet->current_month_spent,
+                'formatted_net_flow' => number_format($wallet->current_month_deposited - $wallet->current_month_spent, 2) . ' AED',
+            ],
+
+            'activity' => [
+                'transactions_count' => $wallet->transactions_count,
+                'last_transaction_date' => $wallet->last_transaction_date,
+                'last_updated_date' => $wallet->last_updated_date,
+                'formatted_last_updated' => $wallet->formatted_last_updated_date,
+                'is_active' => $wallet->is_active,
+                'is_locked' => $wallet->is_locked,
+            ],
+
+            'lots_info' => [
+                'total_lots' => $wallet->activeLots()->count(),
+                'expiring_soon_count' => $wallet->expiring_soon_lots_count,
+                'expiring_soon_amount' => $wallet->expiring_soon_balance,
+                'formatted_expiring_soon' => number_format($wallet->expiring_soon_balance, 2) . ' AED',
+                'by_source' => $wallet->balance_by_source,
+            ],
+
+            'lifetime_stats' => [
+                'total_deposited' => $wallet->total_deposited,
+                'formatted_total_deposited' => number_format($wallet->total_deposited, 2) . ' AED',
+                'total_spent' => $wallet->total_spent,
+                'formatted_total_spent' => number_format($wallet->total_spent, 2) . ' AED',
+                'average_monthly_spend' => $this->calculateAverageMonthlySpend($user),
+            ],
+
+            'spending_trend' => $wallet->monthly_spending_trend,
+        ];
+    }
+
+    /**
+     * Get detailed wallet information
+     */
+    public function getWallet(User $user): array
+    {
+        $wallet = Wallet::where('user_id', $user->id)->firstOrFail();
+
+        return [
+            'basic_info' => [
+                'balance' => $wallet->total_available,
+                'formatted_balance' => number_format($wallet->total_available, 2) . ' AED',
+                'pending_hold' => $wallet->total_pending,
+                'formatted_pending' => number_format($wallet->total_pending, 2) . ' AED',
+                'currency' => $wallet->currency,
+                'status' => $wallet->status,
+                'formatted_status' => ucfirst($wallet->status),
+            ],
+
+            'transaction_stats' => [
+                'total_transactions' => $wallet->transactions_count,
+                'credit_transactions' => $wallet->creditTransactions()->count(),
+                'debit_transactions' => $wallet->debitTransactions()->count(),
+                'last_transaction' => $wallet->last_transaction_date,
+            ],
+
+            'lots_info' => [
+                'total_active_lots' => $wallet->activeLots()->count(),
+                'expiring_soon_lots' => $wallet->expiring_soon_lots_count,
+                'expiring_amount' => $wallet->expiring_soon_balance,
+                'formatted_expiring' => number_format($wallet->expiring_soon_balance, 2) . ' AED',
+                'lot_breakdown' => $this->getLotBreakdown($user),
+            ],
+
+            'activity_info' => [
+                'last_updated' => $wallet->last_updated_date,
+                'formatted_last_updated' => $wallet->formatted_last_updated_date,
+                'created_date' => $wallet->created_at->toISOString(),
+                'formatted_created' => $wallet->created_at->format('M j, Y'),
+            ],
+
+            'limits_info' => [
+                'is_locked' => $wallet->is_locked,
+                'can_transact' => $wallet->is_active && !$wallet->is_locked,
+                'spendable_balance' => $wallet->spendable_balance,
+                'formatted_spendable' => number_format($wallet->spendable_balance, 2) . ' AED',
+            ],
+        ];
+    }
+
+    /**
+     * Calculate average monthly spending
+     */
+    private function calculateAverageMonthlySpend(User $user): float
+    {
+        $result = DB::table('wallet_transactions')
+            ->select(DB::raw('AVG(monthly_spent) as avg_monthly_spend'))
+            ->fromSub(function ($query) use ($user) {
+                $query->from('wallet_transactions')
+                    ->select(
+                        DB::raw('YEAR(created_at) as year'),
+                        DB::raw('MONTH(created_at) as month'),
+                        DB::raw('SUM(amount) as monthly_spent')
+                    )
+                    ->where('user_id', $user->id)
+                    ->where('direction', 'DR')
+                    ->where('status', 'completed')
+                    ->groupBy('year', 'month');
+            }, 'monthly_spending')
+            ->first();
+
+        return round($result->avg_monthly_spend ?? 0, 2);
+    }
+
+    /**
+     * Get detailed lot breakdown
+     */
+    private function getLotBreakdown(User $user): array
+    {
+        return WalletLot::where('user_id', $user->id)
+            ->where('status', WalletLot::STATUS_ACTIVE)
             ->where('remaining', '>', 0)
             ->where('expires_at', '>', now())
             ->orderBy('expires_at', 'asc')
-            ->get();
-
-        $summary = [
-            'total_balance' => $wallet->total_available,
-            'active_lots' => $lots->count(),
-            'expiring_soon' => $lots->where('expires_at', '<=', now()->addDays(30))->sum('remaining'),
-            'lot_breakdown' => $lots->map(function ($lot) {
+            ->get()
+            ->groupBy('source')
+            ->map(function ($lots, $source) {
                 return [
-                    'id' => $lot->id,
-                    'source' => $lot->source,
-                    'amount' => $lot->amount,
-                    'remaining' => $lot->remaining,
-                    'expires_at' => $lot->expires_at,
-                    'days_until_expiry' => $lot->expires_at->diffInDays(now()),
-                    'acquired_at' => $lot->acquired_at,
+                    'source' => $source,
+                    'count' => $lots->count(),
+                    'total_amount' => $lots->sum('remaining'),
+                    'formatted_amount' => number_format($lots->sum('remaining'), 2) . ' AED',
+                    'lots' => $lots->map(function ($lot) {
+                        return [
+                            'id' => $lot->id,
+                            'amount' => $lot->amount,
+                            'remaining' => $lot->remaining,
+                            'expires_at' => $lot->expires_at->toISOString(),
+                            'days_until_expiry' => $lot->expires_at->diffInDays(now()),
+                            'formatted_expiry' => $lot->expires_at->format('M j, Y'),
+                        ];
+                    })
                 ];
             })
-        ];
+            ->values()
+            ->toArray();
+    }
 
-        return $summary;
+    /**
+     * Get wallet overview for dashboard
+     */
+    public function getWalletOverview(User $user): array
+    {
+        $wallet = Wallet::where('user_id', $user->id)->firstOrFail();
+
+        return [
+            'total_balance' => $wallet->total_available,
+            'formatted_balance' => number_format($wallet->total_available, 2) . ' AED',
+            'pending_balance' => $wallet->total_pending,
+            'monthly_spent' => $wallet->current_month_spent,
+            'formatted_monthly_spent' => number_format($wallet->current_month_spent, 2) . ' AED',
+            'transactions_count' => $wallet->transactions_count,
+            'expiring_lots_count' => $wallet->expiring_soon_lots_count,
+            'expiring_amount' => $wallet->expiring_soon_balance,
+            'formatted_expiring' => number_format($wallet->expiring_soon_balance, 2) . ' AED',
+            'last_updated' => $wallet->formatted_last_updated_date,
+            'is_locked' => $wallet->is_locked,
+            'can_transact' => $wallet->is_active && !$wallet->is_locked,
+        ];
     }
 }

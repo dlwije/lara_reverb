@@ -28,12 +28,12 @@ class KYCService
         $currentTier = $this->getKycTier($user);
         $walletBalance = Wallet::where('user_id', $user->id)->value('total_available') ?? 0;
 
-        $tierLimits = [
-            0 => 1000, // Tier 0: AED 1,000 max balance
-            1 => 5000, // Tier 1: AED 5,000 max balance
-            2 => 20000, // Tier 2: AED 20,000 max balance
-            3 => 50000, // Tier 3: AED 50,000 max balance (no limit)
-        ];
+        $tierLimits = config('wallet.kyc_tier_limits', [
+            0 => 1000,   // Tier 0: AED 1,000 max balance
+            1 => 5000,   // Tier 1: AED 5,000 max balance
+            2 => 20000,  // Tier 2: AED 20,000 max balance
+            3 => 50000   // Tier 3: AED 50,000 max balance (no limit)
+        ]);
 
         return ($walletBalance + $amount) > ($tierLimits[$currentTier] ?? 0);
     }

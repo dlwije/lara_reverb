@@ -18,7 +18,8 @@ class GiftCardService
 {
     public function __construct(
         public WalletService $walletService,
-        public KYCService $kycService
+        public KYCService $kycService,
+        public OTPService $otpService,
     ) {}
     /**
      * Redeem a gift card
@@ -26,7 +27,11 @@ class GiftCardService
     public function redeemGiftCard(User $user, string $code, ?string $otp = null) {
         return DB::transaction(function () use ($user, $code, $otp) {
             // Validate gift card
-            $giftCard = GiftCard::where('code', $code)->where('status', 'active')->firstOrFail();
+            $giftCard = GiftCard::where('code', $code)->where('status', 'active')->first();
+
+            if(!$giftCard){
+                throw new \Exception(__('Gift card not found. Invalid gift card code.'));
+            }
 
             if($giftCard->isExpired()) {
                 throw new \Exception(__('Gift card has expired'));
@@ -36,11 +41,27 @@ class GiftCardService
                 throw new \Exception(__('Gift card has already been redeemed'));
             }
 
+            $finalCredit = $this->calculateFinalCredit($giftCard, $user);
+            // Check if OTP is required
+            $requiresOtp = $this->otpService->isOtpRequired($user, $finalCredit);
+
+            if ($requiresOtp) {
+                if (!$otp) {
+                    // Generate and send OTP
+                    $this->otpService->generateAndSendOtp($user, 'gift_card_redeem');
+                    throw new \Exception('OTP_REQUIRED');
+                }
+
+                // Verify OTP
+                if (!$this->otpService->verifyOtp($user, $otp, 'gift_card_redeem')) {
+                    throw new \Exception('Invalid or expired OTP');
+                }
+            }
+
             // Check KYC requirements
-            $this->kycService->blockIfKycRequired($user, $giftCard->final_credit);
+//            $this->kycService->blockIfKycRequired($user, $giftCard->final_credit);
 
             //Apply promo multiplier if available
-            $finalCredit = $this->calculateFinalCredit($giftCard, $user);
             $bonusValue = $finalCredit - $giftCard->original_value;
 
             // Add funds to wallet
@@ -64,61 +85,12 @@ class GiftCardService
                 'bonus_value' => $bonusValue,
             ]);
 
-            // Create wallet lot
-//            $walletLot = WalletLot::create([
-//                'user_id' => $user->id,
-//                'source' => 'gift_card',
-//                'amount' => $finalCredit,
-//                'base_value' => $giftCard->original_value,
-//                'bonus_value' => $bonusValue,
-//                'currency' => $giftCard->currency,
-//                'acquired_at' => now(),
-//                'expires_at' => $giftCard->expires_at,
-//                'gift_card_id' => $giftCard->id,
-//                'promo_rule_id' => $giftCard->promo_rule_id,
-//                'status' => 'active',
-//            ]);
-
-            // Create transaction
-//            $transaction = WalletTransaction::create([
-//                'user_id' => $user->id,
-//                'direction' => 'CR',
-//                'amount' => $finalCredit,
-//                'base_value' => $giftCard->original_value,
-//                'bonus_value' => $bonusValue,
-//                'currency' => $giftCard->currency,
-//                'type' => 'gift_card_redeem',
-//                'status' => 'completed',
-//                'ref_type' => GiftCard::class,
-//                'ref_id' => $giftCard->id,
-//                'gift_card_id' => $giftCard->id,
-//                'promo_rule_id' => $giftCard->promo_rule_id,
-//                'ip' => request()->ip(),
-//                'user_agent' => request()->userAgent(),
-//            ]);
-
-            // Update wallet balance
-//            $wallet = Wallet::firstOrCreate(
-//                ['user_id' => $user->id],
-//                ['total_available' => 0, 'total_pending' => 0]
-//            );
-//
-//            $wallet->increment('total_available', $finalCredit);
-//
-//            //mark gift card as redeemed
-//            $giftCard->update([
-//                'status' => 'redeemed',
-//                'redeemed_by' => $user->id,
-//                'redeemed_at' => now(),
-//                'final_credit' => $finalCredit,
-//                'bonus_value' => $bonusValue,
-//            ]);
-
             return array_merge($result, [
                 'gift_card' => $giftCard,
                 'base_value' => $giftCard->original_value,
                 'bonus_value' => $bonusValue,
                 'total_credit' => $finalCredit,
+                'otp_required' => $requiresOtp
             ]);
         });
     }
@@ -182,7 +154,7 @@ class GiftCardService
     /**
      * Calculate final credit with promo multipliers
      */
-    private function calculateFinalCredit(GiftCard $giftCard, User $user): float
+    public function calculateFinalCredit(GiftCard $giftCard, User $user): float
     {
         $baseValue = $giftCard->original_value;
 
@@ -266,7 +238,7 @@ class GiftCardService
             'original_value' => $giftCard->original_value,
             'final_credit' => $giftCard->final_credit ?? $giftCard->original_value,
             'expires_at' => $giftCard->expires_at,
-            'days_until_expiry' => $giftCard->daysUntilExpiry(now()),
+            'days_until_expiry' => $giftCard->daysUntilExpiry(),
         ];
     }
 
@@ -286,12 +258,16 @@ class GiftCardService
         $bonusValue = $finalCredit - $giftCard->original_value;
         $wallet_available = Wallet::where('user_id', $user->id)->value('total_available');
 
+        $requiresOtp = $this->otpService->isOtpRequired($user, $finalCredit);
+
         return [
             'gift_card' => $giftCard,
             'original_value' => $giftCard->original_value,
             'final_credit' => $finalCredit,
             'bonus_value' => $bonusValue,
             'bonus_percentage' => $bonusValue > 0 ? round(($bonusValue / $giftCard->original_value) * 100, 2) : 0,
+            'requires_otp' => $requiresOtp,
+            'otp_threshold' => config('giftcard.otp.amount_threshold', 1000),
             'expires_at' => $giftCard->expires_at,
             'will_expire' => now()->addDays(360)->toISOString(),
             'current_balance' => $wallet_available ?? 0,
@@ -411,9 +387,9 @@ class GiftCardService
     /**
      * Generate unique gift card code
      */
-    public function generateUniqueCode(?string $prefix = null, int $length = 12): string
+    public function generateUniqueCode(?string $prefix = null, int $length = 32): string
     {
-        $prefix = $prefix ? strtoupper($prefix) : 'GC';
+        $prefix = $prefix ? strtoupper($prefix) : 'GCE-';
         $code = '';
 
         do {

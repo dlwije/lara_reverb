@@ -7,11 +7,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Modules\GiftCard\Http\Requests\RedeemGiftCardRequest;
 use Modules\GiftCard\Services\GiftCardService;
+use Modules\GiftCard\Services\OTPService;
 use Modules\Wallet\Models\WalletTransaction;
 
 class GiftCardController extends Controller
 {
-    public function __construct(protected GiftCardService $giftCardService) { }
+    public function __construct(protected GiftCardService $giftCardService, protected OTPService $otpService) { }
 
 
     /**
@@ -24,6 +25,36 @@ class GiftCardController extends Controller
             $result = $this->giftCardService->redeemGiftCard($user, $request->code, $request->otp);
 
             return self::success($result, 'Gift Card Redeemed successfully!');
+        } catch (\Exception $e) {
+            Log::error($e);
+            if ($e->getMessage() === 'OTP_REQUIRED') {
+                return self::error(
+                    'OTP verification required', 422, [],
+                    [
+                        'otp_sent' => true,
+                        'message' => 'OTP has been sent to your registered email/phone',
+                        'code' => 'OTP_REQUIRED',
+                    ]
+                );
+            }
+            return self::error($e->getMessage(), 422);
+        }
+    }
+
+    public function resendOtp(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            $request->validate(['code' => 'required|string|max:50']);
+
+            // Validate gift card first
+            $giftCard = $this->giftCardService->validateGiftCard($request->code);
+            $finalCredit = $this->giftCardService->calculateFinalCredit($giftCard['gift_card'], $user);
+
+            // Generate and send new OTP
+            $this->otpService->generateAndSendOtp($user);
+
+            return self::success([], 'OTP resent successfully!');
         } catch (\Exception $e) {
             Log::error($e);
             return self::error($e->getMessage(), 422);
@@ -87,72 +118,4 @@ class GiftCardController extends Controller
         }
     }
 
-    /**
-     * Bulk redeem gift cards (admin function)
-     */
-    public function bulkRedeem(Request $request)
-    {
-        try {
-            $request->validate([
-                'codes' => 'required|array',
-                'codes.*' => 'string|max:50',
-                'user_id' => 'required|exists:users,id',
-            ]);
-
-            $result = $this->giftCardService->bulkRedeemGiftCards($request->codes, $request->user_id);
-
-            return self::success($result, 'Gift Card bulk redemption completed successfully!');
-        }catch (\Exception $e) {
-            Log::error($e);
-            return self::error($e->getMessage(), 422);
-        }
-    }
-
-
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        return view('giftcard::index');
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        return view('giftcard::create');
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request) {}
-
-    /**
-     * Show the specified resource.
-     */
-    public function show($id)
-    {
-        return view('giftcard::show');
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit($id)
-    {
-        return view('giftcard::edit');
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, $id) {}
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy($id) {}
 }

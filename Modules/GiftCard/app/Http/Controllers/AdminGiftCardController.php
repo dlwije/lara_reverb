@@ -180,6 +180,27 @@ class AdminGiftCardController extends Controller
     }
 
     /**
+     * Bulk redeem gift cards (admin function)
+     */
+    public function bulkRedeem(Request $request)
+    {
+        try {
+            $request->validate([
+                'codes' => 'required|array',
+                'codes.*' => 'string|max:50',
+                'user_id' => 'required|exists:users,id',
+            ]);
+
+            $result = $this->giftCardService->bulkRedeemGiftCards($request->codes, $request->user_id);
+
+            return self::success($result, 'Gift Card bulk redemption completed successfully!');
+        }catch (\Exception $e) {
+            Log::error($e);
+            return self::error($e->getMessage(), 422);
+        }
+    }
+
+    /**
      * List all gift card batches
      */
     public function batches(Request $request)
