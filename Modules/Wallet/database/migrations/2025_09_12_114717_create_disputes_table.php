@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('disputes', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('ec_customers')->onDelete('cascade');
             $table->foreignId('transaction_id')->constrained('wallet_transactions')->onDelete('cascade');
             $table->text('reason');
             $table->enum('status', ['open', 'under_review', 'resolved', 'cancelled'])->default('open');

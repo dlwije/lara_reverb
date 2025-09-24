@@ -3,6 +3,8 @@
 namespace Modules\Wallet\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Botble\Ecommerce\Services\GiftCardService;
+use Botble\Wallet\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -14,10 +16,13 @@ use Modules\Wallet\Services\WalletService;
 class WalletController extends Controller
 {
     public function __construct(
-        protected WalletService $walletService,
-        public KYCService $kycService,
-        public WalletLockService $lockService
-    ){}
+        protected \Botble\Wallet\Services\WalletService  $walletService,
+        public \Botble\Wallet\Services\KYCService        $kycService,
+        public \Botble\Wallet\Services\WalletLockService $lockService,
+        public GiftCardService                           $giftCardService,
+    )
+    {
+    }
 
     /**
      * Get wallet balance and details
@@ -28,7 +33,7 @@ class WalletController extends Controller
             $user = auth()->user();
 
             // Check if wallet is locked
-            if($this->lockService->isWalletFrozen($user->id)){
+            if ($this->lockService->isWalletFrozen($user->id)) {
                 return self::error(
                     'Wallet is temporarily locked. Please contact support.',
                     403,
@@ -41,15 +46,12 @@ class WalletController extends Controller
 
             return self::success($wallet);
 
-        }catch (\Exception $e) {
+        } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 500);
+            return self::error($e->getMessage(), 422);
         }
     }
 
-    /**
-     * Get wallet lots
-     */
     public function getLots(Request $request)
     {
         try {
@@ -58,7 +60,7 @@ class WalletController extends Controller
             $status = $request->get('status', 'active');
             $perPage = $request->get('per_page', 15);
 
-            $lots = WalletLot::where('user_id', $user->id)
+            $lots = \Botble\Wallet\Models\WalletLot::where('user_id', $user->id)
                 ->when($status, function ($query) use ($status) {
                     $query->where('status', $status);
                 })
@@ -67,145 +69,211 @@ class WalletController extends Controller
 
             return self::success($lots);
 
-        }catch (\Exception $e) {
+        } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 500);
+            return self::error($e->getMessage(), 422);
         }
     }
 
-    /**
-     * Get transaction history
-     */
     public function getTransactions(Request $request)
     {
         try {
             $user = auth()->user();
-            $filters = $request->only(['type','from', 'to', 'min', 'max']);
+            $filters = $request->only(['period', 'search_input', 'payment_type', 'pay_method', 'from', 'to', 'min', 'max']);
             $perPage = $request->get('per_page', 15);
 
             $transactions = $this->walletService->getUserTransactions($user, $filters, $perPage);
 
             return self::success($transactions);
 
-        }catch (\Exception $e) {
+        } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 500);
+            return self::error($e->getMessage(), 422);
         }
     }
 
-    /**
-     * Export transactions as CSV
-     */
-    public function exportTransactions(Request $request)
+    public function getExpiringLots(Request $request)
     {
         try {
             $user = auth()->user();
-            $filters = $request->only(['type', 'from', 'to', 'min', 'max']);
-
-            return $this->walletService->exportTransactions($user, $filters);
-        }catch (\Exception $e) {
-            Log::error($e);
-            return self::error($e->getMessage(), 500);
-        }
-    }
-
-    /**
-     * Get wallet statements
-     */
-    public function getStatements(Request $request)
-    {
-        try {
-            $user = auth()->user();
-            $month = $request->get('month', now()->format('Y-m'));
-
-            $filters = $request->only(['from', 'to']);
+            $filters = $request->only(['period', 'payment_type', 'from', 'to', 'min', 'max']);
             $perPage = $request->get('per_page', 15);
 
-            $statement = $this->walletService->getUserTransactions($user, $filters, $perPage);
+            $expireTransaction = $this->walletService->getExpiringLots($user);
 
-        }catch (\Exception $e) {
+            return self::success($expireTransaction);
+
+        } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 500);
+            return self::error($e->getMessage(), 422);
         }
-    }
 
+    }
     public function getWalletSummary()
     {
         try {
             $user = auth()->user();
             $walletSummary = $this->walletService->getWalletSummary($user);
             return self::success($walletSummary);
-        }catch (\Exception $e) {
+        } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 500);
+            return self::error($e->getMessage(), 422);
         }
     }
+
     public function getAvailableBalanceWithLots()
     {
         try {
             $user = auth()->user();
             $walletSummary = $this->walletService->getAvailableBalanceWithLots($user);
             return self::success($walletSummary);
-        }catch (\Exception $e) {
+        } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 500);
+            return self::error($e->getMessage(), 422);
         }
     }
 
     /**
-     * Display a listing of the resource.
+     * Get wallet overview for dashboard
      */
-    public function index()
+    public function getWalletOverview(Request $request)
     {
-        return Inertia::render('settings/wallet');
-    }
+        try {
+            $user = auth()->user();
+            $overview = $this->walletService->getWalletOverview($user);
 
-    public function walletStatement()
-    {
-        return Inertia::render('settings/wallet-statement');
-    }
+            return self::success($overview);
 
-    public function addCard()
-    {
-        return Inertia::render('settings/add-card');
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        return view('wallet::create');
+        } catch (\Exception $e) {
+            Log::error($e);
+            return self::error($e->getMessage(), 422);
+        }
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Get monthly spending statistics
      */
-    public function store(Request $request) {}
-
-    /**
-     * Show the specified resource.
-     */
-    public function show($id)
+    public function getMonthlyStats(Request $request)
     {
-        return view('wallet::show');
+        try {
+            $user = auth()->user();
+            $wallet = Wallet::where('user_id', $user->id)->firstOrFail();
+
+            $stats = [
+                'current_month' => [
+                    'spent' => $wallet->current_month_spent,
+                    'formatted_spent' => number_format($wallet->current_month_spent, 2) . ' AED',
+                    'deposited' => $wallet->current_month_deposited,
+                    'formatted_deposited' => number_format($wallet->current_month_deposited, 2) . ' AED',
+                    'net_flow' => $wallet->current_month_deposited - $wallet->current_month_spent,
+                    'formatted_net_flow' => number_format($wallet->current_month_deposited - $wallet->current_month_spent, 2) . ' AED',
+                ],
+                'spending_trend' => $wallet->monthly_spending_trend,
+            ];
+
+            return self::success($stats);
+
+        } catch (\Exception $e) {
+            Log::error($e);
+            return self::error($e->getMessage(), 422);
+        }
+    }
+
+    public function processWalletPayment(Request $request)
+    {
+        try {
+
+            $request->validate(
+                ['order_id' => 'required|exists:ec_orders,id'],
+                ['amount' => 'required|numeric|min:0']
+            );
+
+            $user = auth()->user();
+            $amount = $request->input('amount', 0);
+            $orderId = $request->input('order_id');
+
+            if ($amount <= 0) return self::error('Invalid amount', 400);
+
+            // Check KYC requirements
+//            $this->kycService->blockIfKycRequired($user, $amount);
+
+            $result = $this->walletService->deductFromWallet($user, $amount, [
+                'type' => 'purchase',
+                'ref_type' => 'order',
+                'ref_id' => $orderId,
+                'description' => $request->get('description', 'Purchase')
+            ]);
+
+            return self::success($result, 'Payment processed successfully');
+        } catch (\Exception $e) {
+            Log::error($e);
+            return self::error($e->getMessage(), 422);
+        }
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Split payment (wallet + card)
      */
-    public function edit($id)
+    public function processSplitPayment(Request $request)
     {
-        return view('wallet::edit');
+        try {
+            $user = auth()->user();
+            $totalAmount = $request->input('total_amount', 0);
+            $walletAmount = $request->input('wallet_amount', 0);
+            $cardAmount = $request->input('card_amount', 0);
+            $orderId = $request->input('order_id');
+
+            if ($walletAmount > 0) {
+                // Check KYC requirements for wallet portion
+//                $this->kycService->blockIfKycRequired($user, $walletAmount);
+
+                // Deduct from wallet
+                $walletResult = $this->walletService->deductFromWallet($user, $walletAmount, [
+                    'type' => 'purchase',
+                    'ref_type' => 'order',
+                    'ref_id' => $orderId,
+                    'description' => 'Wallet portion of split payment'
+                ]);
+            }
+            // Process card payment here
+            // $cardResult = $this->processCardPayment($user, $cardAmount, $request->all());
+
+            $paymentResult = [
+                'wallet_deduction' => $walletResult ?? null,
+                'card_payment' => null,
+                'total_amount' => $totalAmount,
+                'wallet_amount' => $walletAmount,
+                'card_amount' => $cardAmount,
+            ];
+            return self::success($paymentResult, 'Split payment processed successfully');
+        } catch (\Exception $e) {
+            Log::error($e);
+            return self::error($e->getMessage(), 422);
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, $id) {}
+    public function redeemGiftCard(Request $request)
+    {
+        try {
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy($id) {}
+            $request->validate(['code' => 'required|string'], ['otp' => 'sometimes|required|string|max:6']);
+            $user = auth()->user();
+            $result = $this->giftCardService->redeemGiftCard($user, $request->code, $request->otp);
+
+            return self::success($result, 'Gift Card Redeemed successfully!');
+        } catch (\Exception $e) {
+            Log::error($e);
+            if ($e->getMessage() === 'OTP_REQUIRED') {
+                return self::error(
+                    'OTP verification required', 422, [],
+                    [
+                        'otp_sent' => true,
+                        'message' => 'OTP has been sent to your registered email/phone',
+                        'code' => 'OTP_REQUIRED',
+                    ]
+                );
+            }
+            return self::error($e->getMessage(), 422);
+        }
+    }
 }

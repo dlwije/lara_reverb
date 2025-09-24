@@ -12,19 +12,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('wallet_transactions', function (Blueprint $table) {
-            $table->decimal('bonus_value', 12, 2)->default(0);
-            $table->unsignedBigInteger('gift_card_id')->nullable();
-//            $table->foreignId('gift_card_id')->nullable()->constrained('st_gift_cards')->onDelete('set null');
-            $table->unsignedBigInteger('promo_rule_id')->nullable();
-            $table->decimal('base_value', 12, 2)->default(0);
-        });
         DB::statement("
             ALTER TABLE wallet_transactions
             MODIFY COLUMN type ENUM(
                 'redeem',
                 'gift_card_redeem',
                 'purchase',
+                'deposit',
+                'recharge',
                 'refund_credit',
                 'admin_adjustment'
             ) NOT NULL
@@ -36,17 +31,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('wallet_transactions', function (Blueprint $table) {
-            $table->dropColumn('bonus_value');
-            $table->dropColumn('gift_card_id');
-            $table->dropColumn('promo_rule_id');
-            $table->dropColumn('base_value');
-        });
-
         DB::statement("
             ALTER TABLE wallet_transactions
             MODIFY COLUMN type ENUM(
                 'redeem',
+                'gift_card_redeem',
                 'purchase',
                 'refund_credit',
                 'admin_adjustment'

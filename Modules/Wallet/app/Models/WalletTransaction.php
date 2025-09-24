@@ -1,28 +1,21 @@
 <?php
 
-namespace Modules\Wallet\Models;
+namespace Botble\Wallet\Models;
 
 use App\Models\User;
+use Botble\Base\Models\BaseModel;
+use Botble\Ecommerce\Models\Customer;
+use Botble\Ecommerce\Models\GiftCard;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Modules\GiftCard\Models\GiftCard;
-use Modules\PromoRules\Models\PromoRule;
+use Illuminate\Support\Str;
 
-// use Modules\Wallet\Database\Factories\WalletTransactionFactory;
-
-class WalletTransaction extends Model
+class WalletTransaction extends BaseModel
 {
-    use HasFactory;
-
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
         'user_id', 'direction', 'amount', 'base_value', 'bonus_value', 'currency',
         'type', 'status', 'ref_type', 'ref_id', 'lot_allocation', 'gift_card_id',
-        'promo_rule_id', 'ip', 'user_agent', 'created_by'
+        'promo_rule_id', 'ip', 'user_agent', 'created_by','ref_number'
     ];
 
     protected $casts = [
@@ -53,7 +46,7 @@ class WalletTransaction extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Customer::class);
     }
 
     public function giftCard(): BelongsTo
@@ -61,9 +54,14 @@ class WalletTransaction extends Model
         return $this->belongsTo(GiftCard::class);
     }
 
-    public function promoRule(): BelongsTo
+//    public function promoRule(): BelongsTo
+//    {
+//        return $this->belongsTo(PromoRule::class);
+//    }
+
+    public function lots()
     {
-        return $this->belongsTo(PromoRule::class);
+        return $this->hasMany(WalletLot::class, 'user_id', 'user_id');
     }
 
     public function creator(): BelongsTo
@@ -111,5 +109,17 @@ class WalletTransaction extends Model
                 };
             }
         );
+    }
+
+    protected static function booted()
+    {
+        static::creating(function ($tx) {
+            $tx->ref_number = $tx->ref_number ?? self::generateRef();
+        });
+    }
+
+    protected static function generateRef(): string
+    {
+        return 'ET' . strtoupper(Str::random(10)); // e.g., ETXZ89JKL123
     }
 }

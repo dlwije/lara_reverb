@@ -17,6 +17,16 @@ return [
         2 => ['id_proof', 'address_proof', 'income_proof'],
         3 => ['id_proof', 'address_proof', 'income_proof', 'tax_document']
     ],
+    'notifications' => [
+        'enabled' => env('WALLET_NOTIFICATIONS_ENABLED', true),
+        'sms_enabled' => env('WALLET_SMS_NOTIFICATIONS', false),
+        'channels' => [
+            'transaction' => ['mail', 'database'],
+            'expiry_reminder' => ['mail'],
+            'promotional' => ['mail']
+        ],
+        'expiry_reminder_days' => [30, 7, 1],
+    ],
 
     'max_daily_redemptions' => 5,
     'max_hourly_spend' => 10000,

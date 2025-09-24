@@ -11,11 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('wallet_lot', function (Blueprint $table) {
+        Schema::table('wallet_lots', function (Blueprint $table) {
             $table->decimal('base_value', 12, 2)->default(0);
             $table->decimal('bonus_value', 12, 2)->default(0);
-            $table->foreignId('promo_rule_id')->nullable()->constrained('promo_rules')->onDelete('set null');
-            $table->json('metadata')->nullable();
+            $table->unsignedBigInteger('promo_rule_id')->nullable();
+            $table->unsignedBigInteger('gift_card_id')->nullable();
+
         });
     }
 
@@ -24,12 +25,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('wallet_lot', function (Blueprint $table) {
+        Schema::table('wallet_lots', function (Blueprint $table) {
             $table->dropColumn('base_value');
             $table->dropColumn('bonus_value');
-            $table->dropForeign(['promo_rule_id']);
             $table->dropColumn('promo_rule_id');
-            $table->dropColumn('metadata');
+            $table->dropColumn('gift_card_id');
         });
     }
 };

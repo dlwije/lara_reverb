@@ -1,28 +1,25 @@
 <?php
 
-namespace Modules\Wallet\Models;
+namespace Botble\Wallet\Models;
 
 use App\Models\User;
+use Botble\Base\Casts\SafeContent;
+use Botble\Base\Enums\BaseStatusEnum;
+use Botble\Base\Models\BaseModel;
+use Botble\Ecommerce\Models\Customer;
+use Botble\Ecommerce\Models\GiftCard;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Modules\GiftCard\Models\GiftCard;
-use Modules\PromoRules\Models\PromoRule;
+use Illuminate\Support\Str;
 
-// use Modules\Wallet\Database\Factories\WalletLotFactory;
-
-class WalletLot extends Model
+class WalletLot extends BaseModel
 {
-    use HasFactory;
+    protected $table = 'wallet_lots';
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
         'user_id', 'source', 'amount', 'remaining', 'base_value', 'bonus_value',
         'currency', 'acquired_at', 'expires_at', 'status', 'gift_card_id',
-        'promo_rule_id', 'metadata'
+        'promo_rule_id', 'metadata', 'ref_number'
     ];
 
     protected $casts = [
@@ -46,37 +43,22 @@ class WalletLot extends Model
     const SOURCE_REFUND = 'refund';
     const SOURCE_ADJUSTMENT = 'adjustment';
     const SOURCE_PROMO = 'promo';
+    const SOURCE_CREDIT_CARD = 'credit_card';
+    const SOURCE_LOYALTY_POINT = 'loyalty_point';
 
-    /**
-     * Check if lot is expired
-     */
     public function isExpired(): bool
     {
         return $this->expires_at->isPast() || $this->status === 'expired';
     }
 
-    /**
-     * Relationship with User
-     */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Customer::class);
     }
 
-    /**
-     * Relationship with GiftCard
-     */
     public function giftCard(): BelongsTo
     {
         return $this->belongsTo(GiftCard::class, 'gift_card_id');
-    }
-
-    /**
-     * Relationship with PromoRule
-     */
-    public function promoRule(): BelongsTo
-    {
-        return $this->belongsTo(PromoRule::class, 'promo_rule_id');
     }
 
     public function isFullyConsumed(): bool
@@ -134,5 +116,17 @@ class WalletLot extends Model
         return Attribute::make(
             get: fn () => number_format($this->remaining, 2) . ' ' . $this->currency
         );
+    }
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            $model->ref_number = $lot->ref_number ?? self::generateRef();
+        });
+    }
+
+    private static function generateRef(): string
+    {
+        return 'LOT' . strtoupper(Str::random(10)); // e.g., LOTAB12CD34EF
     }
 }

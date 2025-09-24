@@ -12,9 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('wallet_lots', function (Blueprint $table) {
-            $table->string('ref_number')->unique();
-        });
+//        Schema::table('wallet_lots', function (Blueprint $table) {
+//            $table->string('ref_number')->unique()->nullable();
+//        });
         DB::statement("
             ALTER TABLE wallet_lots
             MODIFY COLUMN source ENUM(
@@ -38,8 +38,8 @@ return new class extends Migration
         });
 
         DB::statement("
-            ALTER TABLE wallet_transactions
-            MODIFY COLUMN type ENUM(
+            ALTER TABLE wallet_lots
+            MODIFY COLUMN source ENUM(
                 'gift_card',
                 'refund',
                 'adjustment',

@@ -1,27 +1,24 @@
 <?php
 
-namespace Modules\Wallet\Models;
+namespace Botble\Wallet\Models;
 
 use App\Models\User;
+use Botble\Base\Casts\SafeContent;
+use Botble\Base\Enums\BaseStatusEnum;
+use Botble\Base\Models\BaseModel;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
 
-// use Modules\Wallet\Database\Factories\WalletFactory;
-
-class Wallet extends Model
+class Wallet extends BaseModel
 {
-    use HasFactory;
+    protected $table = 'wallets';
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
+        'name',
+        'status',
         'user_id',
         'total_available',
         'total_pending',
@@ -31,6 +28,8 @@ class Wallet extends Model
     ];
 
     protected $casts = [
+        'status' => BaseStatusEnum::class,
+        'name' => SafeContent::class,
         'total_available' => 'decimal:2',
         'total_pending' => 'decimal:2',
         'last_activity_at' => 'datetime',
@@ -61,17 +60,6 @@ class Wallet extends Model
             ->where('remaining', '>', 0)
             ->where('expires_at', '>', now());
     }
-
-    public function expiringLotsW30(): HasMany
-    {
-        return $this->lots()
-            ->where('status', WalletLot::STATUS_ACTIVE)
-            ->where('remaining', '>', 0)
-            ->where('expires_at', '>', now())
-            ->where('expires_at', '<=', now()->addDays(30));
-
-    }
-
     public function transactions(): HasMany
     {
         return $this->hasMany(WalletTransaction::class, 'user_id', 'user_id');
@@ -89,53 +77,6 @@ class Wallet extends Model
     }
 
     /**
-     * Relationship with wallet locks
-     */
-    public function locks(): HasMany
-    {
-        return $this->hasMany(WalletLock::class);
-    }
-
-    /**
-     * Relationship with active locks
-     */
-    public function activeLocks(): HasMany
-    {
-        return $this->hasMany(WalletLock::class)->active();
-    }
-
-    public function latestTransaction(): HasOne
-    {
-        return $this->hasOne(WalletTransaction::class, 'user_id', 'user_id')
-            ->latest();
-    }
-    /**
-     * Check if wallet is locked
-     */
-    public function getIsLockedAttribute(): bool
-    {
-        return $this->status === self::STATUS_LOCKED || $this->activeLocks()->exists();
-    }
-
-    /**
-     * Get latest lock
-     */
-    public function latestLock(): HasOne
-    {
-        return $this->hasOne(WalletLock::class)->latest();
-    }
-
-    public function hasSufficientBalance(float $amount): bool
-    {
-        return $this->total_available >= $amount;
-    }
-
-    public function hasPendingTransactions(): bool
-    {
-        return $this->total_pending > 0;
-    }
-
-    /**
      * Get total spent amount in current month
      */
     public function getCurrentMonthSpentAttribute(): float
@@ -147,130 +88,7 @@ class Wallet extends Model
             ->sum('amount');
     }
 
-    /*Attributes*/
-    public function getSpendableBalanceAttribute(): float
-    {
-        if ($this->is_locked) {
-            return 0;
-        }
-        return $this->total_available;
-    }
-
-    // Total deposited for a lifetime
-    public function getTotalDepositedAttribute(): float
-    {
-        return $this->creditTransactions()
-            ->whereIn('type', ['gift_card_redeem', 'refund_credit', 'admin_adjustment'])
-            ->sum('amount');
-    }
-
-    // Total spent for a lifetime
-    public function getTotalSpentAttribute(): float
-    {
-        return $this->debitTransactions()
-            ->where('status', 'completed')
-            ->sum('amount');
-    }
-
-    /**
-     * Get expiring soon balance (within 30 days)
-     */
-    public function getExpiringSoonBalanceAttribute(): float
-    {
-        return $this->expiringLots()->sum('remaining');
-    }
-
-    public function getBalanceBySourceAttribute(): array
-    {
-        return $this->activeLots()
-            ->selectRaw('source, SUM(remaining) as total')
-            ->groupBy('source')
-            ->pluck('total', 'source')
-            ->toArray();
-    }
-
-    public function getIsActiveAttribute(): bool
-    {
-        return $this->status === self::STATUS_ACTIVE && !$this->is_locked;
-    }
-
-    /* Scopes */
-    public function scopeActive($query)
-    {
-        return $query->where('status', self::STATUS_ACTIVE);
-    }
-
-    public function scopeLocked($query)
-    {
-        return $query->where('status', self::STATUS_LOCKED)
-            ->orWhereHas('activeLocks');
-    }
-
-    public function scopeWithMinBalance($query, float $amount)
-    {
-        return $query->where('total_available', '>=', $amount);
-    }
-
-    public function scopeWithExpiringFunds($query, int $days = 30)
-    {
-        return $query->whereHas('lots', function ($q) use ($days) {
-            $q->where('status', WalletLot::STATUS_ACTIVE)
-                ->where('remaining', '>', 0)
-                ->where('expires_at', '<=', now()->addDays($days))
-                ->where('expires_at', '>', now());
-        });
-    }
-
-    public function lock(string $reason, ?string $notes = null, ?int $lockedBy = null): WalletLock
-    {
-        $this->update(['status' => self::STATUS_LOCKED]);
-
-        return WalletLock::create([
-            'wallet_id' => $this->id,
-            'locked_by' => $lockedBy ?? auth()->id() ?? 0,
-            'reason' => $reason,
-            'notes' => $notes,
-            'expires_at' => null
-        ]);
-    }
-
-    public function unlock(string $reason, ?int $unlockedBy = null): void
-    {
-        $this->update(['status' => self::STATUS_ACTIVE]);
-
-        // Resolve active locks
-        $this->activeLocks()->update([
-            'resolved_at' => now(),
-            'notes' => $this->activeLocks()->first()->notes ?
-                $this->activeLocks()->first()->notes . "\nUnlocked: " . $reason :
-                "Unlocked: " . $reason
-        ]);
-    }
-
-    /* Accessors */
-    /**
-     * Get wallet statistics
-     */
-    public function getStatsAttribute(): array
-    {
-        return [
-            'total_deposited' => $this->total_deposited,
-            'total_spent' => $this->total_spent,
-            'current_balance' => $this->total_available,
-            'pending_balance' => $this->total_pending,
-            'expiring_soon' => $this->expiring_soon_balance,
-            'transaction_count' => $this->transactions()->count(),
-            'active_lots' => $this->activeLots()->count(),
-            'last_activity' => $this->last_activity_at
-        ];
-    }
-
-    protected function formattedBalance(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => number_format($this->total_available, 2) . ' ' . $this->currency
-        );
-    }
+    /* Attributes */
 
     /**
      * Get total deposited amount in current month
@@ -302,7 +120,7 @@ class Wallet extends Model
      */
     public function getTransactionsCountAttribute(): int
     {
-        return $this->transactions()->count();
+        return $this->transactions()->where('status', WalletTransaction::STATUS_COMPLETED)->count();
     }
 
     /**
@@ -382,26 +200,5 @@ class Wallet extends Model
                 return $date->diffForHumans() . ' (' . $date->format('M j, Y H:i') . ')';
             }
         );
-    }
-
-    protected static function booted()
-    {
-        parent::boot();
-        // Auto create wallet when a user is created
-        static::created(function ($wallet) {
-            if(empty($wallet->currency)){
-                $wallet->currency = 'AED';
-            }
-            if(empty($wallet->status)){
-                $wallet->status = self::STATUS_ACTIVE;
-            }
-        });
-
-        // Prevent deletion if wallet has transactions
-        static::deleting(function ($wallet) {
-            if ($wallet->transactions()->exists() || $wallet->locks()->exists()) {
-                throw new \Exception('Cannot delete wallet with transaction history');
-            }
-        });
     }
 }

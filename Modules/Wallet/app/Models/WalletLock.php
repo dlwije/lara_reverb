@@ -1,22 +1,18 @@
 <?php
 
-namespace Modules\Wallet\Models;
+namespace Botble\Wallet\Models;
 
-use Carbon\Carbon;
+use App\Models\User;
+use Botble\Base\Casts\SafeContent;
+use Botble\Base\Enums\BaseStatusEnum;
+use Botble\Base\Models\BaseModel;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// use Modules\Wallet\Database\Factories\WalletLockFactory;
-
-class WalletLock extends Model
+class WalletLock extends BaseModel
 {
-    use HasFactory;
+    protected $table = 'wallet_locks';
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
         'wallet_id', 'locked_by', 'reason', 'notes', 'expires_at', 'resolved_at'
     ];
@@ -53,50 +49,32 @@ class WalletLock extends Model
         return $this->belongsTo(User::class, 'locked_by');
     }
 
-    /**
-     * Check if lock is active
-     */
     public function isActive(): bool
     {
         return is_null($this->resolved_at) &&
             (is_null($this->expires_at) || $this->expires_at->isFuture());
     }
 
-    /**
-     * Check if lock is expired
-     */
     public function isExpired(): bool
     {
         return !is_null($this->expires_at) && $this->expires_at->isPast();
     }
 
-    /**
-     * Check if lock is permanent
-     */
     public function isPermanent(): bool
     {
         return is_null($this->expires_at);
     }
 
-    /**
-     * Check if lock is temporary
-     */
     public function isTemporary(): bool
     {
         return !is_null($this->expires_at);
     }
 
-    /**
-     * Check if lock is resolved
-     */
     public function isResolved(): bool
     {
         return !is_null($this->resolved_at);
     }
 
-    /**
-     * Get time until expiration (human readable)
-     */
     public function getTimeUntilExpirationAttribute(): ?string
     {
         if ($this->isTemporary() && !$this->isExpired() && !$this->isResolved()) {
@@ -106,17 +84,11 @@ class WalletLock extends Model
         return null;
     }
 
-    /**
-     * Get time since creation (human readable)
-     */
     public function getTimeSinceCreatedAttribute(): string
     {
         return $this->created_at->diffForHumans();
     }
 
-    /**
-     * Get duration of lock in hours
-     */
     public function getDurationHoursAttribute(): ?float
     {
         if ($this->isResolved()) {
@@ -130,9 +102,6 @@ class WalletLock extends Model
         return null;
     }
 
-    /**
-     * Scope for active locks
-     */
     public function scopeActive($query)
     {
         return $query->whereNull('resolved_at')
@@ -142,42 +111,27 @@ class WalletLock extends Model
             });
     }
 
-    /**
-     * Scope for expired locks
-     */
     public function scopeExpired($query)
     {
         return $query->whereNull('resolved_at')
             ->where('expires_at', '<=', now());
     }
 
-    /**
-     * Scope for resolved locks
-     */
     public function scopeResolved($query)
     {
         return $query->whereNotNull('resolved_at');
     }
 
-    /**
-     * Scope for permanent locks
-     */
     public function scopePermanent($query)
     {
         return $query->whereNull('expires_at');
     }
 
-    /**
-     * Scope for temporary locks
-     */
     public function scopeTemporary($query)
     {
         return $query->whereNotNull('expires_at');
     }
 
-    /**
-     * Scope for locks by reason
-     */
     public function scopeByReason($query, $reason)
     {
         return $query->where('reason', $reason);
@@ -215,9 +169,6 @@ class WalletLock extends Model
         ];
     }
 
-    /**
-     * Accessor for formatted reason
-     */
     protected function reasonFormatted(): Attribute
     {
         return Attribute::make(
@@ -246,9 +197,6 @@ class WalletLock extends Model
         );
     }
 
-    /**
-     * Accessor for formatted status
-     */
     protected function statusFormatted(): Attribute
     {
         return Attribute::make(
@@ -262,73 +210,5 @@ class WalletLock extends Model
                 };
             }
         );
-    }
-
-    /**
-     * Resolve the lock
-     */
-    public function resolve(): bool
-    {
-        return $this->update(['resolved_at' => now()]);
-    }
-
-    /**
-     * Extend lock expiration
-     */
-    public function extend(Carbon $newExpiration): bool
-    {
-        if ($this->isPermanent()) {
-            return false;
-        }
-
-        return $this->update(['expires_at' => $newExpiration]);
-    }
-
-    /**
-     * Convert temporary lock to permanent
-     */
-    public function makePermanent(): bool
-    {
-        return $this->update(['expires_at' => null]);
-    }
-
-    /**
-     * Check if lock can be extended
-     */
-    public function canBeExtended(): bool
-    {
-        return $this->isTemporary() && $this->isActive();
-    }
-
-    /**
-     * Check if lock can be resolved
-     */
-    public function canBeResolved(): bool
-    {
-        return $this->isActive();
-    }
-
-    /**
-     * Get the user associated with this lock through wallet
-     */
-    public function getUserAttribute(): ?User
-    {
-        return $this->wallet->user ?? null;
-    }
-
-    /**
-     * Get the user email through wallet relationship
-     */
-    public function getUserEmailAttribute(): ?string
-    {
-        return $this->wallet->user->email ?? null;
-    }
-
-    /**
-     * Get the wallet balance at time of locking
-     */
-    public function getWalletBalanceAttribute(): ?float
-    {
-        return $this->wallet->total_available ?? null;
     }
 }

@@ -4,31 +4,40 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
-    /**
-     * Run the migrations.
-     */
+return new class () extends Migration {
     public function up(): void
     {
-        Schema::create('wallets', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('restrict');
-            $table->decimal('total_available', 12, 2)->default(0);
-            $table->decimal('total_pending', 12, 2)->default(0);
-            $table->enum('status', ['active', 'locked', 'suspended'])->default('active');
-            $table->timestamps();
+        if (! Schema::hasTable('wallets')) {
+            Schema::create('wallets', function (Blueprint $table) {
+                $table->id();
+                $table->string('name', 255);
+                $table->string('status', 60)->default('published');
 
-            $table->index('user_id');
-            $table->index('status');
-        });
+                $table->foreignId('user_id')->constrained('ec_customers')->onDelete('restrict');
+                $table->decimal('total_available', 12, 2)->default(0);
+                $table->decimal('total_pending', 12, 2)->default(0);
+                $table->enum('wt_status', ['active', 'locked', 'suspended'])->default('active');
+                $table->timestamps();
+
+                $table->index('user_id');
+                $table->index('wt_status');
+            });
+        }
+
+        if (! Schema::hasTable('wallets_translations')) {
+            Schema::create('wallets_translations', function (Blueprint $table) {
+                $table->string('lang_code');
+                $table->foreignId('wallets_id');
+                $table->string('name', 255)->nullable();
+
+                $table->primary(['lang_code', 'wallets_id'], 'wallets_translations_primary');
+            });
+        }
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('wallets');
+        Schema::dropIfExists('wallets_translations');
     }
 };

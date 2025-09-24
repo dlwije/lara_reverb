@@ -13,15 +13,24 @@ return new class extends Migration
     {
         Schema::create('notification_preferences', function (Blueprint $table) {
             $table->id();
-
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('channel'); // email, push, sms, whatsapp
-            $table->string('event_type'); // gift_card_redeemed, purchase_paid, etc.
+            $table->foreignId('customer_id')->constrained('ec_customers')->onDelete('cascade');
+            $table->enum('type', [
+                'transaction',
+                'expiry_reminder',
+                'promotional',
+                'security',
+                'system',
+                'achievements'
+            ]);
+            $table->json('channels')->nullable()->comment('Available channels: mail, database, broadcast, sms');
             $table->boolean('enabled')->default(true);
             $table->timestamps();
 
-            $table->unique(['user_id', 'channel', 'event_type']);
-            $table->index('user_id');
+            // Unique constraint to prevent duplicate preferences per user
+            $table->unique(['customer_id', 'type']);
+
+            // Index for faster queries
+            $table->index(['customer_id', 'type', 'enabled']);
         });
     }
 

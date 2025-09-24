@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('wallet_lots', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('restrict');
+            $table->foreignId('user_id')->constrained('ec_customers')->onDelete('restrict');
             $table->enum('source', ['gift_card', 'refund', 'adjustment', 'promo']);
             $table->decimal('amount', 12, 2);
             $table->decimal('remaining', 12, 2);
