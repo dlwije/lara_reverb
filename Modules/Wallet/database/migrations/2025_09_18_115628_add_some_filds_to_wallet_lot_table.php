@@ -12,11 +12,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('wallet_lots', function (Blueprint $table) {
-            $table->decimal('base_value', 12, 2)->default(0);
-            $table->decimal('bonus_value', 12, 2)->default(0);
-            $table->unsignedBigInteger('promo_rule_id')->nullable();
-            $table->unsignedBigInteger('gift_card_id')->nullable();
-
+            if (!Schema::hasColumn('wallet_lots', 'base_value')) {
+                $table->decimal('base_value', 12, 2)->default(0);
+            }
+            if (!Schema::hasColumn('wallet_lots', 'bonus_value')) {
+                $table->decimal('bonus_value', 12, 2)->default(0);
+            }
+            if (!Schema::hasColumn('wallet_lots', 'promo_rule_id')) {
+                $table->unsignedBigInteger('promo_rule_id')->nullable();
+            }
+            if (!Schema::hasColumn('wallet_lots', 'gift_card_id')) {
+                $table->unsignedBigInteger('gift_card_id')->nullable();
+            }
         });
     }
 

@@ -13,11 +13,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('wallet_transactions', function (Blueprint $table) {
-            $table->decimal('bonus_value', 12, 2)->default(0);
-            $table->unsignedBigInteger('gift_card_id')->nullable();
-//            $table->foreignId('gift_card_id')->nullable()->constrained('st_gift_cards')->onDelete('set null');
-            $table->unsignedBigInteger('promo_rule_id')->nullable();
-            $table->decimal('base_value', 12, 2)->default(0);
+            if (!Schema::hasColumn('wallet_transactions', 'base_value')) {
+                $table->decimal('base_value', 12, 2)->default(0);
+            }
+            if (!Schema::hasColumn('wallet_transactions', 'bonus_value')) {
+                $table->decimal('bonus_value', 12, 2)->default(0);
+            }
+            if (!Schema::hasColumn('wallet_transactions', 'promo_rule_id')) {
+                $table->unsignedBigInteger('promo_rule_id')->nullable();
+            }
+            if (!Schema::hasColumn('wallet_transactions', 'gift_card_id')) {
+                $table->unsignedBigInteger('gift_card_id')->nullable();
+            }
         });
         DB::statement("
             ALTER TABLE wallet_transactions

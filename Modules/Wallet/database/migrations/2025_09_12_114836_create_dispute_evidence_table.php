@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('dispute_evidence', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('dispute_id')->constrained('ec_customers')->onDelete('cascade');
+            $table->foreignId('dispute_id')->constrained('users')->onDelete('cascade');
             $table->string('file_path');
             $table->string('file_name');
             $table->text('description')->nullable();

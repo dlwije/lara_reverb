@@ -1,18 +1,17 @@
 <?php
 
-namespace Botble\Wallet\Models;
+namespace Modules\Wallet\Models;
 
+//use App\Models\Model;
+use App\Models\Sma\People\Customer;
 use App\Models\User;
-use Botble\Base\Casts\SafeContent;
-use Botble\Base\Enums\BaseStatusEnum;
-use Botble\Base\Models\BaseModel;
-use Botble\Ecommerce\Models\Customer;
-use Botble\Ecommerce\Models\GiftCard;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Model;
+use Modules\GiftCard\Models\GiftCard;
 
-class WalletLot extends BaseModel
+class WalletLot extends Model
 {
     protected $table = 'wallet_lots';
 
@@ -53,7 +52,7 @@ class WalletLot extends BaseModel
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(User::class);
     }
 
     public function giftCard(): BelongsTo

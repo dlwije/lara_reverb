@@ -181,7 +181,7 @@ class WalletLockService
     public function isWalletFrozen(int $userId): bool
     {
         $wallet = Wallet::where('user_id', $userId)->first();
-        return $wallet && $wallet->status === 'locked';
+        return $wallet && $wallet->wt_status === 'locked';
     }
 
     /**

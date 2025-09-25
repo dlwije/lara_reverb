@@ -14,7 +14,7 @@ use Modules\Wallet\Notifications\KycSubmittedNotification;
 
 class KYCService
 {
-    public function getKycTier(User $user): int
+    public function getKycTier($user): int
     {
         $latestVerification = KycVerification::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
@@ -23,7 +23,7 @@ class KYCService
         return $latestVerification?->tier ?? 0;
     }
 
-    public function requiresKycUpgrade(User $user, float $amount): bool
+    public function requiresKycUpgrade($user, float $amount): bool
     {
         $currentTier = $this->getKycTier($user);
         $walletBalance = Wallet::where('user_id', $user->id)->value('total_available') ?? 0;
@@ -62,10 +62,9 @@ class KYCService
     /**
      * Block transaction if KYC verification is required
      */
-    public function blockIfKycRequired(User $user, float $amount): void
+    public function blockIfKycRequired($user, float $amount): void
     {
-        if($this->requiresKycUpgrade($user, $amount))
-        {
+        if ($this->requiresKycUpgrade($user, $amount)) {
             $currentTier = $this->getKycTier($user);
             $requiredTier = $this->getRequiredTier($amount);
 
@@ -81,7 +80,7 @@ class KYCService
     /**
      * Submit KYC verification documents
      */
-    public function submitKycVerification(User $user, int $tier, array $documents, array $documentPaths): KycVerification
+    public function submitKycVerification($user, int $tier, array $documents, array $documentPaths): KycVerification
     {
         return DB::transaction(function () use ($user, $tier, $documents, $documentPaths) {
             // Close any existing draft verification
@@ -124,22 +123,22 @@ class KYCService
     public function approveKycVerification(int $verificationId, int $verifiedBy): KycVerification
     {
         return DB::transaction(function () use ($verificationId, $verifiedBy) {
-           $verification = KycVerification::findOrFail($verificationId);
+            $verification = KycVerification::findOrFail($verificationId);
 
-           $verification->update([
-               'status' => 'approved',
-               'verified_by' => $verifiedBy,
-               'verified_at' => now(),
-           ]);
+            $verification->update([
+                'status' => 'approved',
+                'verified_by' => $verifiedBy,
+                'verified_at' => now(),
+            ]);
 
-           //Close any other pending verifications for this user
+            //Close any other pending verifications for this user
             KycVerification::where('user_id', $verification->user_id)
                 ->where('id', '!=', $verificationId)
-               ->where('status', 'pending')
-               ->update(['status' => 'cancelled']);
+                ->where('status', 'pending')
+                ->update(['status' => 'cancelled']);
 
             // Notify user
-            $this->notifyUser($verification->user_id,'kyc_approved', $verification);
+            $this->notifyUser($verification->user_id, 'kyc_approved', $verification);
 
             // Log audit trail
             AuditLog::create([
@@ -214,7 +213,7 @@ class KYCService
             $query->where('submitted_at', '<=', $filters['to_date']);
         }
 
-        if(!empty($filters['search'])) {
+        if (!empty($filters['search'])) {
             $query->whereHas('user', function ($userQ) use ($filters) {
                 $userQ->where('name', 'like', '%' . $filters['search'] . '%')
                     ->orWhere('email', 'like', '%' . $filters['search'] . '%');
@@ -227,7 +226,7 @@ class KYCService
     /**
      * Check if user has pending KYC verification
      */
-    public function hasKycPending(User $user): bool
+    public function hasKycPending($user): bool
     {
         return KycVerification::where('user_id', $user->id)
             ->where('status', 'pending')
@@ -245,14 +244,14 @@ class KYCService
             'approved' => KycVerification::where('status', 'approved')->count(),
             'rejected' => KycVerification::where('status', 'rejected')->count(),
             'by_tier' => KycVerification::select('tier', DB::raw('count(*) as count'))
-            ->groupBy('tier')
-            ->get()
-            ->pluck('count', 'tier')
-            ->toArray(),
+                ->groupBy('tier')
+                ->get()
+                ->pluck('count', 'tier')
+                ->toArray(),
             'avg_processing_time' => KycVerification::whereNotNull('verified_at')
-            ->whereNotNull('submitted_at')
-            ->select(DB::raw('avg(TIMESTAMPDIFF(HOUR, submitted_at, verified_at)) as avg_hours'))
-            ->value('avg_hours'),
+                ->whereNotNull('submitted_at')
+                ->select(DB::raw('avg(TIMESTAMPDIFF(HOUR, submitted_at, verified_at)) as avg_hours'))
+                ->value('avg_hours'),
         ];
     }
 
@@ -275,9 +274,9 @@ class KYCService
     {
         $user = User::find($userId);
 
-        if($type === 'kyc_approved'){
+        if ($type === 'kyc_approved') {
             $user->notify(new KycApprovedNotification($verification));
-        }elseif ($type === 'kyc_rejected') {
+        } elseif ($type === 'kyc_rejected') {
             $user->notify(new KycRejectedNotification($verification));
         }
     }
@@ -300,7 +299,7 @@ class KYCService
     /**
      * Check if user can upgrade to a specific tier
      */
-    public function canUpgradeToTier(User $user, int $targetTier): bool
+    public function canUpgradeToTier($user, int $targetTier): bool
     {
         $currentTier = $this->getKycTier($user);
 
@@ -334,7 +333,7 @@ class KYCService
             ->where('status', 'rejected')
             ->exists();
 
-        if($hasGoodHistory){
+        if ($hasGoodHistory) {
             $this->approveKycVerification($verification->id, 0); // 0 for system approval
             return true;
         }

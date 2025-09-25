@@ -1,13 +1,13 @@
 <?php
-namespace Botble\Wallet\Http\Controllers\Api;
+namespace Modules\Wallet\Http\Controllers;
 
-use Botble\Base\Http\Controllers\BaseController;
-use Botble\Ecommerce\Models\Customer;
-use Botble\Wallet\Http\Resources\NotificationResource;
+use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Modules\Wallet\Transformers\NotificationResource;
 
-class NotificationController extends BaseController
+class NotificationController extends Controller
 {
     /**
      * Get user's notifications with filters
@@ -67,7 +67,7 @@ class NotificationController extends BaseController
         $user = auth()->user();
 
         $stats = DB::table('notifications')
-            ->where('notifiable_type', Customer::class)
+            ->where('notifiable_type', User::class)
             ->where('notifiable_id', $user->id)
             ->selectRaw('
                 COUNT(*) as total,
@@ -78,7 +78,7 @@ class NotificationController extends BaseController
             ->first();
 
         $types = DB::table('notifications')
-            ->where('notifiable_type', Customer::class)
+            ->where('notifiable_type', User::class)
             ->where('notifiable_id', $user->id)
             ->selectRaw('type, COUNT(*) as count')
             ->groupBy('type')

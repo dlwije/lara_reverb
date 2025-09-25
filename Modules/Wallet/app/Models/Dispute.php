@@ -1,6 +1,6 @@
 <?php
 
-namespace Botble\Wallet\Models;
+namespace Modules\Wallet\Models;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;

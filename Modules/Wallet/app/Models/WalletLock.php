@@ -1,15 +1,13 @@
 <?php
+namespace Modules\Wallet\Models;
 
-namespace Botble\Wallet\Models;
-
+//use App\Models\Model;
+use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
-use Botble\Base\Casts\SafeContent;
-use Botble\Base\Enums\BaseStatusEnum;
-use Botble\Base\Models\BaseModel;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class WalletLock extends BaseModel
+class WalletLock extends Model
 {
     protected $table = 'wallet_locks';
 

@@ -1,10 +1,12 @@
 <?php
 
-namespace Botble\Wallet\Models;
+namespace Modules\Wallet\Models;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
 // use Modules\Wallet\Database\Factories\NotificationPreferenceFactory;
 
 class NotificationPreference extends Model

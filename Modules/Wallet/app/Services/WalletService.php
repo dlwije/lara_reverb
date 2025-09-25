@@ -12,14 +12,15 @@ use Modules\Wallet\Models\WalletTransaction;
 class WalletService
 {
 
+    public function __construct(public NotificationService $notificationService){}
     /**
      * Get user wallet with balance and lots
      */
-    public function getUserWallet(User $user): array
+    public function getUserWallet($user): array
     {
         $wallet = Wallet::firstOrCreate(
             ['user_id' => $user->id],
-            ['total_available' => 0, 'total_pending' => 0]
+            ['name' => trim($user->name),'total_available' => 0, 'total_pending' => 0]
         );
 
         $activeLots = WalletLot::where('user_id', $user->id)
@@ -39,34 +40,86 @@ class WalletService
     /**
      * Get expiring lots (T-30, T-7, T-1)
      */
-    private function getExpiringLots(User $user):array
+    public function getExpiringLots($user):array
     {
+//        return WalletLot::where('user_id', $user->id)
+//            ->where('status', 'active')
+//            ->whereB('expires_at', '>', Carbon::now())
+//            ->where('expires_at', '<=', Carbon::now()->addDays(30))
+//            ->orderBy('expires_at', 'asc')
+//            ->get()
+//            ->groupBy(function ($lot) {
+//                $daysUntilExpiry = Carbon::now()->diffInDays($lot->expires_at);
+//
+//                if($daysUntilExpiry <= 1) return '1_day';
+//                if($daysUntilExpiry <= 7) return '7_days';
+//                return '30_days';
+//            })
+//            ->toArray();
         return WalletLot::where('user_id', $user->id)
             ->where('status', 'active')
-            ->where('expires_at', '>', Carbon::now())
-            ->where('expires_at', '<=', Carbon::now()->addDays(30))
+            ->whereBetween('expires_at', [Carbon::now()->subDays(30), Carbon::now()->addDays(30)])
             ->orderBy('expires_at', 'asc')
             ->get()
             ->groupBy(function ($lot) {
-                $daysUntilExpiry = Carbon::now()->diffInDays($lot->expires_at);
+                $daysUntilExpiry = Carbon::now()->diffInDays($lot->expires_at, false); // false = allow negative
 
-                if($daysUntilExpiry <= 1) return '1_day';
-                if($daysUntilExpiry <= 7) return '7_days';
-                return '30_days';
+                if ($daysUntilExpiry < 0) {
+                    return 'expired'; // already expired
+                }
+                if ($daysUntilExpiry <= 1) {
+                    return '1_day'; // expires today or tomorrow
+                }
+                if ($daysUntilExpiry <= 7) {
+                    return '7_days'; // within a week
+                }
+                return '30_days'; // within 30 days
             })
             ->toArray();
     }
 
-    private function calculateRunningBalance($transaction)
+    private function calculateRunningBalance($transactions)
     {
+        $runningBalance = 0;
+        $transactionsWithBalance = [];
 
+        foreach ($transactions as $transaction) {
+            if ($transaction->direction === 'CR') {
+                $runningBalance += $transaction->amount;
+            } else {
+                $runningBalance -= $transaction->amount;
+            }
+
+            $transactionsWithBalance[] = [
+                'transaction' => $transaction,
+                'running_balance' => round($runningBalance, 2)
+            ];
+        }
+
+        return $transactionsWithBalance;
     }
-    public function getUserTransactions(User $user, array $filters, int $perPage = 15)
+    public function getUserTransactions($user, array $filters, int $perPage = 15)
     {
-        $query = WalletTransaction::where('user_id', $user->id);
+        $query = WalletTransaction::where('user_id', $user->id)->where('status', WalletTransaction::STATUS_COMPLETED);
 
-        if(!empty($filters['type'])) {
-            $query->where('type', $filters['type']);
+        if (!empty($filters['search_input'])) {
+            $query->where('ref_number', 'LIKE', '%' . $filters['search_input'] . '%');
+        }
+        // Handle period filter (7days, 30days, 90days)
+        if (!empty($filters['period'])) {
+            $query->where('created_at', '>=', $this->getDateFromPeriod($filters['period']));
+        }
+
+        if(!empty($filters['payment_type'])) {
+            $query->where('type', $filters['payment_type']);
+        }
+
+        if (!empty($filters['pay_method'])) {
+            $query->where(function ($subQuery) use ($filters) {
+                $subQuery->whereHas('lots', function ($lotQuery) use ($filters) {
+                    $lotQuery->where('source', $filters['pay_method']);
+                });
+            });
         }
 
         if(!empty($filters['from'])) {
@@ -85,10 +138,84 @@ class WalletService
             $query->where('amount', '<=', $filters['max']);
         }
 
-        return $query->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+        // Get transactions in chronological order for balance calculation
+        $transactions = $query->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        // Calculate running balance
+        $transactionsWithBalance = $this->addRunningBalanceToTransactions($transactions);
+
+        return $this->paginateTransactions($transactionsWithBalance, $perPage);
     }
-    public function exportTransactions(User $user, array $filters)
+
+    private function getDateFromPeriod(string $period): Carbon
+    {
+        return match ($period) {
+            '7days' => Carbon::now()->subDays(7)->startOfDay(),
+            '30days' => Carbon::now()->subDays(30)->startOfDay(),
+            '90days' => Carbon::now()->subDays(90)->startOfDay(),
+            'current_month' => Carbon::now()->startOfMonth(),
+            'last_month' => Carbon::now()->subMonth()->startOfMonth(),
+            'current_year' => Carbon::now()->startOfYear(),
+            'last_year' => Carbon::now()->subYear()->startOfYear(),
+            default => Carbon::now()->subDays(30)->startOfDay(), // Default to 30 days
+        };
+    }
+
+    public function getPeriodOptions(): array
+    {
+        return [
+            ['value' => '7days','label' => 'Last 7 Days'],
+            ['value' => '30days', 'label'=> 'Last 30 Days'],
+            ['value' => '90days', 'label'=> 'Last 90 Days'],
+            ['value' => 'current_month', 'label'=> 'Current Month'],
+            ['value' => 'last_month', 'label'=> 'Last Month'],
+            ['value' => 'current_year', 'label'=> 'Current Year'],
+            ['value' => 'last_year', 'label'=> 'Last Year'],
+        ];
+    }
+
+    /**
+     * Add running balance to each transaction object
+     */
+    private function addRunningBalanceToTransactions($transactions)
+    {
+        $runningBalance = 0;
+
+        foreach ($transactions as $transaction) {
+            if ($transaction->direction === 'CR') {
+                $runningBalance += $transaction->amount;
+            } else {
+                $runningBalance -= $transaction->amount;
+            }
+
+            // Add running_balance as a custom attribute to the transaction
+            $transaction->running_balance = round($runningBalance, 2);
+        }
+
+        return $transactions;
+    }
+
+    /**
+     * Paginate the transactions with running balance
+     */
+    private function paginateTransactions($transactions, int $perPage = 15)
+    {
+        $page = request()->get('page', 1);
+        $offset = ($page - 1) * $perPage;
+        $items = $transactions->slice($offset, $perPage);
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            WalletTransactionResource::collection($items),
+            $transactions->count(),
+            $perPage,
+            $page,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
+    }
+
+    public function exportTransactions($user, array $filters)
     {
         $transactions = $this->getUserTransactions($user, $filters, 1000); //Large Limit for export
 
@@ -123,13 +250,31 @@ class WalletService
 
         return response()->stream($callback, 200, $headers);
     }
-    private function getTransactionDescription($transaction): string
+    public function getTransactionDescription($transaction): string
     {
         // Implementation based on transaction type
         return match ($transaction->type) {
             'gift_card_redeem' => 'Gift Card Redemption',
             'purchase'         => 'Purchase',
             'refund_credit'    => 'Refund Credit',
+            'wallet_recharge'    => 'Wallet Recharge',
+            default            => ucfirst(str_replace('_', ' ', $transaction->type)),
+        };
+    }
+
+    public function getPaymentTypes($transaction): string
+    {
+//        'redeem',
+//                'gift_card_redeem',
+//                'purchase',
+//                'refund_credit',
+//                'admin_adjustment'
+
+        return match ($transaction->type) {
+            'gift_card_redeem' => 'Deposits',
+            'purchase'         => 'Purchase',
+            'refund_credit'    => 'Refund',
+            'wallet_recharge'    => 'Wallet Recharge',
             default            => ucfirst(str_replace('_', ' ', $transaction->type)),
         };
     }
@@ -137,14 +282,18 @@ class WalletService
     /**
      * Deduct amount from wallet using FIFO (earliest expiry first)
      */
-    public function deductFromWallet(User $user, float $amount, array $transactionData = []): array
+    public function deductFromWallet($user, float $amount, array $transactionData = []): array
     {
-        return DB::transaction(function () use ($user, $amount, $transactionData) {
+        Log::info('Wallet Deduct from Data:',$transactionData);
+        $result = DB::transaction(function () use ($user, $amount, $transactionData) {
+            Log::info('Inside DB Transaction:');
             $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
 
             if($wallet->total_available < $amount) {
                 throw new \Exception('Insufficient wallet balance');
             }
+
+            Log::info('Inside DB Transaction:'.$wallet->total_available);
 
             // Get active lots ordered by expiry (earliest first)
             $lots = WalletLot::where('user_id', $user->id)
@@ -168,7 +317,12 @@ class WalletService
                 $lot->remaining -= $deductibleAmount;
                 $remainingAmount -= $deductibleAmount;
 
-
+//                Log::info('LotsAreUsing:', [
+//                    'lot_id' => $lot->id,
+//                    'amount' => $deductibleAmount,
+//                    'lot_source' => $lot->source,
+//                    'lot_expiry' => $lot->expires_at->toISOString(),
+//                ]);
                 $lotAllocations[] = [
                     'lot_id' => $lot->id,
                     'amount' => $deductibleAmount,
@@ -201,10 +355,14 @@ class WalletService
                 'user_id' => $user->id,
                 'direction' => 'DR',
                 'amount' => $amount,
-                'currency' => $wallet->currency,
+//                'base_value' => $baseValue,
+//                'bonus_value' => $bonusValue,
+                'currency' => $wallet->currency ?? 'AED',
                 'type' => $transactionData['type'] ?? 'purchase',
                 'status' => 'completed',
-                'lot_allocations' => $lotAllocations,
+                'ref_type' => $transactionData['ref_type'] ?? null,
+                'ref_id' => $transactionData['ref_id'] ?? null,
+                'lot_allocation' => $lotAllocations, // lot allocation array
                 'ip' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ], $transactionData));
@@ -215,12 +373,15 @@ class WalletService
                 'new_balance' => $wallet->fresh()->total_available,
             ];
         });
+        // Send notification after transaction is committed
+        $this->notificationService->sendTransactionNotification($result['transaction']);
+        return $result;
     }
 
     /**
      * Check available balance with lot breakdown
      */
-    public function getAvailableBalanceWithLots(User $user): array
+    public function getAvailableBalanceWithLots($user): array
     {
         $wallet = Wallet::where('user_id', $user->id)->firstOrFail();
 
@@ -241,7 +402,7 @@ class WalletService
     /**
      * Preview deduction - shows which lots will be used
      */
-    public function previewDeduction(User $user, float $amount): array
+    public function previewDeduction($user, float $amount): array
     {
         $lots = WalletLot::where('user_id', $user->id)
             ->where('status', 'active')
@@ -287,7 +448,7 @@ class WalletService
     /**
      * Refund amount to wallet (creates new lot)
      */
-    public function refundToWallet(User $user, float $amount, string $source, array $metadata = []): array
+    public function refundToWallet($user, float $amount, string $source, array $metadata = []): array
     {
         return DB::transaction(function () use ($user, $amount, $source, $metadata) {
             $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
@@ -335,15 +496,19 @@ class WalletService
      * Add funds to wallet (generic method)
      */
     public function addToWallet(
-        User $user,
+        $user,
         float $amount,
         string $source,
+        float $baseValue,
+        float $bonusValue,
+        string $wTStatus = WalletLot::STATUS_LOCKED,
+        string $wLStatus = WalletTransaction::STATUS_PENDING,
         array $metadata = [],
         ?int $validityDays = null,
         ?string $currency = null
     ): array
     {
-        return DB::transaction(function () use ($user, $amount, $source, $metadata, $validityDays, $currency){
+        $result = DB::transaction(function () use ($user, $amount, $source, $baseValue, $bonusValue, $wTStatus, $wLStatus, $metadata, $validityDays, $currency){
             $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
 
             // Create wallet lot
@@ -351,11 +516,13 @@ class WalletService
                 'user_id' => $user->id,
                 'source' => $source,
                 'amount' => $amount,
+                'base_value' => $baseValue,
+                'bonus_value' => $bonusValue,
                 'remaining' => $amount,
                 'currency' => $currency ?? $wallet->currency,
                 'acquired_at' => now(),
-                'expires_at' => now()->addDays($validityDays),
-                'status' => 'active',
+                'expires_at' => !empty($validityDays) ? now()->addDays($validityDays) : now()->addDays(360),
+                'status' => $wLStatus,
                 'metadata' => $metadata,
             ]);
 
@@ -364,9 +531,11 @@ class WalletService
                 'user_id' => $user->id,
                 'direction' => 'CR',
                 'amount' => $amount,
+                'base_value' => $baseValue,
+                'bonus_value' => $bonusValue,
                 'currency' => $currency ?? $wallet->currency,
                 'type' => $this->getCreditTypeFromSource($source),
-                'status' => 'completed',
+                'status' => $wTStatus,
                 'ref_type' => $metadata['ref_type'] ?? null,
                 'ref_id' => $metadata['ref_id'] ?? null,
                 'lot_allocations' => [['lot_id' => $walletLot->id, 'amount' => $amount]],
@@ -374,8 +543,10 @@ class WalletService
                 'user_agent' => request()->userAgent(),
             ]);
 
-            // Update wallet balance
-            $wallet->increment('total_available', $amount);
+            if($wLStatus !== WalletLot::STATUS_LOCKED) {
+                // Update wallet balance
+                $wallet->increment('total_available', $amount);
+            }
 
             return [
                 'lot' => $walletLot,
@@ -383,6 +554,10 @@ class WalletService
                 'new_balance' => $wallet->fresh()->total_available,
             ];
         });
+
+        // Send notification after transaction is committed
+        $this->notificationService->sendTransactionNotification($result['transaction']);
+        return $result;
     }
 
     /**
@@ -391,9 +566,9 @@ class WalletService
     private function getCreditTypeFromSource(string $source): string
     {
         return match ($source) {
-            'gift_card' => 'gift_card_redeem',
-            'refund' => 'refund_credit',
+            WalletLot::SOURCE_GIFT_CARD, WalletLot::SOURCE_CREDIT_CARD => 'deposit',
             'purchase' => 'purchase',
+            'refund' => 'refund_credit',
             'admin_adjustment' => 'admin_adjustment',
             'promo' => 'promo_credit',
             default => 'credit',
@@ -403,7 +578,7 @@ class WalletService
     /**
      * Get comprehensive wallet summary
      */
-    public function getWalletSummary(User $user): array
+    public function getWalletSummary($user): array
     {
         $wallet = Wallet::where('user_id', $user->id)->firstOrFail();
 
@@ -458,7 +633,7 @@ class WalletService
     /**
      * Get detailed wallet information
      */
-    public function getWallet(User $user): array
+    public function getWallet($user): array
     {
         $wallet = Wallet::where('user_id', $user->id)->firstOrFail();
 
@@ -507,7 +682,7 @@ class WalletService
     /**
      * Calculate average monthly spending
      */
-    private function calculateAverageMonthlySpend(User $user): float
+    private function calculateAverageMonthlySpend($user): float
     {
         $result = DB::table('wallet_transactions')
             ->select(DB::raw('AVG(monthly_spent) as avg_monthly_spend'))
@@ -531,7 +706,7 @@ class WalletService
     /**
      * Get detailed lot breakdown
      */
-    private function getLotBreakdown(User $user): array
+    private function getLotBreakdown($user): array
     {
         return WalletLot::where('user_id', $user->id)
             ->where('status', WalletLot::STATUS_ACTIVE)
@@ -565,17 +740,21 @@ class WalletService
     /**
      * Get wallet overview for dashboard
      */
-    public function getWalletOverview(User $user): array
+    public function getWalletOverview($user): array
     {
-        $wallet = Wallet::where('user_id', $user->id)->firstOrFail();
-
+        $wallet = Wallet::firstOrCreate(
+            ['user_id' => $user->id],
+            ['name' => trim($user->name),'total_available' => 0, 'total_pending' => 0]
+        );
         return [
             'total_balance' => $wallet->total_available,
             'formatted_balance' => number_format($wallet->total_available, 2) . ' AED',
             'pending_balance' => $wallet->total_pending,
             'monthly_spent' => $wallet->current_month_spent,
             'formatted_monthly_spent' => number_format($wallet->current_month_spent, 2) . ' AED',
-            'transactions_count' => $wallet->transactions_count,
+            'transactions_count' => $wallet->transactions_count, // got through a get attribute on model via transactionsCount
+            'currency' => $wallet->currency ?? 'AED',
+            'total_rewards_earned' => "0.00",
             'expiring_lots_count' => $wallet->expiring_soon_lots_count,
             'expiring_amount' => $wallet->expiring_soon_balance,
             'formatted_expiring' => number_format($wallet->expiring_soon_balance, 2) . ' AED',

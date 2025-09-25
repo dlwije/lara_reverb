@@ -1,17 +1,17 @@
 <?php
 
-namespace Botble\Wallet\Http\Controllers\Api;
+namespace Modules\Wallet\Http\Controllers;
 
-use Botble\Base\Http\Controllers\BaseController;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
-class WalletNotificationApiController extends BaseController
+class WalletNotificationApiController extends Controller
 {
     public function getPreferences(Request $request)
     {
         $user = auth()->user();
 
-        return self::successCustom($user->getNotificationSettings());
+        return self::success($user->getNotificationSettings());
     }
 
     /**
@@ -28,7 +28,7 @@ class WalletNotificationApiController extends BaseController
         $user = auth()->user();
         $user->updateNotificationPreferences($request->preferences);
 
-        return self::successCustom($user->getNotificationSettings(), 'Notification preferences updated successfully');
+        return self::success($user->getNotificationSettings(), 'Notification preferences updated successfully');
     }
 
     /**
@@ -48,6 +48,6 @@ class WalletNotificationApiController extends BaseController
             $request->enabled ?? true
         );
 
-        return self::successCustom($user->getNotificationSettings()[$type], 'Notification preferences updated successfully');
+        return self::success($user->getNotificationSettings()[$type], 'Notification preferences updated successfully');
     }
 }

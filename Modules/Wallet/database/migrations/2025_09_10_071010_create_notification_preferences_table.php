@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('notification_preferences', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('customer_id')->constrained('ec_customers')->onDelete('cascade');
+            $table->foreignId('customer_id')->constrained('users')->onDelete('cascade');
             $table->enum('type', [
                 'transaction',
                 'expiry_reminder',

@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('currency', 3)->default('AED');
 
             // Wallet Integration
-            $table->foreignId('user_id')->constrained('ec_customers')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->boolean('use_wallet')->default(false);
             $table->json('wallet_lot_allocation')->nullable()->comment('Which wallet lots were used');
 

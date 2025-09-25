@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('wallet_id')->constrained()->onDelete('cascade');
-            $table->foreignId('locked_by')->constrained('ec_customers')->onDelete('cascade');
+            $table->foreignId('locked_by')->constrained('users')->onDelete('cascade');
             $table->string('reason');
             $table->text('notes')->nullable();
             $table->timestamp('expires_at')->nullable();

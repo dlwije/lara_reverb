@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('wallet_transactions', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('user_id')->constrained('ec_customers')->onDelete('restrict');
+            $table->foreignId('user_id')->constrained('users')->onDelete('restrict');
             $table->enum('direction', ['CR', 'DR']);
             $table->decimal('amount', 12, 2);
             $table->char('currency', 3)->default('AED');
@@ -25,7 +25,7 @@ return new class extends Migration
             $table->json('lot_allocation')->nullable(); // Array of {lot_id, amount}
             $table->ipAddress('ip')->nullable();
             $table->text('user_agent')->nullable();
-            $table->foreignId('created_by')->nullable()->constrained('ec_customers')->onDelete('set null');
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamps();
 
             $table->index(['user_id', 'created_at']);

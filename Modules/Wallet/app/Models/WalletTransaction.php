@@ -1,16 +1,16 @@
 <?php
 
-namespace Botble\Wallet\Models;
+namespace Modules\Wallet\Models;
 
+//use App\Models\Model;
+use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
-use Botble\Base\Models\BaseModel;
-use Botble\Ecommerce\Models\Customer;
-use Botble\Ecommerce\Models\GiftCard;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
+use Modules\GiftCard\Models\GiftCard;
 
-class WalletTransaction extends BaseModel
+class WalletTransaction extends Model
 {
     protected $fillable = [
         'user_id', 'direction', 'amount', 'base_value', 'bonus_value', 'currency',
@@ -46,7 +46,7 @@ class WalletTransaction extends BaseModel
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(User::class);
     }
 
     public function giftCard(): BelongsTo

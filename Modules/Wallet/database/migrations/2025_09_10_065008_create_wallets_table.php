@@ -13,7 +13,7 @@ return new class () extends Migration {
                 $table->string('name', 255);
                 $table->string('status', 60)->default('published');
 
-                $table->foreignId('user_id')->constrained('ec_customers')->onDelete('restrict');
+                $table->foreignId('user_id')->constrained('users')->onDelete('restrict');
                 $table->decimal('total_available', 12, 2)->default(0);
                 $table->decimal('total_pending', 12, 2)->default(0);
                 $table->enum('wt_status', ['active', 'locked', 'suspended'])->default('active');

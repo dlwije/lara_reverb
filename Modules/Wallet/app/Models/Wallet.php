@@ -1,18 +1,16 @@
 <?php
+namespace Modules\Wallet\Models;
 
-namespace Botble\Wallet\Models;
-
+//use App\Models\Model;
+use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
-use Botble\Base\Casts\SafeContent;
-use Botble\Base\Enums\BaseStatusEnum;
-use Botble\Base\Models\BaseModel;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
-class Wallet extends BaseModel
+class Wallet extends Model
 {
     protected $table = 'wallets';
 
@@ -28,8 +26,8 @@ class Wallet extends BaseModel
     ];
 
     protected $casts = [
-        'status' => BaseStatusEnum::class,
-        'name' => SafeContent::class,
+//        'status' => BaseStatusEnum::class,
+//        'name' => SafeContent::class,
         'total_available' => 'decimal:2',
         'total_pending' => 'decimal:2',
         'last_activity_at' => 'datetime',

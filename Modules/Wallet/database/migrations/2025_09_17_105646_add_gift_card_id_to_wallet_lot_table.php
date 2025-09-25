@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('wallet_lots', function (Blueprint $table) {
-            $table->foreignId('gift_card_id')->nullable()->after('status')->constrained('ec_gift_cards')->onDelete('set null');
+            if (!Schema::hasColumn('wallet_lots', 'gift_card_id')) {
+                $table->foreignId('gift_card_id')->nullable()->after('status')->constrained('st_gift_cards')->onDelete('set null');
+            }
         });
     }
 
@@ -22,8 +24,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('wallet_lots', function (Blueprint $table) {
-            $table->dropForeign(['gift_card_id']);
-            $table->dropColumn('gift_card_id');
+            if (Schema::hasColumn('wallet_lots', 'gift_card_id')) {
+                $table->dropForeign(['gift_card_id']);
+                $table->dropColumn('gift_card_id');
+            }
         });
     }
 };

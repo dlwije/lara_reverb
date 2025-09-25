@@ -3,11 +3,11 @@
 namespace Modules\Wallet\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use Botble\Ecommerce\Services\GiftCardService;
-use Botble\Wallet\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Modules\GiftCard\Services\GiftCardService;
+use Modules\Wallet\Models\Wallet;
 use Modules\Wallet\Models\WalletLot;
 use Modules\Wallet\Services\KYCService;
 use Modules\Wallet\Services\WalletLockService;
@@ -16,10 +16,10 @@ use Modules\Wallet\Services\WalletService;
 class WalletController extends Controller
 {
     public function __construct(
-        protected \Botble\Wallet\Services\WalletService  $walletService,
-        public \Botble\Wallet\Services\KYCService        $kycService,
-        public \Botble\Wallet\Services\WalletLockService $lockService,
-        public GiftCardService                           $giftCardService,
+        protected WalletService  $walletService,
+        public KYCService        $kycService,
+        public WalletLockService $lockService,
+        public GiftCardService $giftCardService,
     )
     {
     }
@@ -60,7 +60,7 @@ class WalletController extends Controller
             $status = $request->get('status', 'active');
             $perPage = $request->get('per_page', 15);
 
-            $lots = \Botble\Wallet\Models\WalletLot::where('user_id', $user->id)
+            $lots = WalletLot::where('user_id', $user->id)
                 ->when($status, function ($query) use ($status) {
                     $query->where('status', $status);
                 })

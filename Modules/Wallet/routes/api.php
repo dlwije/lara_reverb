@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Wallet\Http\Controllers\NotificationController;
 use Modules\Wallet\Http\Controllers\WalletController;
+use Modules\Wallet\Http\Controllers\WalletNotificationApiController;
 
 Route::middleware(['auth:api'])->prefix('v1')->name('v1.')->group(function () {
 //    Route::apiResource('wallets', WalletController::class)->names('wallet');
@@ -10,16 +12,16 @@ Route::middleware(['auth:api'])->prefix('v1')->name('v1.')->group(function () {
     Route::get('wallet/add-card', [WalletController::class, 'addCard'])->name('wallet.addCard');
 
     Route::prefix('wallet')->name('api.wallet.')->group(function () {
-        Route::get('/balance', [WalletApiController::class, 'getWallet'])->name('getWallet');
-        Route::get('/balance-with-lots', [WalletApiController::class, 'getAvailableBalanceWithLots'])->name('balanceWithLots');
-        Route::get('/summary', [WalletApiController::class, 'getWalletSummary'])->name('summary');
-        Route::get('/lots', [WalletApiController::class, 'getLots'])->name('lots');
-        Route::get('/expiring-lots', [WalletApiController::class, 'getExpiringLots'])->name('expiringLots');
-        Route::post('/transactions', [WalletApiController::class, 'getTransactions'])->name('transactions');
-        Route::get('/overview', [WalletApiController::class, 'getWalletOverview']); // Dashboard overview
-        Route::get('/monthly-stats', [WalletApiController::class, 'getMonthlyStats']); // Monthly statistics
-        Route::post('/process-payment', [WalletApiController::class, 'processWalletPayment'])->name('processPayment');
-        Route::post('/gift-card/redeem', [WalletApiController::class, 'redeemGiftCard'])->name('redeemGiftCard');
+        Route::get('/balance', [WalletController::class, 'getWallet'])->name('getWallet');
+        Route::get('/balance-with-lots', [WalletController::class, 'getAvailableBalanceWithLots'])->name('balanceWithLots');
+        Route::get('/summary', [WalletController::class, 'getWalletSummary'])->name('summary');
+        Route::get('/lots', [WalletController::class, 'getLots'])->name('lots');
+        Route::get('/expiring-lots', [WalletController::class, 'getExpiringLots'])->name('expiringLots');
+        Route::post('/transactions', [WalletController::class, 'getTransactions'])->name('transactions');
+        Route::get('/overview', [WalletController::class, 'getWalletOverview']); // Dashboard overview
+        Route::get('/monthly-stats', [WalletController::class, 'getMonthlyStats']); // Monthly statistics
+        Route::post('/process-payment', [WalletController::class, 'processWalletPayment'])->name('processPayment');
+        Route::post('/gift-card/redeem', [WalletController::class, 'redeemGiftCard'])->name('redeemGiftCard');
 
         Route::get('/notification-preferences', [WalletNotificationApiController::class, 'getPreferences']);
         Route::put('/notification-preferences', [WalletNotificationApiController::class, 'updatePreferences']);
