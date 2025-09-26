@@ -13,7 +13,9 @@ class TeamworkSetupTables extends Migration
     public function up()
     {
         Schema::table(\Config::get('teamwork.users_table'), function (Blueprint $table) {
-            $table->integer('current_team_id')->unsigned()->nullable();
+            if (!Schema::hasColumn(\Config::get('teamwork.users_table'), 'current_team_id')) {
+                $table->integer('current_team_id')->unsigned()->nullable();
+            }
         });
 
         Schema::create(\Config::get('teamwork.teams_table'), function (Blueprint $table) {

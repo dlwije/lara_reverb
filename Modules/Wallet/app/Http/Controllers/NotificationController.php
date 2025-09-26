@@ -17,7 +17,7 @@ class NotificationController extends Controller
         $user = auth()->user();
 
         $filters = $request->validate([
-            'type' => 'sometimes|string|in:transaction,expiry_reminder,promotional,security,system',
+            'type' => 'sometimes|nullable|string|in:transaction,expiry_reminder,promotional,security,system,achievements',
             'read' => 'sometimes|boolean',
             'per_page' => 'sometimes|integer|min:5|max:100',
             'page' => 'sometimes|integer|min:1'
@@ -29,7 +29,8 @@ class NotificationController extends Controller
 
         // Filter by type
         if (!empty($filters['type'])) {
-            $query->where('type', $filters['type']);
+//            $query->where('category', $filters['type']);
+            $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.category')) = ?", [$filters['type']]);
         }
 
         // Filter by read status
@@ -43,20 +44,29 @@ class NotificationController extends Controller
 
         // Order by latest first
         $notifications = $query->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+            ->get();
+        $paginated_notifications = $this->paginateList($notifications, $perPage);
 
-        return response()->json([
-            'success' => true,
-            'data' => NotificationResource::collection($notifications),
-            'meta' => [
-                'current_page' => $notifications->currentPage(),
-                'per_page' => $notifications->perPage(),
-                'total' => $notifications->total(),
-                'last_page' => $notifications->lastPage(),
-                'unread_count' => $user->unreadNotifications()->count(),
-                'total_count' => $user->notifications()->count(),
-            ]
-        ]);
+        return self::success($paginated_notifications);
+    }
+
+    public function paginateList($transactions, int $perPage = 15)
+    {
+        $page = request()->get('page', 1);
+        $offset = ($page - 1) * $perPage;
+
+        $items = $transactions->slice($offset, $perPage);
+
+        // ✅ Force the resources to an array
+        $resourceItems = NotificationResource::collection($items)->resolve();
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $resourceItems,
+            $transactions->count(),
+            $perPage,
+            $page,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
     }
 
     /**
