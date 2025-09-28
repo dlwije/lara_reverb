@@ -31,7 +31,10 @@ class SaveUser
 
             $user->syncRoles($roles);
             $user->stores()->sync($stores);
-            $user->settings()->upsert($settings, uniqueBy: ['key', 'user_id'], update: ['value']);
+            if (! empty($settings)) {
+                $settings = collect($settings)->transform(fn ($item) => ['key' => $item['key'], 'value' => $item['value'], 'user_id' => $user->id, 'company_id' => $user->company_id])->toArray();
+                $user->settings()->upsert($settings, uniqueBy: ['key', 'user_id'], update: ['value']);
+            }
         });
         return $user;
     }

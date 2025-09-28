@@ -19,15 +19,9 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
     public function update(User $user, array $input): void
     {
         Validator::make($input, [
-            'name' => ['required', 'string', 'max:255'],
-
-            'email' => [
-                'required',
-                'string',
-                'email',
-                'max:255',
-                Rule::unique('users')->ignore($user->id),
-            ],
+            'name'  => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'avatar' => ['nullable', 'mimes:jpg,jpeg,png', 'max:1024'],
         ])->validateWithBag('updateProfileInformation');
 
         if (isset($input['avatar'])) {
@@ -36,6 +30,7 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
                 Storage::disk('public')->delete($user->profile_photo_path);
             }
 
+//            $user->updateProfilePhoto($input['avatar']);
             // Store new avatar
             $user->profile_photo_path = $input['avatar']->store('profile-photos', 'public');
         }

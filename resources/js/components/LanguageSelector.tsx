@@ -10,6 +10,8 @@ import {
 export default function LanguageSelector({ selectId = 'lang' }) {
     const { locale, changeLanguage, languages } = useTranslation();
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
     const currentLang = languages.find((l) => l.value === locale);
 
     return (

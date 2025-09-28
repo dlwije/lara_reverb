@@ -64,7 +64,7 @@ class Install
     public static function createTables(Request $request, $data, $installation_id = null)
     {
         $result = self::isDbValid($data);
-        if (! $result || $result['success'] == false) {
+        if (!$result || $result['success'] == false) {
             return $result;
         }
 
@@ -84,8 +84,8 @@ class Install
                 $result = self::dbTransaction($sql['database']);
             }
             Storage::disk('local')->put('modules.json', json_encode([
-                'sma'  => $data['license']['code'],
-                'pos'  => ['key' => $data['license']['code'], 'enabled' => true],
+                'sma' => $data['license']['code'],
+                'pos' => ['key' => $data['license']['code'], 'enabled' => true],
                 'shop' => ['key' => $data['license']['code'], 'enabled' => false],
             ], JSON_PRETTY_PRINT));
         } else {
@@ -143,6 +143,7 @@ class Install
         Setting::updateOrCreate(['tec_key' => 'show_image', 'company_id' => $company->id], ['tec_value' => '1']);
         Setting::updateOrCreate(['tec_key' => 'show_tax_summary', 'company_id' => $company->id], ['tec_value' => '1']);
         Setting::updateOrCreate(['tec_key' => 'show_discount', 'company_id' => $company->id], ['tec_value' => '0']);
+        Setting::updateOrCreate(['tec_key' => 'show_zero_taxes', 'company_id' => $company->id], ['tec_value' => '0']);
         Setting::updateOrCreate(['tec_key' => 'dimension_unit', 'company_id' => $company->id], ['tec_value' => 'cm']);
         Setting::updateOrCreate(['tec_key' => 'weight_unit', 'company_id' => $company->id], ['tec_value' => 'kg']);
         Setting::updateOrCreate(['tec_key' => 'restaurant', 'company_id' => $company->id], ['tec_value' => '1']);
@@ -153,7 +154,7 @@ class Install
         Setting::updateOrCreate(['tec_key' => 'support_links', 'company_id' => $company->id], ['tec_value' => '1']);
         Setting::updateOrCreate(['tec_key' => 'sidebar_dropdown', 'company_id' => $company->id], ['tec_value' => '1']);
         Setting::updateOrCreate(['tec_key' => 'date_format', 'company_id' => $company->id], ['tec_value' => 'php']);
-        Setting::updateOrCreate(['tec_key' => 'date_format', 'company_id' => $company->id], ['tec_value' => 'php']);
+        Setting::updateOrCreate(['tec_key' => 'pos_design', 'company_id' => $company->id], ['tec_value' => 'Simple']);
         Setting::updateOrCreate(['tec_key' => 'mail', 'company_id' => $company->id], ['tec_value' => json_encode(['default' => 'log'])]);
         Setting::updateOrCreate(['tec_key' => 'payment', 'company_id' => $company->id], ['tec_value' => json_encode(['default_currency' => 'AED', 'gateway' => 'Stripe', 'services' => ['stripe' => ['enabled' => false], 'paypal' => ['enabled' => false]]])]);
     }
@@ -161,11 +162,11 @@ class Install
     public static function finalize()
     {
         Env::update([
-            'APP_INSTALLED'  => 'true',
-            'APP_DEBUG'      => 'false',
-            'APP_URL'        => url('/'),
+            'APP_INSTALLED' => 'true',
+            'APP_DEBUG' => 'false',
+            'APP_URL' => url('/'),
             'SESSION_DRIVER' => 'database',
-            'CACHE_STORE'    => 'database',
+            'CACHE_STORE' => 'database',
         ], false);
 
         return true;
@@ -191,63 +192,67 @@ class Install
             $requirements[] = 'Magic Quotes needs to be disabled!';
         }
 
-        if (! ini_get('file_uploads')) {
+        if (!ini_get('file_uploads')) {
             $requirements[] = 'File Uploads needs to be enabled!';
         }
 
-        if (! class_exists('PDO')) {
+        if (!class_exists('PDO')) {
             $requirements[] = 'MySQL PDO extension needs to be loaded!';
         }
 
-        if (! extension_loaded('pdo_mysql')) {
+        if (!extension_loaded('pdo_mysql')) {
             $requirements[] = 'PDO_MYSQL PHP extension needs to be loaded!';
         }
 
-        if (! extension_loaded('openssl')) {
+        if (!extension_loaded('openssl')) {
             $requirements[] = 'OpenSSL PHP extension needs to be loaded!';
         }
 
-        if (! extension_loaded('tokenizer')) {
+        if (!extension_loaded('tokenizer')) {
             $requirements[] = 'Tokenizer PHP extension needs to be loaded!';
         }
 
-        if (! extension_loaded('mbstring')) {
+        if (!extension_loaded('mbstring')) {
             $requirements[] = 'Mbstring PHP extension needs to be loaded!';
         }
 
-        if (! extension_loaded('curl')) {
+        if (!extension_loaded('curl')) {
             $requirements[] = 'cURL PHP extension needs to be loaded!';
         }
 
-        if (! extension_loaded('ctype')) {
+        if (!extension_loaded('ctype')) {
             $requirements[] = 'Ctype PHP extension needs to be loaded!';
         }
 
-        if (! extension_loaded('xml')) {
+        if (!extension_loaded('fileinfo')) {
+            $requirements[] = 'Fileinfo PHP extension needs to be loaded!';
+        }
+
+        if (!extension_loaded('xml')) {
             $requirements[] = 'XML PHP extension needs to be loaded!';
         }
 
-        if (! extension_loaded('json')) {
+        if (!extension_loaded('json')) {
             $requirements[] = 'JSON PHP extension needs to be loaded!';
         }
 
-        if (! extension_loaded('zip')) {
+        if (!extension_loaded('zip')) {
             $requirements[] = 'ZIP PHP extension needs to be loaded!';
         }
 
-        if (! ini_get('allow_url_fopen')) {
+        if (!ini_get('allow_url_fopen')) {
             $requirements[] = 'PHP allow_url_fopen config needs to be enabled!';
         }
 
-        if (! is_writable(base_path('storage/app'))) {
+        if (!is_writable(base_path('storage/app'))) {
             $requirements[] = 'storage/app directory needs to be writable!';
         }
 
-        if (! is_writable(base_path('storage/framework'))) {
+        if (!is_writable(base_path('storage/framework'))) {
             $requirements[] = 'storage/framework directory needs to be writable!';
         }
 
-        if (! is_writable(base_path('storage/logs'))) {
+        if (!is_writable(base_path('storage/logs'))) {
             $requirements[] = 'storage/logs directory needs to be writable!';
         }
 
@@ -256,17 +261,17 @@ class Install
 
     public static function isDbValid($data)
     {
-        if (! File::exists(base_path('.env'))) {
+        if (!File::exists(base_path('.env'))) {
             self::createEnv();
         }
 
         Env::update([
-            'DB_HOST'     => $data['database']['host'],
-            'DB_PORT'     => $data['database']['port'],
+            'DB_HOST' => $data['database']['host'],
+            'DB_PORT' => $data['database']['port'],
             'DB_DATABASE' => $data['database']['name'],
             'DB_USERNAME' => $data['database']['user'],
             'DB_PASSWORD' => $data['database']['password'] ?? '',
-            'DB_SOCKET'   => $data['database']['socket'] ?? '',
+            'DB_SOCKET' => $data['database']['socket'] ?? '',
         ], false);
 
         $result = false;
@@ -291,6 +296,19 @@ class Install
         }
 
         return $result;
+    }
+
+    public static function updateMailSettings($data)
+    {
+        Env::update([
+            'MAIL_MAILER' => $data['mail']['driver'],
+            'MAIL_HOST' => $data['mail']['host'],
+            'MAIL_PORT' => $data['mail']['port'],
+            'MAIL_USERNAME' => $data['mail']['username'],
+            'MAIL_PASSWORD' => $data['mail']['password'] ?? '',
+            'MAIL_PATH' => $data['mail']['path'] ?? '',
+            'MAIL_ENCRYPTION' => $data['mail']['encryption'] ?? 'tls',
+        ], false);
     }
 
     protected static function dbTransaction($sql)

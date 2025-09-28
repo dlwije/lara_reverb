@@ -2,7 +2,9 @@
 
 namespace App\Actions\Fortify;
 
+use App\Models\Sma\People\Customer;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -31,10 +33,38 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return User::create([
-            'name' => $input['name'],
-            'email' => $input['email'],
-            'password' => Hash::make($input['password']),
-        ]);
+//        return User::create([
+//            'name' => $input['name'],
+//            'email' => $input['email'],
+//            'password' => Hash::make($input['password']),
+//        ]);
+        $user = DB::transaction(function () use ($input) {
+            $user = User::create([
+                'name'     => $input['name'],
+                'email'    => $input['email'],
+                'username' => $input['username'],
+                'password' => Hash::make($input['password']),
+                'active'   => true,
+                'employee' => false,
+            ]);
+
+            $settings = get_settings(['default_price_group', 'default_customer_group']);
+            $customer = Customer::create([
+                'user_id'           => $user->id,
+                'name'              => $input['name'],
+                'email'             => $input['email'],
+                'company'           => $input['company'],
+                'price_group_id'    => $settings['default_price_group'] ?? null,
+                'customer_group_id' => $settings['default_customer_group'] ?? null,
+            ]);
+
+            $user->assignRole('Customer');
+            $user->customer_id = $customer->id;
+            $user->saveQuietly();
+
+            return $user;
+        });
+
+        return $user;
     }
 }

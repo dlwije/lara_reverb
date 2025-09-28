@@ -2,8 +2,11 @@ import { Appearance, useAppearance } from '@/hooks/use-appearance';
 import { cn } from '@/lib/utils';
 import { LucideIcon, Monitor, Moon, Sun } from 'lucide-react';
 import { HTMLAttributes } from 'react';
+type AppearanceToggleTabProps = HTMLAttributes<HTMLDivElement> & {
+    buttonFormat?: 'short' | 'full';
+};
 
-export default function AppearanceToggleTab({ className = '', ...props }: HTMLAttributes<HTMLDivElement>) {
+export default function AppearanceToggleTab({ className = '', buttonFormat = 'full', ...props }: AppearanceToggleTabProps) {
     const { appearance, updateAppearance } = useAppearance();
 
     const tabs: { value: Appearance; icon: LucideIcon; label: string }[] = [
@@ -26,7 +29,10 @@ export default function AppearanceToggleTab({ className = '', ...props }: HTMLAt
                     )}
                 >
                     <Icon className="-ml-1 h-4 w-4" />
-                    <span className="ml-1.5 text-sm">{label}</span>
+                    {buttonFormat == 'full' && (
+                        <span className="ml-1.5 text-sm">{label}</span>
+                    )}
+
                 </button>
             ))}
         </div>
