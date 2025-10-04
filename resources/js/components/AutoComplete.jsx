@@ -2,8 +2,8 @@ import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 
 const AutoComplete = ({
-    endpoint,
-    onSelect,
+    endpoint = '',
+    onSelect = '',
     placeholder = 'Search...',
     defaultValue = null,
     extraParams = {}, // ✅ this enables dynamic parameter injection
@@ -163,10 +163,9 @@ const AutoComplete = ({
 
     console.log(options);
     return (
-        <div className="position-relative" ref={containerRef}>
+        <div className="relative" ref={containerRef}>
             <input
                 type="text"
-                className="form-control"
                 placeholder={placeholder}
                 value={inputValue}
                 onChange={handleInputChange}
@@ -175,40 +174,36 @@ const AutoComplete = ({
                     if (options.length === 0) fetchOptions(true, inputValue, 1);
                 }}
                 onKeyDown={handleKeyDown}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
 
             {showDropdown && (
                 <ul
                     ref={listRef}
-                    className="dropdown-menu show mt-1 shadow-sm"
-                    style={{
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                        overflowX: 'auto',
-                        whiteSpace: 'nowrap',
-                        zIndex: 1050,
-                        minWidth: '100%',
-                    }}
+                    className="absolute z-50 mt-1 w-full max-h-52 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
                 >
-                    {!isLoading && showDropdown && options.length === 0 && <li className="dropdown-item disabled">No results found</li>}
+                    {!isLoading && options.length === 0 && (
+                        <li className="px-3 py-2 text-sm text-muted-foreground select-none">No results found</li>
+                    )}
+
                     {options.map((option, idx) => (
                         <li
                             key={option.id}
-                            className={`dropdown-item text-sm ${highlightedIndex === idx ? 'active' : ''}`}
-                            style={{
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                maxWidth: '100%',
-                            }}
+                            className={`px-3 py-2 text-sm cursor-pointer truncate ${
+                                highlightedIndex === idx
+                                    ? 'bg-accent text-accent-foreground'
+                                    : 'hover:bg-accent hover:text-accent-foreground'
+                            }`}
                             title={option.text}
                             onClick={() => handleSelect(option)}
                         >
                             {option.text}
                         </li>
                     ))}
-                    {isLoading && <li className="dropdown-item disabled text-muted">Loading...</li>}
+
+                    {isLoading && (
+                        <li className="px-3 py-2 text-sm text-muted-foreground select-none">Loading...</li>
+                    )}
                 </ul>
             )}
         </div>

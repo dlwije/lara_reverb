@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge, LoaderCircle, Plus, Save, StepBack } from 'lucide-react';
 import * as React from 'react';
@@ -24,6 +25,8 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { cn } from '@/lib/utils';
+import AutoCompleteDrop from '@/components/AutoCompleteDrop';
+import { Textarea } from '@/components/ui/textarea';
 
 // https://github.com/birobirobiro/awesome-shadcn-ui
 const breadcrumbs: BreadcrumbItem[] = [
@@ -204,43 +207,27 @@ export default function NewForm({ current, categories = [], brands = [], units =
                     <Card className="me-2 ms-2 gap-0">
                         <form className="" onSubmit={submit}>
                             <CardHeader>
-                                <CardAction >
+                                <CardAction>
                                     <div className="flex items-center gap-2">
                                         {/*<Button size="sm" className="flex h-8 gap-1" asChild>*/}
-                                        <Button variant="outline" className="inline-flex items-center h-8 gap-1 bg-transparent whitespace-nowrap" asChild>
-                                            <Link href={route('admin.products.index')}>
+
+                                        <div className="flex items-center gap-2">
+                                            <Link
+                                                href={route('admin.products.index')}
+                                                className="inline-flex h-8 items-center justify-center gap-1 whitespace-nowrap rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
                                                 <StepBack className="h-4 w-4" />
-                                                {t('Back')}
+                                                {'Back'}
                                             </Link>
-                                        </Button>
+                                        </div>
                                     </div>
                                 </CardAction>
                             </CardHeader>
                             <CardContent>
                                 <div className="gap-3 py-3"></div>
-                                <div className="overflow-hidden rounded-md border p-6">
+                                <div className="rounded-md p-6">
                                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                         {/* Left column (empty) */}
-                                        <div className="grid gap-6">
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="name">Name</Label>
-                                                <Input
-                                                    id="name"
-                                                    type="text"
-                                                    required
-                                                    autoFocus
-                                                    tabIndex={1}
-                                                    autoComplete="name"
-                                                    value={data.name}
-                                                    onChange={(e) => setData('name', e.target.value)}
-                                                    disabled={processing}
-                                                    placeholder="Full name"
-                                                />
-                                                <InputError message={validationErrors.name || errors.name} className="mt-2" />
-                                            </div>
-                                        </div>
-
-                                        {/* Right column (all form fields + button) */}
                                         <div className="grid gap-6">
                                             <div className="grid gap-2">
                                                 <label className="mb-1 text-sm font-medium">{t('Type')}</label>
@@ -257,7 +244,7 @@ export default function NewForm({ current, categories = [], brands = [], units =
                                                                 </div>
                                                             )}
                                                             {!selectedStatus && (
-                                                                <SelectValue >
+                                                                <SelectValue>
                                                                     <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                                                         <span className="text-dark-800">Select</span>
                                                                     </div>
@@ -268,7 +255,7 @@ export default function NewForm({ current, categories = [], brands = [], units =
                                                     <SelectContent className="">
                                                         {statuses.map((status) => (
                                                             <SelectItem key={status.value} value={status.value} className="text-foreground">
-                                                                <div className="flex items-center gap-2 w-full">
+                                                                <div className="flex w-full items-center gap-2">
                                                                     <span>{status.icon}</span>
                                                                     <span className="ms-2">{status.label}</span>
                                                                 </div>
@@ -277,75 +264,485 @@ export default function NewForm({ current, categories = [], brands = [], units =
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-
                                             <div className="grid gap-2">
-                                                <Label htmlFor="email">Email address</Label>
+                                                <Label htmlFor="name">Name</Label>
                                                 <Input
-                                                    id="email"
-                                                    type="email"
+                                                    id="name"
+                                                    type="text"
                                                     required
-                                                    tabIndex={2}
-                                                    autoComplete="email"
-                                                    value={data.email}
-                                                    onChange={(e) => setData('email', e.target.value)}
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="name"
+                                                    value={data.name}
+                                                    onChange={(e) => setData('name', e.target.value)}
                                                     disabled={processing}
-                                                    placeholder="email@example.com"
+                                                    placeholder="Full name"
                                                 />
-                                                <InputError message={validationErrors.email || errors.email} />
+                                                <InputError message={validationErrors.name || errors.name} className="mt-2" />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="password">Password</Label>
+                                                <Label htmlFor="barcode_code">
+                                                    Code (barcode)<span className="text-gray-400">Generate</span>
+                                                </Label>
                                                 <Input
-                                                    id="password"
-                                                    type="password"
+                                                    id="barcode_code"
+                                                    type="text"
                                                     required
-                                                    tabIndex={3}
-                                                    autoComplete="new-password"
-                                                    value={data.password}
-                                                    onChange={(e) => setData('password', e.target.value)}
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="barcode_code"
+                                                    value={data.barcode_code}
+                                                    onChange={(e) => setData('barcode_code', e.target.value)}
                                                     disabled={processing}
-                                                    placeholder="Password"
+                                                    placeholder="Full name"
                                                 />
-                                                <InputError message={validationErrors.password || errors.password} />
+                                                <InputError message={validationErrors.barcode_code || errors.barcode_code} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <label className="mb-1 text-sm font-medium">{t('Category')}</label>
+                                                <AutoCompleteDrop />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <label className="mb-1 text-sm font-medium">{t('Brand')}</label>
+                                                <AutoCompleteDrop />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="purchase_cost">Purchase Cost</Label>
+                                                <Input
+                                                    id="purchase_cost"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="purchase_cost"
+                                                    value={data.purchase_cost}
+                                                    onChange={(e) => setData('purchase_cost', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.purchase_cost || errors.purchase_cost} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="minimum_price">Minimum Price</Label>
+                                                <Input
+                                                    id="minimum_price"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="minimum_price"
+                                                    value={data.minimum_price}
+                                                    onChange={(e) => setData('minimum_price', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.minimum_price || errors.minimum_price} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="maximum_discount">Maximum Discount</Label>
+                                                <Input
+                                                    id="maximum_discount"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="maximum_discount"
+                                                    value={data.maximum_discount}
+                                                    onChange={(e) => setData('maximum_discount', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.maximum_discount || errors.maximum_discount} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="weight">Weight</Label>
+                                                <Input
+                                                    id="weight"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="weight"
+                                                    value={data.weight}
+                                                    onChange={(e) => setData('weight', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.weight || errors.weight} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="hsn_number">HSN number</Label>
+                                                <Input
+                                                    id="hsn_number"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="hsn_number"
+                                                    value={data.hsn_number}
+                                                    onChange={(e) => setData('hsn_number', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.hsn_number || errors.hsn_number} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="supplier_part_id">{t('Supplier part id')}</Label>
+                                                <Input
+                                                    id="supplier_part_id"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="supplier_part_id"
+                                                    value={data.supplier_part_id}
+                                                    onChange={(e) => setData('supplier_part_id', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.supplier_part_id || errors.supplier_part_id} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="photo">{t('Photo')}</Label>
+                                                <Input
+                                                    id="photo"
+                                                    type="file"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="photo"
+                                                    value={data.photo}
+                                                    onChange={(e) => setData('photo', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.photo || errors.photo} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="photos">{t('Photos')}</Label>
+                                                <Input
+                                                    id="photos"
+                                                    type="file"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="photos"
+                                                    value={data.photos}
+                                                    onChange={(e) => setData('photos', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.photos || errors.photos} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-4">
+                                                <Label htmlFor="video_url">{t('Video URL')}</Label>
+                                                <Input
+                                                    id="video_url"
+                                                    type="url"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="video_url"
+                                                    value={data.video_url}
+                                                    onChange={(e) => setData('video_url', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.video_url || errors.video_url} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="product_features">{t('Product Features')}</Label>
+                                                <Textarea
+                                                    id="product_features"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="product_features"
+                                                    value={data.product_features}
+                                                    onChange={(e) => setData('product_features', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.product_features || errors.product_features} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="product_details">{t('Product Details')}</Label>
+                                                <Textarea
+                                                    id="product_details"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="product_details"
+                                                    value={data.product_details}
+                                                    onChange={(e) => setData('product_details', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.product_details || errors.product_details} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2 border">
+                                                <Label className="flex items-center gap-2 text-sm">
+                                                    <Switch className="shadow-none" />
+                                                    <span>Featured</span>
+                                                </Label>
+                                                <Label className="flex items-center gap-2 text-sm">
+                                                    <Switch className="shadow-none" />
+                                                    <span>Hide in POS</span>
+                                                </Label>
+                                                <Label className="flex items-center gap-2 text-sm">
+                                                    <Switch className="shadow-none" />
+                                                    <span>Hide in Shop</span>
+                                                </Label>
+                                                <Label className="flex items-center gap-2 text-sm">
+                                                    <Switch className="shadow-none" />
+                                                    <span>Tax is included in price</span>
+                                                </Label>
+                                                <Label className="flex items-center gap-2 text-sm">
+                                                    <Switch className="shadow-none" />
+                                                    <span>Allow to change price while selling</span>
+                                                </Label>
+                                                <Label className="flex items-center gap-2 text-sm">
+                                                    <Switch className="shadow-none" />
+                                                    <span>Has expiry date (will show expiry date while purchasing)</span>
+                                                </Label>
+                                            </div>
+                                            <div className="grid gap-2 border">
+                                                <Label className="flex items-center gap-2 text-sm">
+                                                    <Switch className="shadow-none" />
+                                                    <span>Has variants</span>
+                                                </Label>
+                                            </div>
+                                            <div className="grid gap-2 border">
+                                                <Label className="flex items-center gap-2 text-sm">
+                                                    <Switch className="shadow-none" />
+                                                    <span>Do not track stock</span>
+                                                </Label>
+                                                <Label className="flex items-center gap-2 text-sm">
+                                                    <Switch className="shadow-none" />
+                                                    <span>Set different price per store</span>
+                                                </Label>
+                                            </div>
+                                            <div className="grid gap-2 border">
+                                                <Label className="flex items-center gap-2 text-sm">
+                                                    <Switch className="shadow-none" />
+                                                    <span>Has serial numbers</span>
+                                                </Label>
+                                            </div>
+                                            <div className="grid gap-4">
+                                                <Label htmlFor="seo_title">{t('Title')}</Label>
+                                                <Input
+                                                    id="seo_title"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="seo_title"
+                                                    value={data.seo_title}
+                                                    onChange={(e) => setData('seo_title', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.seo_title || errors.seo_title} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="seo_description">{t('Description')}</Label>
+                                                <Textarea
+                                                    id="seo_description"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="seo_description"
+                                                    value={data.seo_description}
+                                                    onChange={(e) => setData('seo_description', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.seo_description || errors.seo_description} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="seo_keywords">{t('Keywords')}</Label>
+                                                <Textarea
+                                                    id="seo_keywords"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="seo_keywords"
+                                                    value={data.seo_keywords}
+                                                    onChange={(e) => setData('seo_keywords', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.seo_keywords || errors.seo_keywords} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2 border">
+                                                <Label className="flex items-center gap-2 text-sm">
+                                                    <Switch className="shadow-none" />
+                                                    <span>Noindex</span>
+                                                    <Switch className="shadow-none" />
+                                                    <span>Nofollow</span>
+                                                </Label>
+                                            </div>
+                                        </div>
+
+                                        {/* Textarea spanning both columns */}
+                                        <div className="grid gap-2 md:col-span-2">
+                                            <Label htmlFor="description">Description</Label>
+                                            <textarea
+                                                id="description"
+                                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                value={data.description}
+                                                onChange={(e) => setData('description', e.target.value)}
+                                                placeholder="Enter detailed description"
+                                                rows={4}
+                                                disabled={processing}
+                                            />
+                                            <InputError message={validationErrors.description || errors.description} className="mt-2" />
+                                        </div>
+
+                                        {/* Right column (all form fields + button) */}
+                                        <div className="grid gap-6">
+                                            {/*<div className="grid gap-2 my-7"></div>*/}
+                                            <div className="grid gap-2">
+                                                <label className="mb-1 text-sm font-medium">{t('Tax')}</label>
+                                                <AutoCompleteDrop />
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="password_confirmation">Confirm password</Label>
+                                                <Label htmlFor="secondary_name">Secondary Name</Label>
                                                 <Input
-                                                    id="password_confirmation"
-                                                    type="password"
+                                                    id="secondary_name"
+                                                    type="text"
                                                     required
-                                                    tabIndex={4}
-                                                    autoComplete="new-password"
-                                                    value={data.password_confirmation}
-                                                    onChange={(e) => setData('password_confirmation', e.target.value)}
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="secondary_name"
+                                                    value={data.secondary_name}
+                                                    onChange={(e) => setData('secondary_name', e.target.value)}
                                                     disabled={processing}
-                                                    placeholder="Confirm password"
+                                                    placeholder="Full name"
                                                 />
-                                                <InputError
-                                                    message={
-                                                        validationErrors.password_confirmation ||
-                                                        errors.password_confirmation
-                                                    }
-                                                />
+                                                <InputError message={validationErrors.secondary_name || errors.secondary_name} className="mt-2" />
                                             </div>
+                                            <div className="grid gap-2">
+                                                <label className="mb-1 text-sm font-medium">{t('Symbology')}</label>
+                                                <AutoCompleteDrop />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <label className="mb-1 text-sm font-medium">{t('Subcategory')}</label>
+                                                <AutoCompleteDrop />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <label className="mb-1 text-sm font-medium">{t('Unit')}</label>
+                                                <AutoCompleteDrop />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="selling_price">Selling Price</Label>
+                                                <Input
+                                                    id="selling_price"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="selling_price"
+                                                    value={data.selling_price}
+                                                    onChange={(e) => setData('selling_price', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.selling_price || errors.selling_price} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="maximum_price">Maximum Price</Label>
+                                                <Input
+                                                    id="maximum_price"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="maximum_price"
+                                                    value={data.maximum_price}
+                                                    onChange={(e) => setData('maximum_price', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.maximum_price || errors.maximum_price} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="rack_location">Rack Location</Label>
+                                                <Input
+                                                    id="rack_location"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="rack_location"
+                                                    value={data.rack_location}
+                                                    onChange={(e) => setData('rack_location', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.rack_location || errors.rack_location} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="dimentions">{t('Dimensions')}</Label>
+                                                <Input
+                                                    id="dimentions"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="dimentions"
+                                                    value={data.dimentions}
+                                                    onChange={(e) => setData('dimentions', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.dimentions || errors.dimentions} className="mt-2" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <label className="mb-1 text-sm font-medium">{t('Supplier')}</label>
+                                                <AutoCompleteDrop />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="low_stock_qty">{t('Alert (low stock) QTY')}</Label>
+                                                <Input
+                                                    id="low_stock_qty"
+                                                    type="text"
+                                                    required
+                                                    autoFocus
+                                                    tabIndex={1}
+                                                    autoComplete="low_stock_qty"
+                                                    value={data.low_stock_qty}
+                                                    onChange={(e) => setData('low_stock_qty', e.target.value)}
+                                                    disabled={processing}
+                                                    placeholder="Full name"
+                                                />
+                                                <InputError message={validationErrors.low_stock_qty || errors.low_stock_qty} className="mt-2" />
+                                            </div>
+                                            <div className=""></div>
+                                            <div className=""></div>
+                                            <div className=""></div>
+
                                         </div>
                                     </div>
                                 </div>
                             </CardContent>
                             <CardFooter className="flex items-center justify-between py-4">
                                 <div></div>
-                                <Button type="submit"
-                                        tabIndex={5}
-                                        disabled={processing}
-                                        variant="outline" className="inline-flex items-center h-8 gap-1 bg-transparent whitespace-nowrap" asChild>
-                                            <span>
-                                                <Save className="h-4 w-4" />
-                                                {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                                                {t('Save')}
-                                            </span>
-
+                                <Button
+                                    type="submit"
+                                    tabIndex={5}
+                                    disabled={processing}
+                                    variant="outline"
+                                    className="inline-flex h-8 items-center gap-1 whitespace-nowrap bg-transparent"
+                                    asChild
+                                >
+                                    <span>
+                                        <Save className="h-4 w-4" />
+                                        {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                                        {t('Save')}
+                                    </span>
                                 </Button>
                             </CardFooter>
                         </form>
