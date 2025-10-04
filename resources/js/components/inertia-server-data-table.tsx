@@ -9,7 +9,18 @@ import {
     getCoreRowModel,
     useReactTable,
 } from '@tanstack/react-table';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Plus, Search, Trash2 } from 'lucide-react';
+import {
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronsLeft,
+    ChevronsRight,
+    Filter,
+    Plus,
+    Search,
+    StepBack,
+    Trash2
+} from 'lucide-react';
 import * as React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -468,12 +479,13 @@ export function InertiaServerDataTable<TData, TValue>({
                         </div>
 
                         {/* Add Product Button */}
-                        <Button size="sm" className="flex h-8 gap-1" asChild>
-                            <Link href={route('admin.products.create')}>
-                                <Plus className="h-4 w-4" />
-                                Add
-                            </Link>
-                        </Button>
+                        <Link
+                            href={route('admin.products.create')}
+                            className="inline-flex h-8 items-center justify-center gap-1 whitespace-nowrap rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <Plus className="h-4 w-4" />
+                            {'Add'}
+                        </Link>
                         {/*<Button variant="default" size="sm" className="h-8 gap-1">*/}
                         {/*    <Plus className="h-4 w-4" />*/}
                         {/*    Add*/}

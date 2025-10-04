@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Product\Http\Controllers\CategoryController;
 use Modules\Product\Http\Controllers\ProductController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -14,4 +15,9 @@ Route::middleware(['language', 'auth', config('jetstream.auth_session')])->group
         'prefix'     => 'admin',
         'as'         => 'admin',
     ]);
+
+    Route::prefix('/search')->name('search.')->group(function () {
+        Route::get('/category', [CategoryController::class, 'dropDownList'])->name('category');
+        Route::get('/sub-category', [CategoryController::class, 'subDropDownList'])->name('subCategory');
+    });
 });

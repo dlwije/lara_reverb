@@ -5,6 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import type { ChatUser } from '@/types/chat';
 import { Download, Filter, MoreHorizontal, Plus } from 'lucide-react';
 import { ComposeMessageDialog } from './compose-message-dialog';
+import { Link } from '@inertiajs/react';
 
 interface TableActionsProps {
     currentUser: ChatUser;

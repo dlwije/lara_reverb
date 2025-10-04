@@ -26,6 +26,7 @@ export interface Product {
     supplier_part_id?: string;
     alert_quantity?: number;
     video_url?: string;
+    features?: string;
     details?: string;
     featured: boolean;
     hide_in_pos: boolean;
