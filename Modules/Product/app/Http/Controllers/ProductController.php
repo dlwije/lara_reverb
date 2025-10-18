@@ -4,6 +4,7 @@ namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Collection;
+use App\Models\Country;
 use App\Models\Sma\Product\Brand;
 use App\Models\Sma\Product\Category;
 use App\Models\Sma\Product\Unit;
@@ -23,9 +24,9 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $filters = $request->input('filters');
+        $filters = $request->input('filters') ?? [];
 
-        if (! ($filters['store'] ?? null) && session('selected_store_id', null)) {
+        if (! ($filters['store'] ?? null) && session('selected_store_id', null) && Store::count() > 1) {
             $filters['store'] = session('selected_store_id');
         }
 
@@ -80,6 +81,8 @@ class ProductController extends Controller
             'taxes'         => Tax::all(['id', 'name', 'rate']),
             'brands'        => Brand::active()->get(['id', 'name']),
             'custom_fields' => CustomField::ofModel('product')->get(),
+            'supplier_fields' => CustomField::ofModel('supplier')->get(),
+            'countries'       => Country::with('states:id,name,country_id')->get(),
             'units'         => Unit::onlyBase()->with('subunits')->get(['id', 'name', 'unit_id']),
             'categories'    => Category::onlyParent()->with('children')->active()->get(['id', 'name', 'category_id']),
         ];
@@ -92,6 +95,7 @@ class ProductController extends Controller
      */
     public function store(ProductRequest $request)
     {
+
         $product = (new SaveProduct)->execute($request->validated());
 
         return redirect()->route('products.index')

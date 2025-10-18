@@ -16,10 +16,12 @@ use App\Models\Sma\Product\UnitPrice;
 use App\Models\Sma\Product\Variation;
 use App\Models\Sma\Setting\Store;
 use App\Models\Sma\Setting\Tax;
+use App\Traits\GroupPrice;
 use App\Traits\HasAttachments;
 use App\Traits\HasPromotions;
 use App\Traits\HasSchemalessAttributes;
 use App\Traits\HasStock;
+use App\Traits\HasTaxes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
@@ -30,6 +32,8 @@ class Product extends Model
 {
     use HasSlug;
     use HasStock;
+    use HasTaxes;
+    use GroupPrice;
     use HasFactory;
     use HasPromotions;
     use HasAttachments;
@@ -141,14 +145,14 @@ class Product extends Model
             ->when($filters['search'] ?? null, fn ($query, $search) => $query->search($search))
             ->when($filters['products'] ?? null, fn ($query, $products) => $query->whereIn('id', $products))
             ->when($filters['category_id'] ?? null, fn ($query, $category) => $query->where('category_id', $category))
-            ->when($filters['store'] ?? null, fn ($query, $store) => $query->whereHas('stocks', fn ($q) => $q->ofStore($store)))
+            ->when(($filters['store'] ?? null) && get_settings('hide_out_of_stock'), fn ($query, $store) => $query->whereHas('stocks', fn ($q) => $q->ofStore($store)->withTrashed()))
             ->when($filters['reorder'] ?? null, fn ($query) => $query->whereHas('stocks', fn ($q) => $q->whereHasBalanceBelow('alert_quantity')))
             ->when($filters['sort'] ?? null, fn ($query, $sort) => $query->sort($sort));
     }
 
     public function scopeSearch($query, $search)
     {
-        return $query->whereAny(['code', 'name', 'description'], 'like', "%$search%")
+        $query->whereAny(['code', 'name', 'description'], 'like', "%$search%")
             ->orWhereRelation('brand', 'name', 'like', "%{$search}%")
             ->orWhereRelation('category', 'name', 'like', "%{$search}%");
     }
@@ -193,6 +197,13 @@ class Product extends Model
             return false;
         }
 
+        $this->taxes()->detach();
+        $this->stores()->detach();
+        $this->stocks()->delete();
+        $this->serials()->delete();
+        $this->products()->detach();
+        $this->variations()->delete();
+
         return parent::delete();
     }
 
@@ -201,6 +212,13 @@ class Product extends Model
         if ($this->saleItems()->exists() || $this->purchaseItems()->exists()) {
             return false;
         }
+
+        $this->taxes()->detach();
+        $this->stores()->detach();
+        $this->products()->detach();
+        $this->stocks()->forceDelete();
+        $this->serials()->forceDelete();
+        $this->variations()->forceDelete();
 
         log_activity(__('{record} has permanently deleted.', ['record' => 'Product']), $this, $this, 'Product');
 

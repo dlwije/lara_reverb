@@ -1,6 +1,6 @@
-"use client"
+'use client';
 
-import * as React from "react"
+import * as React from 'react';
 import {
     type ColumnDef,
     type ColumnFiltersState,
@@ -8,150 +8,151 @@ import {
     type VisibilityState,
     flexRender,
     getCoreRowModel,
-    useReactTable,
-} from "@tanstack/react-table"
-import { ChevronDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+    useReactTable
+} from '@tanstack/react-table';
+import { ChevronDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus } from 'lucide-react';
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from '@/components/ui/button';
+import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
     DropdownMenuContent,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+    DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import apiClient from '@/lib/apiClient';
+import { Link } from '@inertiajs/react';
 
 interface ServerDataTableProps<TData, TValue> {
-    columns: ColumnDef<TData, TValue>[]
-    apiEndpoint: string
-    title?: string
-    searchPlaceholder?: string
-    searchColumn?: string
+    columns: ColumnDef<TData, TValue>[];
+    apiEndpoint: string;
+    title?: string;
+    searchPlaceholder?: string;
+    searchColumn?: string;
 }
 
 interface ServerResponse<TData> {
-    draw: number
-    recordsTotal: number
-    recordsFiltered: number
-    data: TData[]
-    disableOrdering?: boolean
+    draw: number;
+    recordsTotal: number;
+    recordsFiltered: number;
+    data: TData[];
+    disableOrdering?: boolean;
 }
 
 export function ServerDataTable<TData, TValue>({
-  columns,
-  apiEndpoint,
-  title = "Data Table",
-  searchPlaceholder = "Search...",
-  searchColumn = "email",
-}: ServerDataTableProps<TData, TValue>) {
-  // Server state
-  const [data, setData] = React.useState<TData[]>([])
-  const [loading, setLoading] = React.useState(false)
-  const [totalRecords, setTotalRecords] = React.useState(0)
-  const [filteredRecords, setFilteredRecords] = React.useState(0)
+                                                   columns,
+                                                   apiEndpoint,
+                                                   title = 'Data Table',
+                                                   searchPlaceholder = 'Search...',
+                                                   searchColumn = 'email'
+                                               }: ServerDataTableProps<TData, TValue>) {
+    // Server state
+    const [data, setData] = React.useState<TData[]>([]);
+    const [loading, setLoading] = React.useState(false);
+    const [totalRecords, setTotalRecords] = React.useState(0);
+    const [filteredRecords, setFilteredRecords] = React.useState(0);
 
     // Table state
-    const [sorting, setSorting] = React.useState<SortingState>([])
-    const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-    const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-    const [rowSelection, setRowSelection] = React.useState({})
+    const [sorting, setSorting] = React.useState<SortingState>([]);
+    const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+    const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+    const [rowSelection, setRowSelection] = React.useState({});
 
     // Pagination state
-    const [pageIndex, setPageIndex] = React.useState(0)
-    const [pageSize, setPageSize] = React.useState(10)
+    const [pageIndex, setPageIndex] = React.useState(0);
+    const [pageSize, setPageSize] = React.useState(10);
 
     // Search state
-    const [searchValue, setSearchValue] = React.useState("")
-    const [debouncedSearch, setDebouncedSearch] = React.useState("")
+    const [searchValue, setSearchValue] = React.useState('');
+    const [debouncedSearch, setDebouncedSearch] = React.useState('');
 
     // Debounce search input
     React.useEffect(() => {
         const timer = setTimeout(() => {
-            setDebouncedSearch(searchValue)
-        }, 300)
+            setDebouncedSearch(searchValue);
+        }, 300);
 
-        return () => clearTimeout(timer)
-    }, [searchValue])
+        return () => clearTimeout(timer);
+    }, [searchValue]);
 
     // Reset to first page when search or filters change
     React.useEffect(() => {
-        setPageIndex(0)
-    }, [debouncedSearch, columnFilters, sorting])
+        setPageIndex(0);
+    }, [debouncedSearch, columnFilters, sorting]);
 
     // Fetch data from server
     const fetchData = React.useCallback(async () => {
-        setLoading(true)
+        setLoading(true);
         try {
             const params = new URLSearchParams({
                 start: (pageIndex * pageSize).toString(),
                 length: pageSize.toString(),
-                draw: "1",
-            })
+                draw: '1'
+            });
 
             const backendColumns = columns.filter((column) => {
                 // Safely access column properties
-                const columnId = column.id || ("accessorKey" in column ? column.accessorKey : undefined)
+                const columnId = column.id || ('accessorKey' in column ? column.accessorKey : undefined);
                 // Exclude select checkbox column and row index column
-                return columnId !== "select" && columnId !== "DT_RowIndex" && columnId !== "actions"
-            })
+                return columnId !== 'select' && columnId !== 'DT_RowIndex' && columnId !== 'actions';
+            });
 
             backendColumns.forEach((column, index) => {
-                const columnId = column.id || ("accessorKey" in column ? column.accessorKey : `column_${index}`)
-                const columnName = ("accessorKey" in column ? column.accessorKey : columnId) || columnId
+                const columnId = column.id || ('accessorKey' in column ? column.accessorKey : `column_${index}`);
+                const columnName = ('accessorKey' in column ? column.accessorKey : columnId) || columnId;
 
-                params.append(`columns[${index}][data]`, columnId.toString())
-                params.append(`columns[${index}][name]`, columnName.toString())
-                params.append(`columns[${index}][searchable]`, "true")
-                params.append(`columns[${index}][orderable]`, column.enableSorting !== false ? "true" : "false")
-            })
+                params.append(`columns[${index}][data]`, columnId.toString());
+                params.append(`columns[${index}][name]`, columnName.toString());
+                params.append(`columns[${index}][searchable]`, 'true');
+                params.append(`columns[${index}][orderable]`, column.enableSorting !== false ? 'true' : 'false');
+            });
 
-      // Add search parameter
-      if (debouncedSearch) {
-        params.append("search[value]", debouncedSearch)
-        params.append("search[regex]", "false")
-      }
+            // Add search parameter
+            if (debouncedSearch) {
+                params.append('search[value]', debouncedSearch);
+                params.append('search[regex]', 'false');
+            }
 
-      if (sorting.length > 0) {
-        const sort = sorting[0]
-        // Find the column index by matching the column ID
-        const columnIndex = backendColumns.findIndex((col) => {
-          // Handle both string IDs and accessor functions
-          if (typeof col.id === "string") return col.id === sort.id
-            if ("accessorKey" in col && col.accessorKey) return col.accessorKey === sort.id
-          return false
-        })
+            if (sorting.length > 0) {
+                const sort = sorting[0];
+                // Find the column index by matching the column ID
+                const columnIndex = backendColumns.findIndex((col) => {
+                    // Handle both string IDs and accessor functions
+                    if (typeof col.id === 'string') return col.id === sort.id;
+                    if ('accessorKey' in col && col.accessorKey) return col.accessorKey === sort.id;
+                    return false;
+                });
 
-        if (columnIndex !== -1) {
-          params.append("order[0][column]", columnIndex.toString())
-          params.append("order[0][dir]", sort.desc ? "desc" : "asc")
-        }
-      }
+                if (columnIndex !== -1) {
+                    params.append('order[0][column]', columnIndex.toString());
+                    params.append('order[0][dir]', sort.desc ? 'desc' : 'asc');
+                }
+            }
 
-            const response = await apiClient.get(`${apiEndpoint}?${params}`)
-            const result: ServerResponse<TData> = response.data
+            const response = await apiClient.get(`${apiEndpoint}?${params}`);
+            const result: ServerResponse<TData> = response.data;
 
-            setData(result.data)
-            setTotalRecords(result.recordsTotal)
-            setFilteredRecords(result.recordsFiltered)
+            setData(result.data);
+            setTotalRecords(result.recordsTotal);
+            setFilteredRecords(result.recordsFiltered);
         } catch (error) {
-            console.error("Failed to fetch data:", error)
-            setData([])
-            setTotalRecords(0)
-            setFilteredRecords(0)
+            console.error('Failed to fetch data:', error);
+            setData([]);
+            setTotalRecords(0);
+            setFilteredRecords(0);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }, [apiEndpoint, pageIndex, pageSize, debouncedSearch, sorting, columns])
+    }, [apiEndpoint, pageIndex, pageSize, debouncedSearch, sorting, columns]);
 
     // Fetch data when dependencies change
     React.useEffect(() => {
         console.log('fetching data');
-        fetchData()
-    }, [fetchData])
+        fetchData();
+    }, [fetchData]);
 
     const table = useReactTable({
         data,
@@ -164,39 +165,49 @@ export function ServerDataTable<TData, TValue>({
             rowSelection,
             pagination: {
                 pageIndex,
-                pageSize,
-            },
+                pageSize
+            }
         },
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         onColumnVisibilityChange: setColumnVisibility,
         onRowSelectionChange: setRowSelection,
         onPaginationChange: (updater) => {
-            if (typeof updater === "function") {
-                const newPagination = updater({ pageIndex, pageSize })
-                setPageIndex(newPagination.pageIndex)
-                setPageSize(newPagination.pageSize)
+            if (typeof updater === 'function') {
+                const newPagination = updater({ pageIndex, pageSize });
+                setPageIndex(newPagination.pageIndex);
+                setPageSize(newPagination.pageSize);
             }
         },
         getCoreRowModel: getCoreRowModel(),
         manualPagination: true,
         manualSorting: true,
-        manualFiltering: true,
-    })
+        manualFiltering: true
+    });
 
-    const totalPages = Math.ceil(filteredRecords / pageSize)
-    const currentPage = pageIndex + 1
+    const totalPages = Math.ceil(filteredRecords / pageSize);
+    const currentPage = pageIndex + 1;
 
     return (
         <Card className="ms-2 me-2 gap-0">
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
+                <CardAction>
+                    <div className="flex items-center gap-2">
+                        <Link href={route('auth.users.create')}
+                              className="inline-flex h-8 items-center justify-center gap-1 whitespace-nowrap rounded-md border border-transparent bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                            <Plus className="h-4 w-4 shrink-0" />
+                            <span>New User</span>
+                        </Link>
+                    </div>
+                </CardAction>
             </CardHeader>
             <CardContent>
                 <div className="flex w-full items-center gap-3 py-4">
                     {/* Auto-expanding search */}
                     <div className="relative min-w-0 flex-1">
-                        <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                        <Search
+                            className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-500" />
                         <Input
                             aria-label={`Filter ${searchColumn}`}
                             placeholder={searchPlaceholder}
@@ -245,7 +256,7 @@ export function ServerDataTable<TData, TValue>({
                                             <TableHead key={header.id} className="min-w-[2rem] whitespace-nowrap">
                                                 {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                                             </TableHead>
-                                        )
+                                        );
                                     })}
                                 </TableRow>
                             ))}
@@ -259,9 +270,10 @@ export function ServerDataTable<TData, TValue>({
                                 </TableRow>
                             ) : table.getRowModel().rows?.length ? (
                                 table.getRowModel().rows.map((row) => (
-                                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                                    <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                                         {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                                            <TableCell
+                                                key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                                         ))}
                                     </TableRow>
                                 ))
@@ -283,8 +295,8 @@ export function ServerDataTable<TData, TValue>({
                     <Select
                         value={`${pageSize}`}
                         onValueChange={(value) => {
-                            setPageSize(Number(value))
-                            setPageIndex(0)
+                            setPageSize(Number(value));
+                            setPageIndex(0);
                         }}
                     >
                         <SelectTrigger className="h-8 w-[70px]">
@@ -347,7 +359,7 @@ export function ServerDataTable<TData, TValue>({
                 <div className="text-xs text-muted-foreground">
                     {filteredRecords > 0 && (
                         <>
-                            Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, filteredRecords)} of{" "}
+                            Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, filteredRecords)} of{' '}
                             {filteredRecords} entries
                             {filteredRecords !== totalRecords && ` (filtered from ${totalRecords} total)`}
                         </>
@@ -355,5 +367,5 @@ export function ServerDataTable<TData, TValue>({
                 </div>
             </CardFooter>
         </Card>
-    )
+    );
 }

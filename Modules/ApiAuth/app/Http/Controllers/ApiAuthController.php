@@ -183,7 +183,7 @@ class ApiAuthController extends Controller
      */
     public function create()
     {
-        return view('apiauth::create');
+        return Inertia::render('users/Form', ['current' => null]);
     }
 
     /**
