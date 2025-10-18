@@ -21,7 +21,7 @@ class WalletTransactionNotification extends Notification
     /**
      * Create a new event instance.
      */
-    public function __construct(WalletTransaction $transaction, string $channel = 'all')
+    public function __construct(WalletTransaction $transaction, string $channel = 'all', public $notifyType = 'transaction')
     {
         // Safely extract transaction from event or use as is
         if (property_exists($transaction, 'transaction')) {
@@ -87,12 +87,14 @@ class WalletTransactionNotification extends Notification
         return [
             'transaction_id' => $this->transaction->id ?? null,
             'type' => $this->transaction->type ?? 'unknown',
+            'category' => $this->notifyType ?? 'unknown',
             'direction' => $this->transaction->direction ?? '',
             'amount' => $this->transaction->amount ?? 0,
             'currency' => $this->transaction->currency ?? 'AED',
             'running_balance' => $this->transaction->running_balance,
-            'title' => $this->getMessageTitle(),
-            'message' => $this->getMessage(),
+            'title' => $title,
+            'message' => $message,
+            'message_params' => ['amount' => $this->transaction->amount ?? 0],
             'action_url' => $this->getActionUrl(),
             'icon' => $this->getIcon(),
             'color' => $this->getColor(),
@@ -131,6 +133,7 @@ class WalletTransactionNotification extends Notification
         return match($this->transaction->type) {
             'gift_card_redeem' => 'Gift Card Redeemed Successfully',
             'purchase' => 'Payment Processed',
+            'deposit' => 'Deposited to Wallet Successfully',
             'refund_credit' => 'Refund Received',
             'admin_adjustment' => 'Wallet Adjustment',
             'promo_credit' => 'Bonus Credit Added',
@@ -143,18 +146,18 @@ class WalletTransactionNotification extends Notification
         $amount = number_format($this->transaction->amount, 2) . ' ' . $this->transaction->currency;
 
         return match($this->transaction->type) {
-            'gift_card_redeem' => "You have successfully redeemed a gift card. {$amount} has been added to your wallet.",
+            'gift_card_redeem' => 'you_have_successfully_redeemed_a_gift_card',
             'purchase' => $this->transaction->direction === 'CR'
-                ? "Refund processed. {$amount} has been added to your wallet."
-                : "Payment of {$amount} has been processed from your wallet.",
-            'refund_credit' => "Refund of {$amount} has been credited to your wallet.",
+                ? 'refund_processed_and_has_been_added_to_your_wallet'
+                    : 'payment_has_been_processed_from_your_wallet',
+            'refund_credit' => 'refund_has_been_credited_to_your_wallet',
             'admin_adjustment' => $this->transaction->direction === 'CR'
                 ? "Admin has credited {$amount} to your wallet."
                 : "Admin has deducted {$amount} from your wallet.",
             'promo_credit' => "Bonus credit of {$amount} has been added to your wallet.",
             default => $this->transaction->direction === 'CR'
-                ? "{$amount} has been credited to your wallet."
-                : "{$amount} has been debited from your wallet."
+                ? 'amount_has_been_credited_to_your_wallet'
+                : 'redeemed_successfully'
         };
     }
     private function getMessageTitle(): string
@@ -162,15 +165,15 @@ class WalletTransactionNotification extends Notification
         $amount = number_format($this->transaction->amount, 2) . ' ' . $this->transaction->currency;
 
         return match($this->transaction->type) {
-            'gift_card_redeem' => "Redeemed Successfully",
+            'gift_card_redeem' => 'redeemed_successfully',
             'purchase' => $this->transaction->direction === 'CR'
-                ? "Refunded Successfully."
-                : "Purchase Completed.",
-            'refund_credit' => "Refunded Successfully.",
+                ? 'refunded_successfully'
+                : 'purchase_completed',
+            'refund_credit' => 'refunded_successfully',
             'admin_adjustment' => $this->transaction->direction === 'CR'
                 ? "Admin has credited to your wallet."
                 : "Admin has deducted from your wallet.",
-            'promo_credit' => "Bonus credithas been added to your wallet.",
+            'promo_credit' => "Bonus credit has been added to your wallet.",
             default => $this->transaction->direction === 'CR'
                 ? "{$amount} has been credited to your wallet."
                 : "{$amount} has been debited from your wallet."
@@ -179,7 +182,7 @@ class WalletTransactionNotification extends Notification
 
     private function getActionUrl(): string
     {
-        return url('/wallet/transactions/' . $this->transaction->id);
+        return get_frontend_url('/wallet/history');
     }
 
     private function getIcon(): string

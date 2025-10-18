@@ -1,13 +1,15 @@
 <?php
 
-namespace Modules\Wallet\Services;
+namespace Botble\Wallet\Services;
 
 use App\Models\User;
+use Botble\Wallet\Http\Resources\WalletTransactionResource;
+use Botble\Wallet\Models\Wallet;
+use Botble\Wallet\Models\WalletLot;
+use Botble\Wallet\Models\WalletTransaction;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Modules\Wallet\Models\Wallet;
-use Modules\Wallet\Models\WalletLot;
-use Modules\Wallet\Models\WalletTransaction;
+use Illuminate\Support\Facades\Log;
 
 class WalletService
 {
@@ -258,10 +260,11 @@ class WalletService
     {
         // Implementation based on transaction type
         return match ($transaction->type) {
-            'gift_card_redeem' => 'Gift Card Redemption',
-            'purchase'         => 'Purchase',
-            'refund_credit'    => 'Refund Credit',
-            'wallet_recharge'    => 'Wallet Recharge',
+            'gift_card_redeem' => trans('plugins/wallet::wallet.gift_card_redemption'),
+            'deposit'         => trans('plugins/wallet::wallet.deposit'),
+            'purchase'         => trans('plugins/wallet::wallet.purchase'),
+            'refund_credit'    => trans('plugins/wallet::wallet.refund_credit'),
+            'wallet_recharge'    => trans('plugins/wallet::wallet.wallet_recharge'),
             default            => ucfirst(str_replace('_', ' ', $transaction->type)),
         };
     }
@@ -275,10 +278,10 @@ class WalletService
 //                'admin_adjustment'
 
         return match ($transaction->type) {
-            'gift_card_redeem' => 'Deposits',
-            'purchase'         => 'Purchase',
-            'refund_credit'    => 'Refund',
-            'wallet_recharge'    => 'Wallet Recharge',
+            'gift_card_redeem', 'deposit' => trans('plugins/wallet::wallet.deposit'),
+            'purchase'         => trans('plugins/wallet::wallet.purchase'),
+            'refund_credit'    => trans('plugins/wallet::wallet.refund'),
+            'wallet_recharge'    => trans('plugins/wallet::wallet.wallet_recharge'),
             default            => ucfirst(str_replace('_', ' ', $transaction->type)),
         };
     }
@@ -294,7 +297,7 @@ class WalletService
             $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
 
             if($wallet->total_available < $amount) {
-                throw new \Exception('Insufficient wallet balance');
+                throw new \Exception('plugins/wallet::wallet.insufficient_wallet_balance');
             }
 
             Log::info('Inside DB Transaction:'.$wallet->total_available);
@@ -320,13 +323,6 @@ class WalletService
 
                 $lot->remaining -= $deductibleAmount;
                 $remainingAmount -= $deductibleAmount;
-
-//                Log::info('LotsAreUsing:', [
-//                    'lot_id' => $lot->id,
-//                    'amount' => $deductibleAmount,
-//                    'lot_source' => $lot->source,
-//                    'lot_expiry' => $lot->expires_at->toISOString(),
-//                ]);
                 $lotAllocations[] = [
                     'lot_id' => $lot->id,
                     'amount' => $deductibleAmount,
@@ -454,16 +450,18 @@ class WalletService
      */
     public function refundToWallet($user, float $amount, string $source, array $metadata = []): array
     {
-        return DB::transaction(function () use ($user, $amount, $source, $metadata) {
+        $result = DB::transaction(function () use ($user, $amount, $source, $metadata) {
             $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
 
-            //Create new lot for refund
+            //Create a new lot for refund
             $lot = WalletLot::create([
                 'user_id' => $user->id,
                 'source' => $source,
                 'amount' => $amount,
                 'remaining' => $amount,
-                'currency' => $wallet->currency,
+                'base_value' => $amount, // For refunds, base_value = amount (no bonus)
+                'bonus_value' => 0,
+                'currency' => $wallet->currency ?? 'AED',
                 'acquired_at' => now(),
                 'expires_at' => now()->addDays(360), // 360 days validity
                 'status' => 'active',
@@ -476,14 +474,21 @@ class WalletService
             // Create a transaction record
             $transaction = WalletTransaction::create([
                 'user_id' => $user->id,
-                'direction' => 'CR',
+                'direction' => WalletTransaction::DIRECTION_CREDIT,
                 'amount' => $amount,
-                'currency' => $wallet->currency,
-                'type' => 'refund',
-                'status' => 'completed',
+                'base_value' => $amount,
+                'bonus_value' => 0,
+                'currency' => $wallet->currency ?? 'AED',
+                'type' => WalletTransaction::TYPE_REFUND,
+                'status' => WalletTransaction::STATUS_COMPLETED,
                 'ref_type' => $metadata['ref_type'] ?? null,
                 'ref_id' => $metadata['ref_id'] ?? null,
-                'lot_allocations' => [['lot_id' => $lot->id, 'amount' => $amount]],
+                'lot_allocation' => [[
+                    'lot_id' => $lot->id,
+                    'amount' => $amount,
+                    'lot_source' => $source,
+                    'lot_expiry' => $lot->expires_at->toISOString(),
+                ]],
                 'ip' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
@@ -494,6 +499,105 @@ class WalletService
                 'new_balance' => $wallet->fresh()->total_available,
             ];
         });
+
+        // Send notification after transaction is committed
+        $this->notificationService->sendTransactionNotification($result['transaction']);
+
+        return $result;
+    }
+
+    /** Refund a specific transaction by reversing the original deduction **/
+    public function refundTransaction(int $transactionId, string $reason = 'refund', array $metadata = []): array
+    {
+        // Step 1: Get the original transaction
+        $originalTrans = WalletTransaction::where('id', $transactionId)->where('direction', WalletTransaction::DIRECTION_DEBIT)->firstOrFail();
+
+        $user = $originalTrans->user;
+
+        Log::info('Refunding transaction:', [
+            'original_transaction_id' => $transactionId,
+            'original_amount' => $originalTrans->amount,
+            'user_id' => $user->id,
+            'reason' => $reason
+        ]);
+
+        return $this->refundToWallet($user, $originalTrans->amount, 'refund', array_merge($metadata, [
+            'ref_type' => WalletTransaction::class,
+            'ref_id' => $transactionId,
+            'original_transaction_id' => $transactionId,
+            'description' => "Refund for transaction #{$transactionId} - {$reason}",
+            'reason' => $reason
+        ]));
+    }
+
+    /** Partial Refund: specific amount */
+    public function partialRefund(int $transactionId, float $amount, string $reason = 'partial_refund', array $metadata = []): array
+    {
+        $originalTransaction = WalletTransaction::where('id', $transactionId)
+            ->where('direction', WalletTransaction::DIRECTION_DEBIT)
+            ->firstOrFail();
+
+        if ($amount > $originalTransaction->amount) {
+            throw new \Exception('Refund amount cannot exceed original transaction amount');
+        }
+
+        $user = $originalTransaction->user;
+
+        Log::info('Partial refund:', [
+            'original_transaction_id' => $transactionId,
+            'refund_amount' => $amount,
+            'original_amount' => $originalTransaction->amount,
+            'user_id' => $user->id,
+            'reason' => $reason
+        ]);
+
+        return $this->refundToWallet($user, $amount, 'refund', array_merge($metadata, [
+            'ref_type' => WalletTransaction::class,
+            'ref_id' => $transactionId,
+            'original_transaction_id' => $transactionId,
+            'description' => "Partial refund for transaction #{$transactionId} - {$reason}",
+            'reason' => $reason,
+            'is_partial' => true,
+            'original_amount' => $originalTransaction->amount
+        ]));
+    }
+
+    /**
+     * Check if transaction can be refunded
+     */
+    public function canRefundTransaction(int $transactionId): array
+    {
+        $transaction = WalletTransaction::find($transactionId);
+
+        if (!$transaction) {
+            return ['can_refund' => false, 'reason' => 'Transaction not found'];
+        }
+
+        if ($transaction->direction !== WalletTransaction::DIRECTION_DEBIT) {
+            return ['can_refund' => false, 'reason' => 'Only debit transactions can be refunded'];
+        }
+
+        if ($transaction->status !== WalletTransaction::STATUS_COMPLETED) {
+            return ['can_refund' => false, 'reason' => 'Only completed transactions can be refunded'];
+        }
+
+        // Check if already refunded
+        $existingRefund = WalletTransaction::where('ref_type', WalletTransaction::class)
+            ->where('ref_id', $transactionId)
+            ->where('direction', WalletTransaction::DIRECTION_CREDIT)
+            ->where('type', WalletTransaction::TYPE_REFUND)
+            ->exists();
+
+        if ($existingRefund) {
+            return ['can_refund' => false, 'reason' => 'Transaction already refunded'];
+        }
+
+        return [
+            'can_refund' => true,
+            'transaction' => $transaction,
+            'max_refund_amount' => $transaction->amount,
+            'currency' => $transaction->currency
+        ];
     }
 
     /**
@@ -515,6 +619,8 @@ class WalletService
         $result = DB::transaction(function () use ($user, $amount, $source, $baseValue, $bonusValue, $wTStatus, $wLStatus, $metadata, $validityDays, $currency){
             $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
 
+//            Log::info('AddToWalletUser:',$user);
+            Log::info("addToWallet: $amount, $source, $baseValue, $bonusValue, $wTStatus, $wLStatus, $validityDays, $currency");;
             // Create wallet lot
             $walletLot = WalletLot::create([
                 'user_id' => $user->id,
@@ -533,7 +639,7 @@ class WalletService
             // Create a transaction record
             $transaction = WalletTransaction::create([
                 'user_id' => $user->id,
-                'direction' => 'CR',
+                'direction' => WalletTransaction::DIRECTION_CREDIT,
                 'amount' => $amount,
                 'base_value' => $baseValue,
                 'bonus_value' => $bonusValue,
@@ -548,6 +654,7 @@ class WalletService
             ]);
 
             if($wLStatus !== WalletLot::STATUS_LOCKED) {
+                Log::info('Inside AddToWallet DB Transaction Updated Wallet Balance:');
                 // Update wallet balance
                 $wallet->increment('total_available', $amount);
             }
@@ -559,8 +666,11 @@ class WalletService
             ];
         });
 
-        // Send notification after transaction is committed
-        $this->notificationService->sendTransactionNotification($result['transaction']);
+        if($source != 'purchase'){
+            // Send notification after transaction is committed
+            $this->notificationService->sendTransactionNotification($result['transaction']);
+        }
+
         return $result;
     }
 
