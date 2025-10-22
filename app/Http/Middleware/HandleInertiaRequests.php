@@ -68,6 +68,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'site_url'         => $site_url,
+            'csrfToken'        => csrf_token(),
             'demo'             => demo(),
             'base'             => url('/'),
             'opened_register'  => $opened_register,

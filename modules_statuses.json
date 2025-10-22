@@ -6,5 +6,6 @@
     "Wallet": true,
     "GiftCard": true,
     "PromoRules": true,
-    "Checkout": true
+    "Checkout": true,
+    "Telr": true
 }

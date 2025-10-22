@@ -102,6 +102,17 @@ const data:NavItems = {
                 }
             ],
         },
+        {
+            title: "Payment",
+            url: "",
+            icon: Bot,
+            items: [
+                {
+                    title: "Form",
+                    url: "telr.index",
+                }
+            ],
+        },
         // {
         //     title: "Documentation",
         //     url: "",
