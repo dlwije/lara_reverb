@@ -329,4 +329,283 @@ class TelrController extends Controller
      * Remove the specified resource from storage.
      */
     public function destroy($id) {}
+
+
+    public function success(
+        Request $request,
+        TelrPaymentService $telrPaymentService,
+        SplitPaymentPGatewayFirstService $splitPaymentPGatewayFirstService,
+        BaseHttpResponse $response
+    ) {
+        try {
+            //$chargeId = session('telr_payment_id');
+            $chargeId = trim($request->get('OrderRef'));
+            $orderDetail = $telrPaymentService->getPaymentDetails($chargeId);
+            $isPaid = false;
+            if(isset($orderDetail->order)) {
+                if($orderDetail->order->status) {
+                    $status = strtolower(trim($orderDetail->order->status->text));
+                    if($status == 'paid') { $isPaid = true; }
+                }
+            }
+            Log::info('TelrController::redirectURL', ['RedirectURL' => PaymentHelper::getRedirectURL()]);
+            Log::info('TelrController::success', ['orderDetail' => $orderDetail]);
+            Log::info('TelrController::response', ['isPaid' => $isPaid, 'response' => $response]);
+            if($isPaid) {
+                $telrPaymentService->afterMakePayment($request->input());
+
+//                $splitPaymentPGatewayFirstService->deductReleaseWalletFreeze();
+                return $response
+                    ->setNextUrl(PaymentHelper::getRedirectURL())
+                    ->setMessage(__('Checkout successfully!'));
+            }
+
+            return $this->redirectOnError($response);
+        } catch (Exception $exception) {
+            Log::error('TelrController::success:trycatch', ['exception' => $exception]);
+            return $this->redirectOnError($response);
+        }
+    }
+
+    public function error(Request $data,BaseHttpResponse $response)
+    {
+
+        $token = OrderHelper::getOrderSessionToken();
+        $orders = Order::query()->where('token', $token)->get();
+
+        foreach ($orders as $order) {
+            if (!$order->payment_id) {
+                continue;
+            }
+
+            // 🔹 Find the related payment
+            $payment = Payment::find($order->payment_id);
+
+            if ($payment) {
+
+                // 🔹 Update payment status to failed
+                $payment->update([
+                    'status' => PaymentStatusEnum::FAILED,
+                    'failure_reason' => 'Payment failed or cancelled by user',
+                ]);
+
+                Log::info("Payment #{$payment->id} marked as FAILED for Order #{$order->id}");
+
+                // 🔹 Get related wallet transaction if any
+                if ($payment->wallet_transaction_id) {
+                    $walletTransaction = WalletTransaction::find($payment->wallet_transaction_id);
+
+                    if($payment->payment_channel == WALLET_PAYMENT_METHOD_NAME){
+                        $wallet_applied_amount = $payment->wallet_applied;
+                        $customerRes = Customer::query()->where('id',$order->user_id)->first();
+
+                        if ($wallet_applied_amount > 0 && $walletTransaction) {
+                            Log::info('TelrController::error'.$order->id, ['wallet_applied_amount' => $wallet_applied_amount]);
+                            Log::info('TelrController::error'.$order->id, ['wallet_trans' => $walletTransaction]);
+                            app(SplitPaymentPGatewayFirstService::class)->releaseFrozenWallet($customerRes, $wallet_applied_amount, $order->id, $walletTransaction->id);
+                        }
+                    }
+                    if ($walletTransaction) {
+                        Log::info("WalletTransaction #{$walletTransaction->id} marked as FAILED for Order #{$order->id}");
+                    }
+                }
+            }
+        }
+
+        /** re-available coupon if order cancel START **/
+
+        if($token) {
+            $order = Order::query()->where(['token' => $token, 'is_finished' => false])->where('coupon_code', '!=', null)->first();
+            if ($order) {
+                $appliedCouponCode = ($order->coupon_code != null ? $order->coupon_code : '');
+                if(!empty($appliedCouponCode)){
+                    Discount::getFacadeRoot()->afterOrderCancelled($appliedCouponCode);
+                }
+            }
+        }
+        /** END **/
+
+        return $this->redirectOnError($response);
+    }
+
+    private function redirectOnError($response) {
+        if((bool) request()->isApp) {
+            $token = OrderHelper::getOrderSessionToken();
+            $tUrl = route('public.checkout.cancel', [$token] + ['error' => true, 'error_type' => 'payment']);
+            return $response
+                ->setError()
+                ->setNextUrl($tUrl)
+                ->withInput()
+                ->setMessage(__('Payment failed!'));
+        } else {
+            return $response
+                ->setError()
+                ->setNextUrl(PaymentHelper::getCancelURL())
+                ->withInput()
+                ->setMessage(__('Payment failed!'));
+        }
+    }
+
+    public function subSuccess(
+        Request $request,
+        TelrPaymentService $telrPaymentService,
+        BaseHttpResponse $response
+    ) {
+        try {
+            //$chargeId = session('telr_subscription_id');
+            $chargeId = trim($request->get('OrderRef'));
+            $orderDetail = $telrPaymentService->getPaymentDetails($chargeId);
+            $isPaid = false;
+
+            if(isset($orderDetail->order)) {
+                if($orderDetail->order->status) {
+                    $status = strtolower(trim($orderDetail->order->status->text));
+                    if($status == 'paid') { $isPaid = true; }
+                }
+            }
+
+            if($isPaid) {
+                $telrPaymentService->afterMakeSubscriptionPayment($request->input());
+                $sub = Subscription::query()->with('user')->where('id', $request->input('subscriber_id'))->first();
+                if ($sub != null) {
+                    $sub->status = SubscriptionStatusEnum::ACTIVE;
+                    $sub->save();
+
+                    $currenctStep = (int) $sub->user->getMeta('step');
+                    $currenctStep = ($currenctStep > 6) ? $currenctStep : 6;
+                    $sub->user->setMeta('step', $currenctStep);
+                }
+
+                return $response
+                    ->setNextUrl(get_frontend_url('join-us-as-seller'))
+                    ->setMessage(__('Checkout successfully!'));
+            }
+
+            return $response
+                ->setError()
+                ->setNextUrl(get_frontend_url('join-us-as-seller').'?type=error')
+                ->setMessage(__('Payment failed!'));
+        } catch (Exception $exception) {
+            return $response
+                ->setError()
+                ->setNextUrl(get_frontend_url('join-us-as-seller').'?type=error')
+                ->withInput()
+                ->setMessage($exception->getMessage() ?: __('Payment failed!'));
+        }
+    }
+
+    public function subError(BaseHttpResponse $response)
+    {
+        return $response
+            ->setError()
+            ->setNextUrl(get_frontend_url('join-us-as-seller').'?type=errorr&message='.__('Payment failed!'))
+            ->withInput();
+    }
+
+    public function giftCardSuccess(
+        Request $request,
+        TelrPaymentService $telrPaymentService,
+        BaseHttpResponse $response
+    ) {
+        try {
+            //$chargeId = session('telr_giftcard_id');
+            $chargeId = trim($request->get('OrderRef'));
+            $orderDetail = $telrPaymentService->getPaymentDetails($chargeId);
+            $isPaid = false;
+
+            if(isset($orderDetail->order)) {
+                if($orderDetail->order->status) {
+                    $status = strtolower(trim($orderDetail->order->status->text));
+                    if($status == 'paid') { $isPaid = true; }
+                }
+            }
+
+            if($isPaid) {
+                $telrPaymentService->afterMakeGiftCardPayment($request->input());
+
+                return $response
+                    ->setNextUrl(get_frontend_url('customer/gift-cards').'?type=success&message='.__('Gift Card created successfully!'))
+                    ->setMessage(__('Checkout successfully!'));
+            }
+
+            return $response
+                ->setError()
+                ->setNextUrl(get_frontend_url('customer/gift-cards/create').'?type=error&message='.__('Payment failed!'));
+        } catch (Exception $exception) {
+            return $response
+                ->setError()
+                ->setNextUrl(get_frontend_url('customer/gift-cards/create').'?type=error&message='.($exception->getMessage() ?: __('Payment failed!')))
+                ->withInput();
+        }
+    }
+
+    public function giftCardError(Request $request, BaseHttpResponse $response)
+    {
+        /** delete gift card entry **/
+        if($request->input('giftcard_id')) {
+            GiftCard::query()->where('id', $request->input('giftcard_id'))->delete();
+        }
+        /** END **/
+
+        return $response
+            ->setError()
+            ->setNextUrl(get_frontend_url('customer/gift-cards/create').'?type=error&message='.__('Payment failed!'))
+            ->withInput();
+    }
+
+    public function wallettopupError(Request $request, BaseHttpResponse $response)
+    {
+        Log::info('Wallet Top Up Payment Error Function Hit inside TelrController.php');
+        Log::info(['transaction id received Wallet Top up error function in Telr Controller' => $request->input('wallettracsaction_id')]);
+        /** delete Transaction Entry **/
+        if($request->input('wallettracsaction_id')) {
+            WalletTransaction::query()->where('id', $request->input('wallettracsaction_id'))->delete();
+        }
+        /** END **/
+
+        return $response
+            ->setError()
+            ->setNextUrl(get_frontend_url('wallet/deposits').'?type=error&message='.__('Payment failed!'))
+            ->withInput();
+    }
+
+    public function wallettopupSuccess(
+        Request $request,
+        TelrPaymentService $telrPaymentService,
+        BaseHttpResponse $response
+    ) {
+        Log::info('Wallet Top Up using Telr Success Function hit inside TelrController');
+
+        try {
+
+            $chargeId = trim($request->get('OrderRef'));
+            $orderDetail = $telrPaymentService->getPaymentDetails($chargeId);
+            $isPaid = false;
+
+            if(isset($orderDetail->order)) {
+                Log::info(['Order ID In Wallet Top Up Success Function In Telr Controller' =>$orderDetail->order]);
+                if($orderDetail->order->status) {
+                    $status = strtolower(trim($orderDetail->order->status->text));
+                    if($status == 'paid') { $isPaid = true; }
+                }
+            }
+
+            if($isPaid) {
+                $telrPaymentService->afterWalletTopUpPayment($request->input());
+
+                return $response
+                    ->setNextUrl(get_frontend_url('wallet/deposits').'?type=success&message='.__('Wallet Top Up successfully!'))
+                    ->setMessage(__('Checkout successfully!'));
+            }
+
+            return $response
+                ->setError()
+                ->setNextUrl(get_frontend_url('wallet/deposits').'?type=error&message='.__('Payment failed!'));
+        } catch (Exception $exception) {
+            return $response
+                ->setError()
+                ->setNextUrl(get_frontend_url('wallet/deposits').'?type=error&message='.($exception->getMessage() ?: __('Payment failed!')))
+                ->withInput();
+        }
+    }
 }
