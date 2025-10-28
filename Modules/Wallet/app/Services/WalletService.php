@@ -340,11 +340,6 @@ class WalletService
                 throw new \Exception('Insufficient funds in available wallet lots');
             }
 
-            // Update lots
-            foreach ($lotsToUpdate as $lot) {
-                $lot->save();
-            }
-
             // Update wallet balance
             $wallet->decrement('total_available', $amount);
 
@@ -364,6 +359,12 @@ class WalletService
                 'ip' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ], $transactionData));
+
+            // Update lots
+            foreach ($lotsToUpdate as $lot) {
+                $lot->transaction_id = $transaction->id;
+                $lot->save();
+            }
 
             return [
                 'transaction' => $transaction,
@@ -442,6 +443,54 @@ class WalletService
             'total_available' => $totalAvailable,
         ];
     }
+
+    public function getWalletPreviewData($user, ?string $paymentMethod = null, ?float $cartTotal = null): array
+    {
+        // Default return structure
+        $default = [
+            'wallet_applicable' => 0.0,
+            'gateway_amount' => 0.0,
+            'wallet_balance' => 0.0,
+            'available_lots_amount' => 0.0,
+            'wallet_percentage' => 0.0,
+            'gateway_percentage' => 0.0,
+            'can_use_wallet' => false,
+        ];
+
+        // If not wallet method, just return defaults
+        if ($paymentMethod !== WALLET_PAYMENT_METHOD_NAME) {
+            return $default;
+        }
+
+        $totalAmount = $cartTotal ?? (float) Cart::instance('cart')->rawTotal();
+
+        if (! $user || $totalAmount <= 0) {
+            return $default;
+        }
+
+        try {
+            $walletResult = app(SplitPaymentPGatewayFirstService::class)
+                ->previewSplitPayment($user, $totalAmount);
+
+            $walletApplicable = (float) ($walletResult['wallet_applicable'] ?? 0);
+            $walletBreakdown = $walletResult['breakdown'] ?? [];
+
+            return [
+                'wallet_applicable' => $walletApplicable,
+                'gateway_amount' => (float) ($walletResult['gateway_amount'] ?? 0),
+                'wallet_balance' => (float) ($walletResult['wallet_balance'] ?? 0),
+                'available_lots_amount' => (float) ($walletResult['available_lots_amount'] ?? 0),
+                'wallet_percentage' => (float) ($walletBreakdown['wallet_percentage'] ?? 0),
+                'gateway_percentage' => (float) ($walletBreakdown['gateway_percentage'] ?? 0),
+                'can_use_wallet' => (bool) ($walletResult['can_use_wallet'] ?? false),
+            ];
+        } catch (\Throwable $e) {
+            // Optionally log the error
+            Log::error('Wallet preview failed: ' . $e->getMessage());
+            return $default;
+        }
+    }
+
 
     /**
      * Refund amount to wallet (creates new lot)
@@ -650,6 +699,8 @@ class WalletService
                 'ip' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
+
+            $walletLot->update(['transaction_id' => $transaction->id]);
 
             if($wLStatus !== WalletLot::STATUS_LOCKED) {
                 Log::info('Inside AddToWallet DB Transaction Updated Wallet Balance:');

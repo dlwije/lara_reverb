@@ -109,6 +109,17 @@ class CheckoutController extends Controller
         }
     }
 
+    public function postCheckout()
+    {
+        return app(WalletCheckoutService::class)->processPostCheckoutOrder(
+            $products,
+            $request,
+            $token,
+            $sessionData,
+            $this->httpResponse()
+        );
+    }
+
 
     /**
      * Display a listing of the resource.

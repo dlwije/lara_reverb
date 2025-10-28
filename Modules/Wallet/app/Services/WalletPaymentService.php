@@ -28,7 +28,6 @@ class WalletPaymentService extends WalletPaymentAbstract
             'site_url' => $domain,
         ]);
         $this->checkout_token = $data['checkout_token'];
-        $paymentType = '';
         $address = $data['address'];
         $name = (isset($address['name']) ? explode(' ', trim($address['name'])) : '');
         $firstName = $name[0];
@@ -87,7 +86,7 @@ class WalletPaymentService extends WalletPaymentAbstract
             'phone' => ($billing_address['phone']?: ''),
         ];
         $queryParams = [
-            'type' => TAMARA_PAYMENT_METHOD_NAME,
+            'type' => WALLET_PAYMENT_METHOD_NAME,
             'amount' => $this->amount,
             'currency' => $this->currency,
             'rorder_id' => $data['order_id'],
@@ -108,34 +107,14 @@ class WalletPaymentService extends WalletPaymentAbstract
 
         $amount = round((float) $data['amount'], 2);
 
-        // 2. Find wallet
-//        $wallet = Wallet::where('user_id', $customer->id)->first();
-//        if (! $wallet) {
-//            $this->setErrorMessage(__('Wallet not found.'));
-//            return false;
-//        }
-//
-//        // 3. Check if wallet is frozen
-//        if (strtolower(trim($wallet->wt_status)) !== 'active') {
-//            $this->setErrorMessage(__('Your wallet is frozen.'));
-//            return false;
-//        }
-//
-//        // 4. Check balance
-//        if ($wallet->total_available < $amount) {
-//            $this->setErrorMessage(__('Insufficient wallet balance.'));
-//            return false;
-//        }
-//
-//        // 5. Deduct balance
-//        $wallet->total_available -= $amount;
-//        $wallet->save();
-
         // 6. Generate unique charge ID
         $chargeId = Str::upper(Str::random(10));
 
         // 7. Trigger Botble payment processed action
         $orderIds = (array) $data['order_id'];
+
+        //Do Payment Here
+
 
         do_action(PAYMENT_ACTION_PAYMENT_PROCESSED, [
             'amount'          => $amount,
@@ -160,9 +139,9 @@ class WalletPaymentService extends WalletPaymentAbstract
         ];
 
         // 8. Return the charge ID only (like execute method)
-        $errorQueryParam = ['isApp' => ($isMobile ? '1' : '0')];
+        //$errorQueryParam = ['isApp' => ($isMobile ? '1' : '0')];
         if($isMobile) { $errorQueryParam['tracked_start_checkout'] = $this->checkout_token; }
-//        return $this->setCancelUrl(route('wallet.error') . '?' . http_build_query($errorQueryParam))->setReturnUrl(route('wallet.success') . '?' . http_build_query($queryParams))->createPayment($params);
+        // return $this->setCancelUrl(route('wallet.error') . '?' . http_build_query($errorQueryParam))->setReturnUrl(route('wallet.success') . '?' . http_build_query($queryParams))->createPayment($params);
         return $chargeId;
     }
 
