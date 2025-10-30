@@ -5,9 +5,11 @@ namespace Modules\Wallet\Services;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Modules\Wallet\Models\Wallet;
 use Modules\Wallet\Models\WalletLot;
 use Modules\Wallet\Models\WalletTransaction;
+use Modules\Wallet\Transformers\WalletTransactionResource;
 
 class WalletService
 {
@@ -205,7 +207,14 @@ class WalletService
      */
     private function paginateTransactions($transactions, int $perPage = 15)
     {
-        $page = request()->get('page', 1);
+//        Log::info(request()->all());
+
+        $page = (int) request()->get('page', 1);
+        // Handle invalid or non-numeric page values gracefully
+        if ($page <= 0) {
+            $page = 1;
+        }
+
         $offset = ($page - 1) * $perPage;
         $items = $transactions->slice($offset, $perPage);
 
@@ -458,7 +467,7 @@ class WalletService
         ];
 
         // If not wallet method, just return defaults
-        if ($paymentMethod !== WALLET_PAYMENT_METHOD_NAME) {
+        if ($paymentMethod !== 'wallet') {
             return $default;
         }
 

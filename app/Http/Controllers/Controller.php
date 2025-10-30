@@ -57,4 +57,23 @@ abstract class Controller extends RoutingController
 
         ], $statusCode);
     }
+
+    public static function successCustom($data = [], $message = 'Success', $statusCode = 200)
+    {
+        return response()->json([
+            'status' => true,
+            'message' => $message,
+            'data' => $data,
+        ], $statusCode);
+    }
+
+    public static function errorCustom($message = 'An error occurred', $statusCode = 400, $errors = [], $extraData = [])
+    {
+        return response()->json([
+            'status' => false,
+            'message' => $message,
+            'errors' => $errors,
+            'extra_data' => $extraData,
+        ], $statusCode);
+    }
 }

@@ -19,6 +19,7 @@ class WalletTransactionResource extends JsonResource
             'direction' => $this->direction,
             'amount' => $this->amount,
             'currency' => $this->currency,
+            'currency_symble' => '',
             'payment_type' => app(WalletService::class)->getPaymentTypes($this),
             'payment_method' => $this->type,
             'status' => $this->status,

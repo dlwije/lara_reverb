@@ -1,13 +1,11 @@
 <?php
 
-namespace Modules\Wallet\Http\Controllers;
+namespace Modules\Wallet\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Inertia\Inertia;
 use Modules\GiftCard\Services\GiftCardService;
-use Modules\Wallet\Models\Wallet;
 use Modules\Wallet\Models\WalletLot;
 use Modules\Wallet\Services\KYCService;
 use Modules\Wallet\Services\WalletLockService;
@@ -19,19 +17,9 @@ class WalletController extends Controller
         protected WalletService  $walletService,
         public KYCService        $kycService,
         public WalletLockService $lockService,
-        public GiftCardService $giftCardService,
+        public GiftCardService   $giftCardService,
     )
     {
-    }
-
-    public function index()
-    {
-        return Inertia::render('wallet/Index', []);
-    }
-
-    public function walletStatement()
-    {
-        return Inertia::render('wallet/statement', []);
     }
 
     /**
@@ -44,8 +32,8 @@ class WalletController extends Controller
 
             // Check if wallet is locked
             if ($this->lockService->isWalletFrozen($user->id)) {
-                return self::error(
-                    'Wallet is temporarily locked. Please contact support.',
+                return self::errorCustom(
+                    trans('plugins/wallet::wallet.wallet_is_temporarily_locked_please_contact_support'),
                     403,
                     [],
                     ['is_locked' => true]
@@ -54,11 +42,11 @@ class WalletController extends Controller
 
             $wallet = $this->walletService->getUserWallet($user);
 
-            return self::success($wallet);
+            return self::successCustom($wallet);
 
         } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 422);
+            return self::errorCustom($e->getMessage(), 422);
         }
     }
 
@@ -77,11 +65,11 @@ class WalletController extends Controller
                 ->orderBy('expires_at', 'asc')
                 ->paginate($perPage);
 
-            return self::success($lots);
+            return self::successCustom($lots);
 
         } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 422);
+            return self::errorCustom($e->getMessage(), 422);
         }
     }
 
@@ -94,11 +82,11 @@ class WalletController extends Controller
 
             $transactions = $this->walletService->getUserTransactions($user, $filters, $perPage);
 
-            return self::success($transactions);
+            return self::successCustom($transactions);
 
         } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 422);
+            return self::errorCustom($e->getMessage(), 422);
         }
     }
 
@@ -111,11 +99,11 @@ class WalletController extends Controller
 
             $expireTransaction = $this->walletService->getExpiringLots($user);
 
-            return self::success($expireTransaction);
+            return self::successCustom($expireTransaction);
 
         } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 422);
+            return self::errorCustom($e->getMessage(), 422);
         }
 
     }
@@ -124,10 +112,10 @@ class WalletController extends Controller
         try {
             $user = auth()->user();
             $walletSummary = $this->walletService->getWalletSummary($user);
-            return self::success($walletSummary);
+            return self::successCustom($walletSummary);
         } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 422);
+            return self::errorCustom($e->getMessage(), 422);
         }
     }
 
@@ -136,10 +124,10 @@ class WalletController extends Controller
         try {
             $user = auth()->user();
             $walletSummary = $this->walletService->getAvailableBalanceWithLots($user);
-            return self::success($walletSummary);
+            return self::successCustom($walletSummary);
         } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 422);
+            return self::errorCustom($e->getMessage(), 422);
         }
     }
 
@@ -152,11 +140,11 @@ class WalletController extends Controller
             $user = auth()->user();
             $overview = $this->walletService->getWalletOverview($user);
 
-            return self::success($overview);
+            return self::successCustom($overview);
 
         } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 422);
+            return self::errorCustom($e->getMessage(), 422);
         }
     }
 
@@ -181,11 +169,11 @@ class WalletController extends Controller
                 'spending_trend' => $wallet->monthly_spending_trend,
             ];
 
-            return self::success($stats);
+            return self::successCustom($stats);
 
         } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 422);
+            return self::errorCustom($e->getMessage(), 422);
         }
     }
 
@@ -202,7 +190,7 @@ class WalletController extends Controller
             $amount = $request->input('amount', 0);
             $orderId = $request->input('order_id');
 
-            if ($amount <= 0) return self::error('Invalid amount', 400);
+            if ($amount <= 0) return self::errorCustom(trans('plugins/wallet::wallet.invalid_amount'), 400);
 
             // Check KYC requirements
 //            $this->kycService->blockIfKycRequired($user, $amount);
@@ -214,51 +202,10 @@ class WalletController extends Controller
                 'description' => $request->get('description', 'Purchase')
             ]);
 
-            return self::success($result, 'Payment processed successfully');
+            return self::successCustom($result, trans('plugins/wallet::wallet.payment_processed_successfully'));
         } catch (\Exception $e) {
             Log::error($e);
-            return self::error($e->getMessage(), 422);
-        }
-    }
-
-    /**
-     * Split payment (wallet + card)
-     */
-    public function processSplitPayment(Request $request)
-    {
-        try {
-            $user = auth()->user();
-            $totalAmount = $request->input('total_amount', 0);
-            $walletAmount = $request->input('wallet_amount', 0);
-            $cardAmount = $request->input('card_amount', 0);
-            $orderId = $request->input('order_id');
-
-            if ($walletAmount > 0) {
-                // Check KYC requirements for wallet portion
-//                $this->kycService->blockIfKycRequired($user, $walletAmount);
-
-                // Deduct from wallet
-                $walletResult = $this->walletService->deductFromWallet($user, $walletAmount, [
-                    'type' => 'purchase',
-                    'ref_type' => 'order',
-                    'ref_id' => $orderId,
-                    'description' => 'Wallet portion of split payment'
-                ]);
-            }
-            // Process card payment here
-            // $cardResult = $this->processCardPayment($user, $cardAmount, $request->all());
-
-            $paymentResult = [
-                'wallet_deduction' => $walletResult ?? null,
-                'card_payment' => null,
-                'total_amount' => $totalAmount,
-                'wallet_amount' => $walletAmount,
-                'card_amount' => $cardAmount,
-            ];
-            return self::success($paymentResult, 'Split payment processed successfully');
-        } catch (\Exception $e) {
-            Log::error($e);
-            return self::error($e->getMessage(), 422);
+            return self::errorCustom($e->getMessage(), 422);
         }
     }
 
@@ -270,12 +217,12 @@ class WalletController extends Controller
             $user = auth()->user();
             $result = $this->giftCardService->redeemGiftCard($user, $request->code, $request->otp);
 
-            return self::success($result, 'Gift Card Redeemed successfully!');
+            return self::successCustom($result, trans('plugins/wallet::wallet.gift_card_redeemed_successfully'));
         } catch (\Exception $e) {
             Log::error($e);
             if ($e->getMessage() === 'OTP_REQUIRED') {
-                return self::error(
-                    'OTP verification required', 422, [],
+                return self::errorCustom(
+                    'plugins/wallet::wallet.otp_verification_required', 422, [],
                     [
                         'otp_sent' => true,
                         'message' => 'OTP has been sent to your registered email/phone',
@@ -283,7 +230,51 @@ class WalletController extends Controller
                     ]
                 );
             }
-            return self::error($e->getMessage(), 422);
+            return self::errorCustom($e->getMessage(), 422);
         }
+    }
+
+    public function releaseFrozenWalletByOrder(Request $request)
+    {
+        try {
+            $request->validate(['order_id' => 'required|string']);
+
+            $user = auth()->user();
+            $result = app(SplitPaymentPGatewayFirstService::class)->releaseFrozenAmountByOrder($user, $request->order_id);
+            return self::successCustom($result, trans('plugins/wallet::wallet.gift_card_redeemed_successfully'));
+        }catch (\Exception $e) {
+            Log::error($e);
+            return self::errorCustom($e->getMessage(), 422);
+        }
+    }
+    public function exportTransactions(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            $filters = $request->only(['period', 'search_input', 'payment_type', 'pay_method', 'from', 'to', 'min', 'max']);
+            if(empty($filters)){
+                $filters = ['period' => 'current_month'];
+            }
+
+            $transactions = $this->walletService->exportTransactions($user, $filters);
+
+//            return $transactions;
+            return self::successCustom($transactions);
+
+        } catch (\Exception $e) {
+            Log::error($e);
+            return self::errorCustom($e->getMessage(), 422);
+        }
+    }
+    public function walletPostCheckout(
+        string                       $token,
+        CheckoutRequest              $request,
+        HandleShippingFeeService     $shippingFeeService,
+        HandleApplyCouponService     $applyCouponService,
+        HandleRemoveCouponService    $removeCouponService,
+        HandleApplyPromotionsService $handleApplyPromotionsService
+    )
+    {
+
     }
 }

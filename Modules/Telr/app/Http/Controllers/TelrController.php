@@ -3,12 +3,15 @@
 namespace Modules\Telr\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Sma\Order\Payment;
+use App\Models\Sma\People\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
+use Modules\Wallet\Services\WalletService;
 use function Termwind\render;
 
 class TelrController extends Controller
@@ -199,6 +202,29 @@ class TelrController extends Controller
         }
 
         if ($ordStatus == 2) {
+
+            $customerId = auth()->user();
+            $payment = Payment::query()->find($paymentId);
+            $customer = Customer::query()->find($customerId);
+            try {
+                $walletData = app(WalletService::class)->addToWallet(
+                    $customer,
+                    (float) $amount,                     // amount
+                    WalletLot::SOURCE_CREDIT_CARD,               // source
+                    (float) $amount,                     // baseValue
+                    0.0,                                         // bonusValue
+                    WalletTransaction::STATUS_COMPLETED,           // wTStatus
+                    WalletLot::STATUS_ACTIVE,                    // wLStatus
+                    [
+                        'ref_type' => Payment::class,
+                        'ref_id' => $paymentId,
+                    ],
+                    null,                                        // validityDays
+                    strtoupper(get_application_currency()->title) // currency
+                );
+            }catch (\Exception $e){
+                Log::info("Wallet Payment Error: ".$e);
+            }
             return Inertia::render('telr/payment-success', [
                 'message' => 'Transaction authorized successfully',
                 'reference' => $newTx,
@@ -331,7 +357,7 @@ class TelrController extends Controller
     public function destroy($id) {}
 
 
-    public function success(
+    public function successs(
         Request $request,
         TelrPaymentService $telrPaymentService,
         SplitPaymentPGatewayFirstService $splitPaymentPGatewayFirstService,
@@ -367,7 +393,7 @@ class TelrController extends Controller
         }
     }
 
-    public function error(Request $data,BaseHttpResponse $response)
+    public function errors(Request $data,BaseHttpResponse $response)
     {
 
         $token = OrderHelper::getOrderSessionToken();

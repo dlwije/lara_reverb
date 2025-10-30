@@ -24,7 +24,7 @@ const sidebarNavItems: NavItem[] = [
     },
     {
         title: 'Wallet',
-        href: '/wallets',
+        href: '/wallet',
         icon: null,
     }
 ];

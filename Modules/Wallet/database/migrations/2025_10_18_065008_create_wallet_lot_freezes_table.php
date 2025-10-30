@@ -10,7 +10,7 @@ return new class () extends Migration {
         Schema::create('wallet_lot_freezes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('wallet_lot_id')->constrained()->onDelete('cascade');
-            $table->foreignId('user_id')->constrained('ec_customers')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('order_id')->nullable();
             $table->foreignId('payment_id')->nullable();
             $table->decimal('amount', 12, 2);

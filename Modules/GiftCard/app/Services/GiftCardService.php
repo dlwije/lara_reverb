@@ -12,6 +12,7 @@ use Modules\Wallet\Models\Wallet;
 use Modules\Wallet\Models\WalletLot;
 use Modules\Wallet\Models\WalletTransaction;
 use Modules\Wallet\Services\KYCService;
+use Modules\Wallet\Services\NotificationService;
 use Modules\Wallet\Services\WalletService;
 
 class GiftCardService

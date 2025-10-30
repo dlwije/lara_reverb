@@ -9,7 +9,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('wallet/add-card', [WalletController::class, 'addCard'])->name('wallet.addCard');
 
     Route::prefix('wallet')->name('wallet.')->group(function () {
-        Route::get('/', [WalletController::class, 'getWallet'])->name('getWallet');
+        Route::get('/', [WalletController::class, 'index'])->name('wallet');
+        Route::get('/get-wallet', [WalletController::class, 'getWallet'])->name('getWallet');
         Route::get('/balance-with-lots', [WalletController::class, 'getAvailableBalanceWithLots'])->name('balanceWithLots');
         Route::get('/summary', [WalletController::class, 'getWalletSummary'])->name('summary');
         Route::get('/lots', [WalletController::class, 'getLots'])->name('lots');
