@@ -1,16 +1,10 @@
 <?php
 
-namespace Botble\Wallet\Services;
+namespace Modules\Wallet\Services;
 
-use Botble\Ecommerce\Models\Currency;
-use Botble\Ecommerce\Models\Customer;
-use Botble\Ecommerce\Models\Order;
-use Botble\Payment\Enums\PaymentStatusEnum;
-use Botble\Payment\Repositories\Interfaces\PaymentInterface;
-use Botble\Wallet\Models\Wallet;
-use Botble\Wallet\Models\WalletLot;
-use Botble\Wallet\Models\WalletLotFreeze;
-use Botble\Wallet\Models\WalletTransaction;
+use App\Models\Sma\Order\Payment;
+use App\Models\Sma\People\Customer;
+use App\Services\ControllerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +15,8 @@ class SplitPaymentPGatewayFirstService
 {
     public function __construct(
         public WalletService $walletService,
-        public WalletCheckoutPaymentService $walletCheckoutPaymentService,
+//        public WalletCheckoutPaymentService $walletCheckoutPaymentService,
+        public ControllerService $controllerService,
     ){}
 
 
@@ -57,7 +52,7 @@ class SplitPaymentPGatewayFirstService
                 'error' => false,
                 'message' => 'Purchase deduction successful',
                 'amount' => $totalAmount,
-                'currency' => strtoupper(get_application_currency()->title),
+                'currency' => strtoupper($this->controllerService->getDefaultValues()['default_currency']),
 //                'type' => $request->input('payment_method'),
 //                'charge_id' => null,
                 'is_api' => true,
@@ -89,7 +84,7 @@ class SplitPaymentPGatewayFirstService
                         $walletTransaction = $freezeResult['transaction'];
                         $frozenLots = $freezeResult['frozen_lots'];
 
-                        $paymentIntent = $this->createPayment($user, $walletApplied,$totalAmount, $orderId, $useWallet, $paymentData, $walletTransaction ? $walletTransaction->id : null,$frozenLots);
+                        $paymentIntent = $this->createWalletPayment($user, $walletApplied,$totalAmount, $orderId, $useWallet, $paymentData, $walletTransaction ? $walletTransaction->id : null,$frozenLots);
                         $paymentData['payment_id'] = $paymentIntent->id; // ✅ attach payment id here
                         $paymentData['charge_id'] = $paymentIntent->charge_id; // ✅ attach charge id here
 
@@ -238,7 +233,7 @@ class SplitPaymentPGatewayFirstService
                         'ref_id' => $gift_card->id,
                     ],
                     null,                                        // validityDays
-                    strtoupper(get_application_currency()->title) // currency
+                    strtoupper($this->controllerService->getDefaultValues()['default_currency']) // currency
                 );
             }
         }
@@ -296,12 +291,12 @@ class SplitPaymentPGatewayFirstService
 
         return $chargeId;
     }
-    private function createPayment($user, $wallet_amount_applied,$totalAmount, $orderId, $useWallet, $paymentData, $wal_trans_id, $frozenLots = []){
+    public function createWalletPayment($user, $wallet_amount_applied,$totalAmount, $orderId, $useWallet, $paymentData, $wal_trans_id, $frozenLots = []){
 
-        $paymentIntent = app(PaymentInterface::class)->create([
+        return Payment::create([
             'amount' => $totalAmount,
             'wallet_applied' => $wallet_amount_applied,
-            'currency' => strtoupper(get_application_currency()->title),
+            'currency' => strtoupper($this->controllerService->getDefaultValues()['default_currency']),
             'charge_id' => $this->getChargeId($wal_trans_id),
             'order_id' => Arr::first($orderId),
             'customer_id' => Arr::get($paymentData, 'customer_id') ? $paymentData['customer_id'] : $user->id,
@@ -312,26 +307,34 @@ class SplitPaymentPGatewayFirstService
             'wallet_transaction_id' => $wal_trans_id,
             'status' => PaymentStatusEnum::PENDING,
         ]);
+    }
 
-//        Log::info('PaymentIntent created successfully');
+    public function createWalletTopUpPayment($paymentData){
 
-        if ($paymentIntent && isset($paymentIntent->id)) {
-            Order::whereIn('id', (array) $orderId)->update([
-                'payment_id' => $paymentIntent->id,
-                'updated_at' => now(),
-            ]);
+        $totalAmount = $paymentData['amount'];
+        $orderId = $paymentData['order_id'];
+        $wal_trans_id = $paymentData['trans_id'];
 
-//            Log::info('Order payment_id updated successfully', [
-//                'order_ids' => $orderId,
-//                'payment_id' => $paymentIntent->id,
-//            ]);
-        } else {
-            Log::warning('PaymentIntent not created properly, order payment_id not updated', [
-                'order_ids' => $orderId,
-                'paymentIntent' => $paymentIntent,
-            ]);
-        }
-        return $paymentIntent;
+        return Payment::create([
+            'amount' => $totalAmount,
+            'wallet_applied' => 0,
+            'date' => date('Y-m-d'),
+            'method' => TELR_PAYMENT_METHOD_NAME,
+            'reference' => 'PAY-0'.$wal_trans_id,
+            'payment_for' => 'customer',
+            'currency' => strtoupper($this->controllerService->getDefaultValues()['default_currency']),
+            'charge_id' => Arr::get($paymentData, 'charge_id') ? $paymentData['charge_id'] : $this->getChargeId($wal_trans_id),
+//            'order_id' => Arr::first($orderId) ?? null,
+            'user_id' => Arr::get($paymentData, 'customer_id') ? $paymentData['customer_id'] : auth()->user()->id,
+            'customer_id' => Arr::get($paymentData, 'customer_id') ? $paymentData['customer_id'] : auth()->user()->id,
+//            'customer_type' => Arr::get($paymentData, 'customer_type') ? $paymentData['customer_type'] : Customer::class,
+            'payment_channel' => Arr::get($paymentData, 'payment_channel'),
+            'use_wallet' => 0,
+            'wallet_lot_allocation' => null,
+            'wallet_transaction_id' => $wal_trans_id,
+            'status' => PaymentStatusEnum::COMPLETED,
+            'company_id' => 1,
+        ]);
     }
 
     public function deductReleaseWalletFreeze($user, $walletApplied, $actualOrderId, $walletTransaction, $gatewayAmount = 0.00):void
@@ -563,7 +566,7 @@ class SplitPaymentPGatewayFirstService
             return $data;
         }
 
-        $currentCurrency = $data['currency'] ? Currency::where('title', $data['currency'])->first() : get_application_currency();
+        $currentCurrency = $data['currency'] ? Currency::where('title', $data['currency'])->first() : $this->controllerService->getDefaultValues()['default_currency'];
 
         $currencyModel = $currentCurrency->replicate();
 

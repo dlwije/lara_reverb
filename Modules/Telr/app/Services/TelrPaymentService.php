@@ -1,21 +1,34 @@
 <?php
 
-namespace Botble\Wallet\Services;
+namespace Modules\Telr\Services;
 
-
-use Botble\Payment\Enums\PaymentStatusEnum;
-use Botble\Wallet\Services\Abstracts\WalletCheckoutPaymentAbstract;
+use App\Models\Sma\Order\Payment;
+use App\Models\Sma\People\Customer;
+use App\Models\User;
+use App\Services\ControllerService;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Modules\Telr\Services\Abstracts\TelrPaymentAbstract;
+use Modules\Wallet\Models\WalletLot;
+use Modules\Wallet\Models\WalletTransaction;
+use Modules\Wallet\Services\PaymentStatusEnum;
+use Modules\Wallet\Services\SplitPaymentPGatewayFirstService;
+use Modules\Wallet\Services\WalletService;
 
-class WalletCheckoutPaymentService extends WalletCheckoutPaymentAbstract
+class TelrPaymentService extends TelrPaymentAbstract
 {
+    function __construct(public SplitPaymentPGatewayFirstService $splitPaymentPGatewayFirstService, public ControllerService $controllerService)
+    {
+        parent::__construct();
+    }
+
     public function makePayment(array $data)
     {
-        Log::info('MakePayment - WalletCheckoutPaymentService.php');
         $request = request();
         $isMobile = (bool) $request->is_mobile;
-        $domain = str_ireplace('www.', '', parse_url(get_frontend_url(), PHP_URL_HOST));
+        $domain = str_ireplace('www.', '', parse_url($this->controllerService->get_frontend_url(), PHP_URL_HOST));
         $this->amount = round((float)$data['amount'], $this->isSupportedDecimals() ? 2 : 0);
         $this->currency = strtoupper($data['currency']);
         $this->cart_id = uniqid();
@@ -57,15 +70,7 @@ class WalletCheckoutPaymentService extends WalletCheckoutPaymentAbstract
             'isApp' => ($isMobile ? '1' : '0'),
         ];
 
-        Log::info('WalletCheckoutPayment $queryParams: ' , $queryParams);
-        Log::info('WalletCheckoutPayment $thisData: ' , [
-            'this->amount'=> $this->amount,
-            'this->currency'=> $this->currency,
-            'this->cart_id'=> $this->cart_id,
-            'this->description'=> $this->description,
-            'this->checkout_token'=> $this->checkout_token,
-            'this->paymethod'=> $this->paymethod,
-        ]);
+//        Log::info('TelrPaymentService instance: ' . print_r($this, true));
 
         $errorQueryParam = ['isApp' => ($isMobile ? '1' : '0')];
         if($isMobile) { $errorQueryParam['tracked_start_checkout'] = $this->checkout_token; }
@@ -74,26 +79,56 @@ class WalletCheckoutPaymentService extends WalletCheckoutPaymentAbstract
 
     public function afterMakePayment(array $data): string|null
     {
-        $request = request();
         $status = PaymentStatusEnum::COMPLETED;
 
-        Log::info('AfterMAkePayment on WalletCheckoutPaymentService: $data', $data);
-
         //$chargeId = session('telr_payment_id');
-        $chargeId = trim($request->get('OrderRef'));
+        $chargeId = $data['charge_id'];
+        $currency = $data['currency'] ?: $this->controllerService->getDefaultValues()['default_currency'];
 
         $orderIds = (array)Arr::get($data, 'order_id', []);
+        $actualOrderId = is_array($orderIds) ? Arr::first($orderIds) : $orderIds;
 
-        app(WalletCheckoutService::class)->paymentActionPaymentProcessed([
-            'amount' => $data['amount'],
-            'currency' => $data['currency'],
-            'charge_id' => $chargeId,
-            'order_id' => $orderIds,
-            'customer_id' => Arr::get($data, 'customer_id'),
-            'customer_type' => Arr::get($data, 'customer_type'),
-            'payment_channel' => TELR_PAYMENT_METHOD_NAME,
-            'status' => $status,
-        ]);
+        $gatewayAmount = (float) Arr::get($data, 'amount', 0);
+
+        $customer_id = (int) Arr::get($data, 'customer_id', null);
+        $customer = User::query()->find($customer_id);
+
+        DB::beginTransaction();
+        try {
+
+            $walletData = app(WalletService::class)->addToWallet(
+                $customer,
+                (float) $gatewayAmount,                     // amount
+                WalletLot::SOURCE_CREDIT_CARD,               // source
+                (float) $gatewayAmount,                     // baseValue
+                0.0,                                         // bonusValue
+                WalletTransaction::STATUS_COMPLETED,           // wTStatus
+                WalletLot::STATUS_ACTIVE,                    // wLStatus
+                [
+                    'ref_type' => User::class,
+                    'ref_id' => $customer_id,
+                ],
+                null,                                        // validityDays
+                $currency,//strtoupper(get_application_currency()->title) // currency
+            );
+
+
+            $paymentData['trans_id'] = $walletData['transaction']->id;
+            $paymentData['charge_id'] = $data['charge_id']; // ✅ attach charge id here
+            $paymentData['customer_id'] = $customer_id;
+            $paymentData['amount'] = $gatewayAmount;
+            $paymentData['order_id'] = $actualOrderId;
+            $paymentData['currency'] = $currency;
+            $paymentData['payment_channel'] = $data['payment_channel'];
+
+            $this->splitPaymentPGatewayFirstService->createWalletTopUpPayment($paymentData);
+
+            DB::commit();
+        }catch (\Exception $e){
+            DB::rollBack();
+            Log::info("Wallet Payment Error: ".$e);
+            throw new \Exception("Wallet Payment Error: ".$e->getMessage());
+        }
 
         session()->forget('telr_payment_id');
 
@@ -112,7 +147,7 @@ class WalletCheckoutPaymentService extends WalletCheckoutPaymentAbstract
             'site_url' => $domain,
         ]);
         $this->paymethod = (!empty($request->telr_payment_type) ? trim($request->telr_payment_type) : '');
-
+        $firstPaymentDate = Carbon::now()->addDay();
         $params = [];
         if($data['payment_term'] > 0) {
             $params['repeat'] = [
@@ -122,7 +157,8 @@ class WalletCheckoutPaymentService extends WalletCheckoutPaymentAbstract
                 'period' => 'M',
                 'term' => 0,
                 'final' => 0,
-                'start' => 'next'
+//                'start' => 'next'
+                'start' => $firstPaymentDate->format('dmY'), // DDMMYYYY
             ];
         } else {
             $params['subscription_payment'] = true;
@@ -251,7 +287,7 @@ class WalletCheckoutPaymentService extends WalletCheckoutPaymentAbstract
     }
     public function afterWalletTopUpPayment(array $data): string|null
     {
-        Log::info('After Payment Successfull WalletCheckoutPaymentService');
+        Log::info('After Payment Successfull Wallet');
         $request = request();
         $status = PaymentStatusEnum::COMPLETED;
 

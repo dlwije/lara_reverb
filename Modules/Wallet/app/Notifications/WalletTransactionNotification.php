@@ -1,8 +1,8 @@
 <?php
 
-namespace Botble\Wallet\Events;
+namespace Modules\Wallet\Notifications;
 
-use Botble\Wallet\Models\WalletTransaction;
+
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -11,6 +11,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Modules\Wallet\Models\WalletTransaction;
 
 class WalletTransactionNotification extends Notification
 {

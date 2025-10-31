@@ -1,21 +1,26 @@
 <?php
 
-namespace Botble\Wallet\Services;
+namespace Modules\Wallet\Services;
 
-
-use Botble\Payment\Enums\PaymentStatusEnum;
-use Botble\Wallet\Services\Abstracts\WalletCheckoutPaymentAbstract;
+use App\Services\ControllerService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
+use Modules\Telr\Services\Abstracts\TelrPaymentAbstract;
+use Modules\Wallet\Services\Abstracts\WalletCheckoutPaymentAbstract;
 
-class WalletCheckoutPaymentService extends WalletCheckoutPaymentAbstract
+class WalletCheckoutPaymentService extends TelrPaymentAbstract
 {
+    function __construct(public SplitPaymentPGatewayFirstService $splitPaymentPGatewayFirstService, public ControllerService $controllerService)
+    {
+        parent::__construct();
+    }
+
     public function makePayment(array $data)
     {
         Log::info('MakePayment - WalletCheckoutPaymentService.php');
         $request = request();
         $isMobile = (bool) $request->is_mobile;
-        $domain = str_ireplace('www.', '', parse_url(get_frontend_url(), PHP_URL_HOST));
+        $domain = str_ireplace('www.', '', parse_url($this->controllerService->get_frontend_url(), PHP_URL_HOST));
         $this->amount = round((float)$data['amount'], $this->isSupportedDecimals() ? 2 : 0);
         $this->currency = strtoupper($data['currency']);
         $this->cart_id = uniqid();

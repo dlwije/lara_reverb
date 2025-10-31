@@ -1,12 +1,11 @@
 <?php
 
-namespace Botble\Wallet\Services\Abstracts;
+namespace Modules\Wallet\Services\Abstracts;
 
-use Botble\Location\Models\Country;
-use Botble\Payment\Services\Traits\PaymentErrorTrait;
 use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
+use Modules\Wallet\Traits\PaymentErrorTrait;
 
 abstract class WalletCheckoutPaymentAbstract
 {
@@ -84,9 +83,9 @@ abstract class WalletCheckoutPaymentAbstract
      */
     public function environment()
     {
-        $this->storeId = setting('payment_telr_store_id', '<<TELR-STORE-ID>>');
-        $this->apiKey = setting('payment_telr_api_key', '<<TELR-API-KEY>>');
-        $telrMode = setting('payment_telr_mode', false);
+        $this->storeId = env('payment_telr_store_id', '<<TELR-STORE-ID>>');
+        $this->apiKey = env('payment_telr_api_key', '<<TELR-API-KEY>>');
+        $telrMode = env('payment_telr_mode', false);
         $this->telrMode = ($telrMode ? 0 : 1);
         $this->trantype = 'sale';
         $this->tranclass = 'cont';

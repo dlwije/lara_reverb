@@ -3,6 +3,18 @@
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
+if (! defined('WALLET_PAYMENT_METHOD_NAME')) {
+    define('WALLET_PAYMENT_METHOD_NAME', 'wallet');
+}
+
+if (! defined('BASE_FILTER_ENUM_HTML')) {
+    define('BASE_FILTER_ENUM_HTML', 'base_filter_enum_html');
+}
+
+if (! defined('TELR_PAYMENT_METHOD_NAME')) {
+    define('TELR_PAYMENT_METHOD_NAME', 'telr');
+}
+
 if(! function_exists('get_module')) {
     function get_module($module_name = null) {
         $modules = cache()->rememberForever('sma_modules', function () {

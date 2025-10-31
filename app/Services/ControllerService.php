@@ -61,6 +61,11 @@ class ControllerService
         $this->dateFormats         = $dateFormats;
     }
 
+    public function get_frontend_url()
+    {
+        return env('WALLET_PAYMENT_FRONTEND_URL', url(''));
+    }
+
     public function salt(){
         return substr(md5(uniqid(rand(), true)), 0, $this->salt_length);
     }
@@ -82,6 +87,7 @@ class ControllerService
             'cashier_role_id' => 9,
             'parts_manager_role_id' => 10,
             'technician_role_id' => 11,
+            'default_currency' => 'AED'
         );
     }
 
@@ -1170,5 +1176,19 @@ class ControllerService
         }catch (\Exception $e){
             Log::error("notifyTechnicianError:".$e->getMessage());
         }
+    }
+
+    public function test()
+    {
+        if ($class == PaymentMethodEnum::class && $value == TELR_PAYMENT_METHOD_NAME) {
+            $value = Html::tag(
+                'span',
+                PaymentMethodEnum::getLabel($value),
+                ['class' => 'label-success status-label']
+            )
+                ->toHtml();
+        }
+
+        return $value;
     }
 }

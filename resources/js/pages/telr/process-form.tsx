@@ -134,7 +134,7 @@ const TelrPayment = ({ redirect_data }) => {
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-            const response = await fetch('telr/process-payment', {
+            const response = await fetch('process-payment', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

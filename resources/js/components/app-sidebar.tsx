@@ -109,7 +109,7 @@ const data:NavItems = {
             items: [
                 {
                     title: "Form",
-                    url: "telr.index",
+                    url: "telr.paymentPage",
                 }
             ],
         },

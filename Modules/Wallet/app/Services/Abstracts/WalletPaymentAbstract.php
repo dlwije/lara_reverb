@@ -1,30 +1,14 @@
 <?php
 
-namespace Botble\Wallet\Services\Abstracts;
+namespace Module\Wallet\Services\Abstracts;
 
-use Botble\Payment\Services\Traits\PaymentErrorTrait;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Config;
-use Botble\Payment\Supports\PaymentHelper;
-use \AlazziAz\Tamara\Facades\Tamara;
-use AlazziAz\Tamara\Tamara\Configuration;
-use \AlazziAz\Tamara\Tamara\Model\Order\MerchantUrl;
-use AlazziAz\Tamara\Tamara\Notification\NotificationService;
-use \AlazziAz\Tamara\Tamara\Model\Order\OrderItemCollection;
-use \AlazziAz\Tamara\Tamara\Model\Order\Order;
-use \AlazziAz\Tamara\Tamara\Model\Order\OrderItem;
-use AlazziAz\Tamara\Tamara\Request\Checkout\CreateCheckoutRequest;
-use \AlazziAz\Tamara\Tamara\Model\Order\Consumer;
-use AlazziAz\Tamara\Tamara\Model\Money;
-use AlazziAz\Tamara\Tamara\Model\Order\Address;
-use AlazziAz\Tamara\Tamara\Model\Order\Discount;
-
-use AlazziAz\Tamara\Tamara\Request\Order\AuthoriseOrderRequest;
-use AlazziAz\Tamara\Tamara\Request\Order\GetOrderRequest;
 use Illuminate\Support\Facades\Log;
+use Modules\Wallet\Traits\PaymentErrorTrait;
 
 abstract class WalletPaymentAbstract
 {
@@ -35,33 +19,33 @@ abstract class WalletPaymentAbstract
     protected string $currency;
 
     protected string $chargeId;
-    
+
     protected $trantype;
-    
+
     protected $transport = null;
-    
+
     protected $request_timeout = 10;
-    
+
     protected $apiToken;
-    
+
     protected $publicKey;
-    
+
     protected $notificationToken;
-    
+
     protected $liveMode;
-    
+
     protected $description;
-    
+
     protected $cart_id;
-    
+
     protected $checkout_token = null;
-    
+
     protected $merchantUrl;
-    
+
     protected string $returnUrl = '';
 
     protected string $cancelUrl = '';
-    
+
     protected string $notificationUrl = '';
 
     protected bool $supportRefundOnline = false;
@@ -116,11 +100,11 @@ abstract class WalletPaymentAbstract
     }
 
 
-    
+
     public function createPayment(array $data) {
         LOG::info('create payment wallet payment abstract');
         $this->environment();
-        
+
         $orderCurrency = $this->currency;
         $order = new Order();
         $order->setMerchantUrl($this->merchantUrl);
@@ -140,7 +124,7 @@ abstract class WalletPaymentAbstract
         $order->setPaymentType($data['payment_type']);
         $order->setInstalments(3);
         $order->setDescription($this->description);
-        
+
         // second set Consumer data
         $consumer = new Consumer();
         if(isset($data['general'])) {
@@ -150,7 +134,7 @@ abstract class WalletPaymentAbstract
             $consumer->setPhoneNumber($data['general']['phone']);
         }
         $order->setConsumer($consumer);
-        
+
         $orderItemCollection = new OrderItemCollection();
         if(isset($data['products'])) {
             foreach($data['products'] as $si_product) {
@@ -168,10 +152,10 @@ abstract class WalletPaymentAbstract
                 if (!empty($imageUrl)) {
                     $orderItem->setImageUrl($imageUrl);
                 }
-                
+
                 $orderItemCollection->append($orderItem);
             }
-            
+
         } else if(isset($data['giftcard_id'])) {
             $orderItem = new OrderItem();
             $orderItem->setName('Gift Card');
@@ -185,9 +169,9 @@ abstract class WalletPaymentAbstract
             $orderItem->setDiscountAmount(new Money(0, $orderCurrency));
             $orderItemCollection->append($orderItem);
         }
-        // sixth set items collection to order 
+        // sixth set items collection to order
         $order->setItems($orderItemCollection);
-        
+
         if(isset($data['shipping'])) {
             $tarr = $data['shipping'];
             // third sett Shipping Address
@@ -195,7 +179,7 @@ abstract class WalletPaymentAbstract
             $address->setFirstName($tarr['first_name']);
             $address->setLastName($tarr['last_name']);
             if(isset($tarr['address_1']) || isset($tarr['city']) || isset($tarr['region']) || isset($tarr['zip']) || isset($tarr['country'])) {
-                
+
                 if(isset($tarr['address_1'])) { $address->setLine1($tarr['address_1']); }
                 if(isset($tarr['address_2'])) { $address->setLine2($tarr['address_2']); }
                 if(isset($tarr['city'])) { $address->setCity($tarr['city']); }
@@ -206,7 +190,7 @@ abstract class WalletPaymentAbstract
             }
             $order->setShippingAddress($address);
         }
-        
+
         if(isset($data['billing'])) {
             $tarr = $data['billing'];
             // third sett Billing Address
@@ -214,7 +198,7 @@ abstract class WalletPaymentAbstract
             $address->setFirstName($tarr['first_name']);
             $address->setLastName($tarr['last_name']);
             if(isset($tarr['address_1']) || isset($tarr['city']) || isset($tarr['region']) || isset($tarr['zip']) || isset($tarr['country'])) {
-                
+
                 if(isset($tarr['address_1'])) { $address->setLine1($tarr['address_1']); }
                 if(isset($tarr['address_2'])) { $address->setLine2($tarr['address_2']); }
                 if(isset($tarr['city'])) { $address->setCity($tarr['city']); }
@@ -225,26 +209,26 @@ abstract class WalletPaymentAbstract
             }
             $order->setBillingAddress($address);
         }
-        
+
         $sessionName = 'wallet_payment_id';
 
-        
+
         $request = new CreateCheckoutRequest($order);
         $response = $this->client->createCheckout($request);
         if($response->isSuccess()) {
             $checkoutURL = $response->getCheckoutResponse()->getCheckoutUrl();
             $checkoutOrderId = $response->getCheckoutResponse()->getOrderId();
             $checkoutCheckoutId = $response->getCheckoutResponse()->getCheckoutId();
-            
+
             session([$sessionName => $checkoutOrderId]);
-            return ['order_ref' => $checkoutOrderId, 'url' => $checkoutURL];                        
+            return ['order_ref' => $checkoutOrderId, 'url' => $checkoutURL];
         } else {
             $errorMessage = trim($response->getMessage());
-            
+
             session()->forget($sessionName);
             $message = (strlen($errorMessage) > 0 ? $errorMessage : 'Unexpected');
             $this->setErrorMessage(trans($message));
-            return null;                        
+            return null;
         }
     }
 
@@ -258,7 +242,7 @@ abstract class WalletPaymentAbstract
             return false;
         }
     }
-    
+
 
 
     public function getPaymentDetails(string $paymentId): bool|array|object
@@ -269,7 +253,7 @@ abstract class WalletPaymentAbstract
             $authedResponse = $this->client->authoriseOrder($authOrder);
             $orderStatus = trim($authedResponse->getOrderStatus());
             $aprrovedArrays = ['authorised', 'approved', 'captured', 'fully_captured'];
-            if(in_array($orderStatus, $aprrovedArrays)) { 
+            if(in_array($orderStatus, $aprrovedArrays)) {
                 return true;
             } else {
                 $this->setErrorMessage($authedResponse->getMessage());

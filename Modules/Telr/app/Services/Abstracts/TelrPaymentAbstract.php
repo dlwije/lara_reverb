@@ -1,14 +1,18 @@
 <?php
 
-namespace Botble\Wallet\Services\Abstracts;
+namespace Modules\Telr\Services\Abstracts;
 
-use Botble\Location\Models\Country;
-use Botble\Payment\Services\Traits\PaymentErrorTrait;
+use AllowDynamicProperties;
 use Exception;
+use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
+use Modules\Wallet\Traits\PaymentErrorTrait;
 
-abstract class WalletCheckoutPaymentAbstract
+#[AllowDynamicProperties]
+abstract class TelrPaymentAbstract
 {
     use PaymentErrorTrait;
 
@@ -44,7 +48,7 @@ abstract class WalletCheckoutPaymentAbstract
 
     public function __construct()
     {
-        $this->paymentCurrency = config('plugins.payment.payment.currency');
+        $this->paymentCurrency = 'AED';
 
         $this->totalAmount = 0;
 
@@ -84,9 +88,9 @@ abstract class WalletCheckoutPaymentAbstract
      */
     public function environment()
     {
-        $this->storeId = setting('payment_telr_store_id', '<<TELR-STORE-ID>>');
-        $this->apiKey = setting('payment_telr_api_key', '<<TELR-API-KEY>>');
-        $telrMode = setting('payment_telr_mode', false);
+        $this->storeId = env('TELR_STORE_ID', '<<TELR-STORE-ID>>');
+        $this->apiKey = env('TELR_AUTH_KEY', '<<TELR-API-KEY>>');
+        $telrMode = env('TELR_MODE', false);
         $this->telrMode = ($telrMode ? 0 : 1);
         $this->trantype = 'sale';
         $this->tranclass = 'cont';
@@ -157,11 +161,15 @@ abstract class WalletCheckoutPaymentAbstract
                 $country_id=$customer->getMeta('company_country');
                 $countryIso = $countryIso ?: Country::find($country_id)?->code ?: null;
             }
+            /*find phone from customer address*/
+            $phone_from_address = $customer->addresses()
+                ->where('is_default', 1)
+                ->value('phone');
             $finalPhone = $customer->phone ?: $phone ?: null;
 
             $paramArray['customer']['name']['forenames'] = $customer->name;
             $paramArray['customer']['email'] = $customer->email;
-            $paramArray['customer']['phone'] = $finalPhone;
+            $paramArray['customer']['phone'] = $finalPhone ?? $phone_from_address ?? '';
             $paramArray['customer']['address']['country'] = ($countryIso) ? $countryIso :'';
         }
 
@@ -206,7 +214,7 @@ abstract class WalletCheckoutPaymentAbstract
             $sessionName = 'telr_wallettracsaction_id';
         }
 
-        Log::info('WalletCheckoutPaymentAbstract: ', $paramArray);
+        Log::error('TelrPaymentAbstract: ', $paramArray);
         $response = $this->client->request('POST', config('plugins.telr.telr.sale.endpoint'), [
             'body' => json_encode($paramArray),
             'headers' => [
@@ -244,7 +252,6 @@ abstract class WalletCheckoutPaymentAbstract
             return $this->makeSubscriptionPayment($data);
         } catch (Exception $exception) {
             $this->setErrorMessageAndLogging($exception, 1);
-
             return false;
         }
     }

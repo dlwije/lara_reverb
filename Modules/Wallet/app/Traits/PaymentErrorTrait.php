@@ -5,7 +5,6 @@ namespace Modules\Wallet\Traits;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Modules\Wallet\Helpers\PaymentHelper;
-use Stripe\Exception\ApiErrorException;
 
 trait PaymentErrorTrait
 {

@@ -2,24 +2,26 @@
 
 namespace Modules\Wallet\Services;
 
-use Botble\Ecommerce\Models\Customer;
-use Botble\Payment\Enums\PaymentMethodEnum;
-use Botble\Payment\Enums\PaymentStatusEnum;
-use Botble\Wallet\Models\Wallet;
+use App\Services\ControllerService;
 use Illuminate\Support\Arr;
-use Botble\Wallet\Services\Abstracts\WalletPaymentAbstract;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Module\Wallet\Services\Abstracts\WalletPaymentAbstract;
 
 class WalletPaymentService extends WalletPaymentAbstract
 {
+
+    function __construct(public ControllerService $controllerService)
+    {
+        parent::__construct();
+    }
     public function makePayment(array $data): string|false
     {
         Log::info('MakePayment - WalletPaymentService.php');
 
         $request = request();
         $isMobile = (bool) $request->is_mobile;
-        $domain = str_ireplace('www.', '', parse_url(get_frontend_url(), PHP_URL_HOST));
+        $domain = str_ireplace('www.', '', parse_url($this->controllerService->get_frontend_url(), PHP_URL_HOST));
         $this->amount = round((float)$data['amount'], $this->isSupportedDecimals() ? 2 : 0);
         $this->currency = strtoupper($data['currency']);
         $this->cart_id = uniqid();

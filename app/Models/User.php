@@ -20,6 +20,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Passport\HasApiTokens;
 use Modules\Chat\Models\ChatMessage;
+use Modules\Wallet\Models\NotificationPreference;
 use Mpociot\Teamwork\Traits\UserHasTeams;
 use Spatie\Permission\Traits\HasRoles;
 

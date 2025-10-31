@@ -1,8 +1,7 @@
 <?php
 
-namespace Botble\Wallet\Events;
+namespace Module\Wallet\Events;
 
-use Botble\Wallet\Models\WalletLot;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Foundation\Events\Dispatchable;

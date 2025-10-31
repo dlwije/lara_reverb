@@ -1,30 +1,8 @@
 <?php
 
-namespace Botble\Wallet\Services;
+namespace Modules\Wallet\Services;
 
-use Botble\Base\Http\Responses\BaseHttpResponse;
-use Botble\Ecommerce\Enums\OrderStatusEnum;
-use Botble\Ecommerce\Enums\ShippingCodStatusEnum;
-use Botble\Ecommerce\Enums\ShippingMethodEnum;
-use Botble\Ecommerce\Enums\ShippingStatusEnum;
-use Botble\Ecommerce\Facades\Cart;
-use Botble\Ecommerce\Facades\Discount as DiscountFacade;
-use Botble\Ecommerce\Facades\EcommerceHelper;
-use Botble\Ecommerce\Facades\OrderHelper;
-use Botble\Ecommerce\Models\Customer;
-use Botble\Ecommerce\Models\Order;
-use Botble\Ecommerce\Models\OrderHistory;
-use Botble\Ecommerce\Models\Shipment;
-use Botble\Ecommerce\Services\HandleApplyCouponService;
-use Botble\Ecommerce\Services\HandleApplyPromotionsService;
-use Botble\Ecommerce\Services\HandleShippingFeeService;
-use Botble\Media\Facades\RvMedia;
-use Botble\Payment\Enums\PaymentMethodEnum;
-use Botble\Payment\Enums\PaymentStatusEnum;
-use Botble\Payment\Services\Gateways\ApplePayPaymentService;
-use Botble\Payment\Services\Gateways\BankTransferPaymentService;
-use Botble\Payment\Services\Gateways\CodPaymentService;
-use Botble\Payment\Supports\PaymentHelper;
+use App\Services\ControllerService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -37,7 +15,8 @@ class WalletCheckoutService
     function __construct(
         public HandleApplyPromotionsService $promotionService,
         public HandleShippingFeeService $shippingFeeService,
-        public HandleApplyCouponService $applyCouponService
+        public HandleApplyCouponService $applyCouponService,
+        public ControllerService $controllerService
     ){ }
 
     public function processPostCheckoutOrder(
@@ -446,7 +425,7 @@ class WalletCheckoutService
 
         $data = array_merge($request->input(), [
             'amount' => $orderAmount,
-            'currency' => $request->input('currency', strtoupper(get_application_currency()->title)),
+            'currency' => $request->input('currency', strtoupper($this->controllerService->getDefaultValues()['default_currency'])),
             'user_id' => $currentUserId,
             'shipping_method' => $isAvailableShipping ? $shippingMethodInput : '',
             'shipping_option' => $isAvailableShipping ? $request->input("shipping_option.$storeId") : null,
@@ -714,7 +693,7 @@ class WalletCheckoutService
             'tax_amount' => $this->convertOrderAmount((float)$orders->sum('tax_amount')),
             'discount_code' => $couponCode,
             'discount_amount' => $this->convertOrderAmount((float)$orders->sum('discount_amount')),
-            'currency' => strtoupper(get_application_currency()->title),
+            'currency' => strtoupper($this->controllerService->getDefaultValues()['default_currency']),
             'order_id' => $orderIds,
             'description' => trans('plugins/payment::payment.payment_description', [
                 'order_id' => implode(', #', $orderIds),

@@ -2,12 +2,11 @@
 
 namespace Modules\Wallet\Services;
 
-use Botble\Wallet\Events\ExpiryReminderNotification;
-use Botble\Wallet\Events\WalletTransactionNotification;
 use Illuminate\Support\Facades\Log;
 use Modules\Wallet\Models\NotificationPreference;
 use Modules\Wallet\Models\WalletLot;
 use Modules\Wallet\Models\WalletTransaction;
+use Modules\Wallet\Notifications\WalletTransactionNotification;
 
 class NotificationService
 {

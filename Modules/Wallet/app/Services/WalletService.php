@@ -471,7 +471,7 @@ class WalletService
             return $default;
         }
 
-        $totalAmount = $cartTotal ?? (float) Cart::instance('cart')->rawTotal();
+        $totalAmount = $cartTotal ?? 0;
 
         if (! $user || $totalAmount <= 0) {
             return $default;

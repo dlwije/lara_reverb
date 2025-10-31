@@ -5,23 +5,35 @@ namespace Modules\Telr\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Sma\Order\Payment;
 use App\Models\Sma\People\Customer;
+use App\Models\User;
+use App\Services\ControllerService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
+use Modules\Wallet\Models\WalletLot;
+use Modules\Wallet\Models\WalletTransaction;
+use Modules\Wallet\Services\PaymentStatusEnum;
+use Modules\Wallet\Services\SplitPaymentPGatewayFirstService;
 use Modules\Wallet\Services\WalletService;
-use function Termwind\render;
 
 class TelrController extends Controller
 {
 
+    public function __construct(public ControllerService $controllerService, public SplitPaymentPGatewayFirstService $splitPaymentPGatewayFirstService)
+    {
+
+    }
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        Log::info('telr.index');
         return Inertia::render('telr/process-form');
     }
 
@@ -126,7 +138,7 @@ class TelrController extends Controller
 
     public function auth(Request $request)
     {
-        Log::info('Telr Request', ['request' => $request->all()]);
+//        Log::info('Telr Request', ['request' => $request->all()]);
         // Handle successful authentication callback
         $telrRef = Session::get('telr_ref');
         $telrStoreId = Session::get('telr_store_id');
@@ -172,8 +184,12 @@ class TelrController extends Controller
             ]);
         }
 
-        $newTx = $objOrder['transaction']['ref'];
+        //Order Status
         $ordStatus = $objOrder['status']['code'];
+        $ordStatusText = $objOrder['status']['text'];
+
+        // Transaction status
+        $newTx = $objOrder['transaction']['ref'];
         $txStatus = $objOrder['transaction']['status'];
         $txMessage = $objOrder['transaction']['message'];
         $cartId = $objOrder['cartid'];
@@ -203,28 +219,6 @@ class TelrController extends Controller
 
         if ($ordStatus == 2) {
 
-            $customerId = auth()->user();
-            $payment = Payment::query()->find($paymentId);
-            $customer = Customer::query()->find($customerId);
-            try {
-                $walletData = app(WalletService::class)->addToWallet(
-                    $customer,
-                    (float) $amount,                     // amount
-                    WalletLot::SOURCE_CREDIT_CARD,               // source
-                    (float) $amount,                     // baseValue
-                    0.0,                                         // bonusValue
-                    WalletTransaction::STATUS_COMPLETED,           // wTStatus
-                    WalletLot::STATUS_ACTIVE,                    // wLStatus
-                    [
-                        'ref_type' => Payment::class,
-                        'ref_id' => $paymentId,
-                    ],
-                    null,                                        // validityDays
-                    strtoupper(get_application_currency()->title) // currency
-                );
-            }catch (\Exception $e){
-                Log::info("Wallet Payment Error: ".$e);
-            }
             return Inertia::render('telr/payment-success', [
                 'message' => 'Transaction authorized successfully',
                 'reference' => $newTx,
@@ -248,6 +242,36 @@ class TelrController extends Controller
             }
 
             if ($txStatus == 'A') {
+                try {
+                    $chargeId = $objOrder['ref'];
+                    $orderId = $objOrder['cartid'];
+                    $status = PaymentStatusEnum::COMPLETED;
+
+                    $data['amount'] = $objOrder['amount'];
+                    $data['currency'] = $objOrder['currency'];
+
+                    $paymentData = [
+                        'amount' => $data['amount'],
+                        'currency' => $data['currency'],
+                        'trans_freeze_id' => Arr::get($data, 'trans_freeze_id'),
+                        'wallet_applied_amount' => Arr::get($data, 'wallet_applied_amount'),
+                        'wallet_pay_id' => Arr::get($data, 'wallet_pay_id'),
+                        'charge_id' => $chargeId,
+                        'order_id' => $orderId,
+                        'customer_id' => auth()->user()->id,
+                        'customer_type' => Arr::get($data, 'customer_type'),
+                        'payment_channel' => TELR_PAYMENT_METHOD_NAME,
+                        'status' => $status,
+                    ];
+
+                    Log::info('Telr Payment Response', ['paymentData' => $paymentData]);
+                    $payment = $this->afterMakePayment($paymentData);
+                }catch (\Exception $e) {
+                    return Inertia::render('telr/payment-error', [
+                        'message' => $e->getMessage(),
+                        'details' => $results,
+                    ]);
+                }
                 return Inertia::render('telr/payment-success', [
                     'message' => 'Transaction authorized successfully',
                     'reference' => $newTx,
@@ -263,6 +287,64 @@ class TelrController extends Controller
             'status' => $ordStatus,
             'transaction_status' => $txStatus,
         ]);
+    }
+
+    public function afterMakePayment(array $data): string|null
+    {
+        $status = PaymentStatusEnum::COMPLETED;
+
+        //$chargeId = session('telr_payment_id');
+        $chargeId = $data['charge_id'];
+        $currency = $data['currency'] ?: $this->controllerService->getDefaultValues()['default_currency'];
+
+        $orderIds = (array)Arr::get($data, 'order_id', []);
+        $actualOrderId = is_array($orderIds) ? Arr::first($orderIds) : $orderIds;
+
+        $gatewayAmount = (float) Arr::get($data, 'amount', 0);
+
+        $customer_id = (int) Arr::get($data, 'customer_id', null);
+        $customer = User::query()->find($customer_id);
+
+        DB::beginTransaction();
+        try {
+
+            $walletData = app(WalletService::class)->addToWallet(
+                $customer,
+                (float) $gatewayAmount,                     // amount
+                WalletLot::SOURCE_CREDIT_CARD,               // source
+                (float) $gatewayAmount,                     // baseValue
+                0.0,                                         // bonusValue
+                WalletTransaction::STATUS_COMPLETED,           // wTStatus
+                WalletLot::STATUS_ACTIVE,                    // wLStatus
+                [
+                    'ref_type' => User::class,
+                    'ref_id' => $customer_id,
+                ],
+                null,                                        // validityDays
+                $currency,//strtoupper(get_application_currency()->title) // currency
+            );
+
+
+            $paymentData['trans_id'] = $walletData['transaction']->id;
+            $paymentData['charge_id'] = $data['charge_id']; // ✅ attach charge id here
+            $paymentData['customer_id'] = $customer_id;
+            $paymentData['amount'] = $gatewayAmount;
+            $paymentData['order_id'] = $actualOrderId;
+            $paymentData['currency'] = $currency;
+            $paymentData['payment_channel'] = $data['payment_channel'];
+
+            $this->splitPaymentPGatewayFirstService->createWalletTopUpPayment($paymentData);
+
+            DB::commit();
+        }catch (\Exception $e){
+            DB::rollBack();
+            Log::info("Wallet Payment Error: ".$e);
+            throw new \Exception("Wallet Payment Error: ".$e->getMessage());
+        }
+
+        session()->forget('telr_payment_id');
+
+        return $chargeId;
     }
 
     public function cancel(Request $request)
