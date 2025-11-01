@@ -23,10 +23,16 @@ class Wishlist extends Model
         'instance',
         'content',
         'user_id',
+        'name',
+        'is_public',
+        'description',
+        'expires_at',
     ];
 
     protected $casts = [
         'content' => 'array',
+        'is_public' => 'boolean',
+        'expires_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -39,9 +45,18 @@ class Wishlist extends Model
         return $this->hasMany(WishlistItem::class);
     }
 
-    public function products()
+    public function scopePublic($query)
     {
-        return $this->belongsToMany(Product::class, 'wishlist_items')
-            ->withTimestamps();
+        return $query->where('is_public', true);
+    }
+
+    public function scopeForUser($query, $userId)
+    {
+        return $query->where('user_id', $userId);
+    }
+
+    public function scopeInstance($query, $instance)
+    {
+        return $query->where('instance', $instance);
     }
 }

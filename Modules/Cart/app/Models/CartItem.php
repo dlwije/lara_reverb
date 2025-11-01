@@ -23,11 +23,24 @@ class CartItem extends Model
         'name',
         'qty',
         'price',
+        'tax_rate',
+        'tax_amount',
+        'discount_amount',
+        'subtotal',
+        'total',
         'options',
+        'product_attributes',
     ];
 
     protected $casts = [
+        'price' => 'decimal:2',
+        'tax_rate' => 'decimal:2',
+        'tax_amount' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'total' => 'decimal:2',
         'options' => 'array',
+        'product_attributes' => 'array',
     ];
 
     public function cart(): BelongsTo
@@ -38,5 +51,24 @@ class CartItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function calculateTotals()
+    {
+        $this->subtotal = $this->qty * $this->price;
+        $this->tax_amount = $this->subtotal * ($this->tax_rate / 100);
+        $this->total = $this->subtotal + $this->tax_amount - $this->discount_amount;
+
+        $this->save();
+    }
+
+    public function getOption($key, $default = null)
+    {
+        return data_get($this->options, $key, $default);
+    }
+
+    public function getProductAttribute($key, $default = null)
+    {
+        return data_get($this->product_attributes, $key, $default);
     }
 }

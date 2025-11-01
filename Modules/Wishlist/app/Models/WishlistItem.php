@@ -23,11 +23,15 @@ class WishlistItem extends Model
         'name',
         'price',
         'options',
+        'product_attributes',
+        'sort_order',
+        'notes',
     ];
 
     protected $casts = [
-        'options' => 'array',
         'price' => 'decimal:2',
+        'options' => 'array',
+        'product_attributes' => 'array',
     ];
 
     public function wishlist(): BelongsTo

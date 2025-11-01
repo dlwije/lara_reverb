@@ -14,26 +14,36 @@ return new class extends Migration
         Schema::create('wishlists', function (Blueprint $table) {
             $table->id();
             $table->string('identifier');
-            $table->string('instance')->default('default');
+            $table->string('instance')->default('wishlist');
             $table->text('content')->nullable();
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
+            $table->string('name')->nullable(); // Custom wishlist name
+            $table->boolean('is_public')->default(false);
+            $table->text('description')->nullable();
             $table->timestamps();
+            $table->timestamp('expires_at')->nullable();
 
             $table->unique(['identifier', 'instance']);
+            $table->index(['user_id', 'instance']);
+            $table->index('expires_at');
+        });
 
-            Schema::create('wishlist_items', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('wishlist_id')->constrained()->onDelete('cascade');
-                $table->string('row_id');
-                $table->foreignId('product_id')->constrained()->onDelete('cascade');
-                $table->string('name');
-                $table->decimal('price', 10, 2)->default(0);
-                $table->json('options')->nullable();
-                $table->timestamps();
+        Schema::create('wishlist_items', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('wishlist_id')->constrained()->onDelete('cascade');
+            $table->string('row_id');
+            $table->foreignId('product_id')->constrained()->onDelete('cascade');
+            $table->string('name');
+            $table->decimal('price', 10, 2)->default(0);
+            $table->json('options')->nullable();
+            $table->json('product_attributes')->nullable();
+            $table->integer('sort_order')->default(0);
+            $table->text('notes')->nullable();
+            $table->timestamps();
 
-                $table->unique(['wishlist_id', 'row_id']);
-                $table->index(['wishlist_id', 'product_id']);
-            });
+            $table->unique(['wishlist_id', 'row_id']);
+            $table->index(['wishlist_id', 'product_id']);
+            $table->index('row_id');
         });
     }
 

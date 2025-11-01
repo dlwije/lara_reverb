@@ -13,8 +13,24 @@ return new class extends Migration
     {
         Schema::create('cart_items', function (Blueprint $table) {
             $table->id();
-            
+            $table->foreignId('cart_id')->constrained()->onDelete('cascade');
+            $table->string('row_id'); // Unique row identifier
+            $table->foreignId('product_id')->constrained()->onDelete('cascade');
+            $table->string('name');
+            $table->integer('qty');
+            $table->decimal('price', 10, 2);
+            $table->decimal('tax_rate', 5, 2)->default(0);
+            $table->decimal('tax_amount', 10, 2)->default(0);
+            $table->decimal('discount_amount', 10, 2)->default(0);
+            $table->decimal('subtotal', 10, 2);
+            $table->decimal('total', 10, 2);
+            $table->json('options')->nullable(); // Size, color, etc.
+            $table->json('product_attributes')->nullable(); // Snapshot of product at time of adding
             $table->timestamps();
+
+            $table->unique(['cart_id', 'row_id']);
+            $table->index(['cart_id', 'product_id']);
+            $table->index('row_id');
         });
     }
 
