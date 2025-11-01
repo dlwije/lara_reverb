@@ -4,6 +4,7 @@ namespace Modules\Wallet\Services;
 
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\Rules\Enum;
+use Modules\Telr\Services\TelrPaymentService;
 
 /**
  * @method static PaymentStatusEnum PENDING()
@@ -29,5 +30,15 @@ class PaymentMethodEnum extends Enum
         }
 
         return $data;
+    }
+
+    public static function values(): array
+    {
+        return [
+            self::COD,
+            self::BANK_TRANSFER,
+            self::APPLE_PAY,
+            self::WALLET,
+        ];
     }
 }

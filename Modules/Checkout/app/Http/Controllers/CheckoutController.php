@@ -3,8 +3,11 @@
 namespace Modules\Checkout\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Sma\Pos\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Modules\Checkout\Http\Requests\CheckoutRequest;
+use Modules\Checkout\Services\CheckoutOrderService;
 use Modules\Wallet\Services\KYCService;
 use Modules\Wallet\Services\WalletService;
 
@@ -12,7 +15,8 @@ class CheckoutController extends Controller
 {
     public function __construct(
         public WalletService $walletService,
-        public KYCService $kycService
+        public KYCService $kycService,
+        public CheckoutOrderService $checkoutOrderService
     ) {}
 
     /**
@@ -68,12 +72,43 @@ class CheckoutController extends Controller
         }
     }
 
+    public function getCheckoutPage(string $token, Request $request)
+    {
+        // First get the checkout data from session if there were
+
+        // If the provided token is not equal to the current session token
+        if($token !== session('order_checkout_token')){
+
+            $order = Order::query()->where(['token' => $token, 'is_finished' => false])->first();
+
+//            if (! $order) {
+                // If there is no order on that token will redirect to the home page
+//            }
+        }
+
+        $sessionCheckoutData = $this->checkoutOrderService->getOrderSessionData($token);
+
+        // Here we can check cart has products or not
+        // if not redirect to the cart page
+        // if there is products, then check the Out of Stock status and redirect with products message which doesn't have qty
+
+
+    }
+
+    public function processOrderData(string $token, array $sessionData, Request $request, bool $finished = false)
+    {
+
+    }
     /**
      * Split payment (wallet + card)
      */
-    public function processSplitPayment(Request $request)
+    public function processSplitPayment(CheckoutRequest $request)
     {
+        // The Request
+
         try {
+            // get the order data based on the Token
+
             $user = auth()->user();
             $totalAmount = $request->input('total_amount', 0);
             $walletAmount = $request->input('wallet_amount', 0);

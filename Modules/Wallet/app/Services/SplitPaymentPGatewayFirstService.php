@@ -319,7 +319,7 @@ class SplitPaymentPGatewayFirstService
             'amount' => $totalAmount,
             'wallet_applied' => 0,
             'date' => date('Y-m-d'),
-            'method' => TELR_PAYMENT_METHOD_NAME,
+            'method' => 'visa',
             'reference' => 'PAY-0'.$wal_trans_id,
             'payment_for' => 'customer',
             'currency' => strtoupper($this->controllerService->getDefaultValues()['default_currency']),

@@ -7,5 +7,7 @@
     "GiftCard": true,
     "PromoRules": true,
     "Checkout": true,
-    "Telr": true
+    "Telr": true,
+    "Cart": true,
+    "Wishlist": true
 }
