@@ -2,6 +2,7 @@
 
 namespace Modules\Wallet\Services;
 
+use App\Models\Sma\Pos\Order;
 use App\Services\ControllerService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
@@ -9,6 +10,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Modules\Checkout\Services\CheckoutOrderService;
 
 class WalletCheckoutService
 {
@@ -16,15 +18,15 @@ class WalletCheckoutService
         public HandleApplyPromotionsService $promotionService,
         public HandleShippingFeeService $shippingFeeService,
         public HandleApplyCouponService $applyCouponService,
-        public ControllerService $controllerService
+        public ControllerService $controllerService,
+        public CheckoutOrderService $checkoutOrderService,
     ){ }
 
     public function processPostCheckoutOrder(
         array|EloquentCollection $products,
         Request $request,
         string $token,
-        array $sessionCheckoutData,
-        BaseHttpResponse $response
+        array $sessionCheckoutData
     )
     {
 //        Log::info('Step2: processPostCheckoutOrder in WalletCheckoutService');
@@ -53,7 +55,7 @@ class WalletCheckoutService
 
         if ($couponCode) {
             $this->processApplyCouponCode([], $request);
-            $sessionCheckoutData = OrderHelper::getOrderSessionData($token);
+            $sessionCheckoutData = $this->checkoutOrderService->getOrderSessionData($token);
             $couponCode = session('applied_coupon_code');
         } else {
             foreach ($mpSessionData as &$storeCheckoutData) {
@@ -61,7 +63,7 @@ class WalletCheckoutService
                 Arr::set($storeCheckoutData, 'applied_coupon_code', null);
                 Arr::set($storeCheckoutData, 'is_free_shipping', false);
             }
-            $sessionCheckoutData = OrderHelper::setOrderSessionData($token, ['marketplace' => $mpSessionData]);
+            $sessionCheckoutData = $this->checkoutOrderService->setOrderSessionData($token, ['marketplace' => $mpSessionData]);
         }
 
         $is_apiSession = (bool) ((isset($sessionCheckoutData['api_session'])) ? $sessionCheckoutData['api_session'] : false);
@@ -86,20 +88,20 @@ class WalletCheckoutService
                 $foundOrderIds[] = $storeId;
             }
 
-            $orders[$storeId] = $this->handleCheckoutOrderByStore(
-                $sessionCheckoutData,
-                $productsInStore,
-                $token,
-                $sessionStoreData,
-                $request,
-                $currentUserId,
-                $order,
-                $storeId,
-                $discounts,
-                $promotionService,
-                $shippingFeeService,
-                $applyCouponService
-            );
+//            $orders[$storeId] = $this->handleCheckoutOrderByStore(
+//                $sessionCheckoutData,
+//                $productsInStore,
+//                $token,
+//                $sessionStoreData,
+//                $request,
+//                $currentUserId,
+//                $order,
+//                $storeId,
+//                $discounts,
+//                $promotionService,
+//                $shippingFeeService,
+//                $applyCouponService
+//            );
         }
 
         // Remove orders not exists pre checkout
@@ -114,82 +116,83 @@ class WalletCheckoutService
             }
         }
 
-        if ($couponCode && $discounts->count()) {
-            DiscountFacade::getFacadeRoot()->afterOrderPlaced($couponCode);
-        }
+//        if ($couponCode && $discounts->count()) {
+//            DiscountFacade::getFacadeRoot()->afterOrderPlaced($couponCode);
+//        }
 
-        if (! is_plugin_active('payment') || ! $orders->pluck('amount')->sum()) {
-            OrderHelper::processOrder($orders->pluck('id')->all());
+        if (! $orders->pluck('amount')->sum()) {
+            $this->checkoutOrderService->processOrder($orders->pluck('id')->all());
 
 
             if($is_apiSession) {
-                return $response
-                    ->setData(['url' => route('public.checkout.success', $token)])
-                    ->setMessage(__('Checkout successfully!'));
+                return [
+                    'url' => route('public.checkout.success', $token),
+                    'message' => __('Checkout successfully!')
+                ];
+
             } else {
-                return $response
-                    ->setNextUrl(route('public.checkout.success', $token))
-                    ->setMessage(__('Checkout successfully!'));
+                return [
+                    'next_url' => route('public.checkout.success', $token),
+                    'message' => __('Checkout successfully!')
+                ];
             }
         }
 
         $totalAmount = format_price($orders->pluck('amount')->sum(), null, true);
 
-        do_action('ecommerce_before_processing_payment', $products, $request, $token, $mpSessionData);
-
         $paymentData = $this->processPaymentMethodPostCheckout($request, (float)$totalAmount);
 //        Log::info('inside WalletCheckoutService PaymentData', $paymentData);
         $paymentDataMessage = Arr::get($paymentData, 'message');
 
-        if ($checkoutUrl = Arr::get($paymentData, 'checkoutUrl')) {
-//            Log::info('inside WalletCheckoutService checkoutUrl');
-            if($is_apiSession) {
-//                Log::info('inside if $is_apiSession');
-                return $response
-                    ->setData(['checkoutUrl' => $checkoutUrl])
-                    ->withInput()
-                    ->setMessage($paymentDataMessage);
-            } else {
-//                Log::info('inside else $is_apiSession');
-                return $response
-                    ->setError($paymentData['error'])
-                    ->setNextUrl($checkoutUrl)
-                    ->setData(['checkoutUrl' => $checkoutUrl])
-                    ->withInput()
-                    ->setMessage($paymentDataMessage);
-            }
-        }
-        $isWalletOnly = Arr::get($paymentData, 'type') === 'split_payment' && $paymentData['error'] === false;
-
-        if (! $isWalletOnly && ($paymentData['error'] || empty($paymentData['charge_id']))) {
-//            Log::info('inside WalletCheckoutService paymentData[error] || invalid charge_id');
-            if ($is_apiSession) {
-                return $response
-                    ->setError()
-                    ->setData(['url' => PaymentHelper::getCancelURL($token)])
-                    ->setMessage($paymentDataMessage ?: __('Checkout error!'))
-                    ->setCode(422);
-            } else {
-                return $response
-                    ->setError()
-                    ->setNextUrl(PaymentHelper::getCancelURL($token))
-                    ->withInput()
-                    ->setMessage($paymentDataMessage ?: __('Checkout error!'));
-            }
-        }
-
-        if($is_apiSession) {
-//            Log::info('inside global if $is_apiSession');
-            //For Wallet
-            return $response
-                ->setData(['url' => PaymentHelper::getRedirectURL($token)])
-                ->setMessage(__('Checkout successfully!'));
-        } else {
-//            Log::info('inside global else $is_apiSession');
-            return $response
-                ->setNextUrl(PaymentHelper::getRedirectURL($token))
-                ->setMessage(__('Checkout successfully!'));
-        }
+//        if ($checkoutUrl = Arr::get($paymentData, 'checkoutUrl')) {
+////            Log::info('inside WalletCheckoutService checkoutUrl');
+//            if($is_apiSession) {
+////                Log::info('inside if $is_apiSession');
+//                return $response
+//                    ->setData(['checkoutUrl' => $checkoutUrl])
+//                    ->withInput()
+//                    ->setMessage($paymentDataMessage);
+//            } else {
+////                Log::info('inside else $is_apiSession');
+//                return $response
+//                    ->setError($paymentData['error'])
+//                    ->setNextUrl($checkoutUrl)
+//                    ->setData(['checkoutUrl' => $checkoutUrl])
+//                    ->withInput()
+//                    ->setMessage($paymentDataMessage);
+//            }
+//        }
+//        $isWalletOnly = Arr::get($paymentData, 'type') === 'split_payment' && $paymentData['error'] === false;
+//
+//        if (! $isWalletOnly && ($paymentData['error'] || empty($paymentData['charge_id']))) {
+////            Log::info('inside WalletCheckoutService paymentData[error] || invalid charge_id');
+//            if ($is_apiSession) {
+//                return $response
+//                    ->setError()
+//                    ->setData(['url' => PaymentHelper::getCancelURL($token)])
+//                    ->setMessage($paymentDataMessage ?: __('Checkout error!'))
+//                    ->setCode(422);
+//            } else {
+//                return $response
+//                    ->setError()
+//                    ->setNextUrl(PaymentHelper::getCancelURL($token))
+//                    ->withInput()
+//                    ->setMessage($paymentDataMessage ?: __('Checkout error!'));
+//            }
+//        }
+//
+//        if($is_apiSession) {
+////            Log::info('inside global if $is_apiSession');
+//            //For Wallet
+//            return $response
+//                ->setData(['url' => PaymentHelper::getRedirectURL($token)])
+//                ->setMessage(__('Checkout successfully!'));
+//        } else {
+////            Log::info('inside global else $is_apiSession');
+//            return $response
+//                ->setNextUrl(PaymentHelper::getRedirectURL($token))
+//                ->setMessage(__('Checkout successfully!'));
+//        }
     }
 
 

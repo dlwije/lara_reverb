@@ -2,7 +2,14 @@
 
 namespace Modules\Checkout\Services;
 
+use App\Models\Sma\Order\Payment;
+use App\Models\Sma\Pos\Order;
+use App\Models\Sma\Product\Product;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Modules\Cart\Facades\Cart;
 
 class CheckoutOrderService
 {
@@ -78,5 +85,166 @@ class CheckoutOrderService
         }
 
         return $token;
+    }
+
+    public function processOrder(string|array|null $orderIds, string|null $chargeId = null): bool|Collection|array|Model
+    {
+        $orderIds = (array)$orderIds;
+
+        $orders = Order::query()->whereIn('id', $orderIds)->get();
+
+        if ($orders->isEmpty()) {
+            return false;
+        }
+
+        if ($chargeId) {
+            $payments = Payment::query()
+                ->where('charge_id', $chargeId)
+                ->whereIn('order_id', $orderIds)
+                ->get();
+
+            if ($payments->isNotEmpty()) {
+                foreach ($orders as $order) {
+                    $payment = $payments->firstWhere('order_id', $order->getKey());
+                    if ($payment) {
+                        $order->payment_id = $payment->getKey();
+                        $order->save();
+                    }
+                }
+            }
+        }
+
+        foreach ($orders as $order) {
+            if (
+                (float)$order->amount
+                && (
+//                    ! empty(PaymentMethods::methods()) &&
+                    ! $order->payment_id
+                )
+            ) {
+                continue;
+            }
+
+//            event(new OrderPlacedEvent($order));
+
+            $order->is_finished = true;
+
+            $order->is_confirmed = true;
+
+            $order->save();
+
+            $this->decreaseProductQuantity($order);
+
+//            if (EcommerceHelper::isOrderAutoConfirmedEnabled()) {
+//                OrderHistory::query()->create([
+//                    'action' => 'confirm_order',
+//                    'description' => trans('plugins/ecommerce::order.order_was_verified_by'),
+//                    'order_id' => $order->id,
+//                    'user_id' => 0,
+//                ]);
+//            }
+        }
+
+        Cart::instance('cart')->destroy();
+        session()->forget('applied_coupon_code');
+
+        session(['order_id' => Arr::first($orderIds)]);
+
+//        if (is_plugin_active('marketplace')) {
+//            apply_filters(SEND_MAIL_AFTER_PROCESS_ORDER_MULTI_DATA, $orders);
+//        } else {
+//            $mailer = EmailHandler::setModule(ECOMMERCE_MODULE_SCREEN_NAME);
+//            if ($mailer->templateEnabled('admin_new_order')) {
+//                $this->setEmailVariables($orders->first());
+//                $mailer->sendUsingTemplate('admin_new_order', get_admin_email()->toArray());
+//            }
+//
+//            // Temporarily only send emails with the first order
+//            $this->sendOrderConfirmationEmail($orders->first(), true);
+//        }
+
+        session(['order_id' => $orders->first()->id]);
+
+//        foreach ($orders as $order) {
+//            OrderHistory::query()->create([
+//                'action' => 'create_order',
+//                'description' => trans('plugins/ecommerce::order.new_order_from', [
+//                    'order_id' => $order->code,
+//                    'customer' => BaseHelper::clean($order->user->name ?: $order->address->name),
+//                ]),
+//                'order_id' => $order->id,
+//            ]);
+//        }
+
+        return $orders;
+    }
+
+    public function decreaseProductQuantity(Order $order): bool
+    {
+        foreach ($order->products as $orderProduct) {
+            $product = Product::query()->find($orderProduct->product_id);
+
+            if ($product) {
+                if ($product->with_storehouse_management || $product->quantity >= $orderProduct->qty) {
+                    $product->quantity = $product->quantity >= $orderProduct->qty ? $product->quantity - $orderProduct->qty : 0;
+                    $product->save();
+
+                    $this->productQuantityUpdate($orderProduct);
+//                    event(new ProductQuantityUpdatedEvent($product));
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public function productQuantityUpdate($productEvent)
+    {
+        $product = $productEvent->product;
+
+        if (! $product->is_variation) {
+            return;
+        }
+
+        $parentProduct = $product->original_product;
+
+        if (! $parentProduct || ! $parentProduct->id || $parentProduct->is_variation) {
+            return;
+        }
+
+        $variations = $parentProduct->variations()->with('product')->get();
+
+        $quantity = 0;
+        $withStorehouseManagement = false;
+        $stockStatus = 'out_of_stock';
+        $allowCheckoutWhenOutOfStock = false;
+
+        foreach ($variations as $variation) {
+            $product = $variation->product;
+
+            if (! $product || ! $product->is_variation) {
+                continue;
+            }
+
+            if ($product->with_storehouse_management) {
+                $quantity += $product->quantity;
+                $withStorehouseManagement = true;
+            }
+
+            if ($product->allow_checkout_when_out_of_stock) {
+                $allowCheckoutWhenOutOfStock = true;
+            }
+
+            if (! $product->isOutOfStock()) {
+                $stockStatus = 'in_stock';
+            }
+        }
+
+        $parentProduct->quantity = $quantity;
+        $parentProduct->with_storehouse_management = $withStorehouseManagement;
+        $parentProduct->stock_status = $stockStatus;
+        $parentProduct->allow_checkout_when_out_of_stock = $allowCheckoutWhenOutOfStock;
+
+        $parentProduct->save();
     }
 }

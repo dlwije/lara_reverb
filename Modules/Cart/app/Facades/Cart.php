@@ -1,5 +1,5 @@
 <?php
-namespace Modules\Cart\app\Facades;
+namespace Modules\Cart\Facades;
 
 use Illuminate\Support\Facades\Facade;
 use Modules\Cart\Models\Cart as BaseCart;

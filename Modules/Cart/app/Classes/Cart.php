@@ -2,6 +2,7 @@
 
 namespace Modules\Cart\Classes;
 
+use Closure;
 use Illuminate\Session\SessionManager;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;

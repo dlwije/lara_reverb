@@ -4,11 +4,14 @@ namespace Modules\Checkout\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sma\Pos\Order;
+use App\Models\Sma\Product\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Modules\Cart\Facades\Cart;
 use Modules\Checkout\Http\Requests\CheckoutRequest;
 use Modules\Checkout\Services\CheckoutOrderService;
 use Modules\Wallet\Services\KYCService;
+use Modules\Wallet\Services\WalletCheckoutService;
 use Modules\Wallet\Services\WalletService;
 
 class CheckoutController extends Controller
@@ -92,12 +95,112 @@ class CheckoutController extends Controller
         // if not redirect to the cart page
         // if there is products, then check the Out of Stock status and redirect with products message which doesn't have qty
 
+        Cart::instance('cart')->refresh();
 
+        $products = Cart::instance('cart')->products();
     }
 
     public function processOrderData(string $token, array $sessionData, Request $request, bool $finished = false)
     {
+        if (! isset($sessionData['created_order'])) {
+            $currentUserId = 0;
+            if (auth('customer')->check()) {
+                $currentUserId = auth('customer')->id();
+            }
 
+            $request->merge([
+                'amount' => Cart::instance('cart')->rawTotal(),
+                'user_id' => $currentUserId,
+                'shipping_method' => $request->input('shipping_method', 'default'),
+                'shipping_option' => $request->input('shipping_option'),
+                'shipping_amount' => 0,
+                'tax_amount' => Cart::instance('cart')->rawTax(),
+                'sub_total' => Cart::instance('cart')->rawSubTotal(),
+                'coupon_code' => session('applied_coupon_code'),
+                'discount_amount' => 0,
+                'status' => 'pending',
+                'is_finished' => false,
+                'token' => $token,
+            ]);
+
+            $order = Order::query()->where(compact('token'))->first();
+
+            $order = $this->createOrderFromData($request->input(), $order);
+
+            $sessionData['created_order'] = true;
+            $sessionData['created_order_id'] = $order->getKey();
+
+        }
+
+        if (! isset($sessionData['created_order_product'])) {
+            $weight = Cart::instance('cart')->weight();
+
+            Order::query()->where(['order_id' => $sessionData['created_order_id']])->delete();
+
+            foreach (Cart::instance('cart')->content() as $cartItem) {
+                $product = Product::query()->find($cartItem->id);
+
+                if (! $product) {
+                    continue;
+                }
+
+                $data = [
+                    'order_id' => $sessionData['created_order_id'],
+                    'product_id' => $cartItem->id,
+                    'product_name' => $cartItem->name,
+                    'product_image' => $product->original_product->image,
+                    'qty' => $cartItem->qty,
+                    'weight' => $weight,
+                    'price' => $cartItem->price,
+                    'tax_amount' => $cartItem->tax,
+                    'options' => $cartItem->options,
+                    'product_type' => $product?->product_type,
+                ];
+
+                if (isset($cartItem->options['options'])) {
+                    $data['product_options'] = $cartItem->options['options'];
+                }
+
+                Order::query()->create($data);
+            }
+
+            $sessionData['created_order_product'] = Cart::instance('cart')->getLastUpdatedAt();
+        }
+
+        $this->checkoutOrderService->setOrderSessionData($token, $sessionData);
+
+        return $sessionData;
+    }
+
+    protected function createOrderFromData(array $data, ?Order $order): Order|null|false
+    {
+        $data['is_finished'] = false;
+
+        if ($order) {
+            $order->fill($data);
+            $order->save();
+        } else {
+//            protected $fillable = [
+//                'status',
+//                'user_id',
+//                'amount',
+//                'tax_amount',
+//                'shipping_method',
+//                'shipping_option',
+//                'shipping_amount',
+//                'description',
+//                'coupon_code',
+//                'discount_amount',
+//                'sub_total',
+//                'is_confirmed',
+//                'discount_description',
+//                'is_finished',
+//                'token',
+//                'completed_at',
+//                'proof_file',
+//            ];
+            $order = Order::query()->create($data);
+        }
     }
     /**
      * Split payment (wallet + card)
@@ -108,6 +211,10 @@ class CheckoutController extends Controller
 
         try {
             // get the order data based on the Token
+            $token = $request->input('token');
+
+            $sessionData = $this->checkoutOrderService->getOrderSessionData($token);
+            $products = Cart::instance('cart')->products();
 
             $user = auth()->user();
             $totalAmount = $request->input('total_amount', 0);
@@ -115,20 +222,16 @@ class CheckoutController extends Controller
             $cardAmount = $request->input('card_amount', 0);
             $orderId = $request->input('order_id');
 
-            if($walletAmount > 0){
-                // Check KYC requirements for wallet portion
-                $this->kycService->blockIfKycRequired($user, $walletAmount);
+            $paymentMethod = $request->input('payment_method', 'default');
 
-                // Deduct from wallet
-                $walletResult = $this->walletService->deductFromWallet($user, $walletAmount, [
-                    'type' => 'purchase',
-                    'ref_type' => 'order',
-                    'ref_id' => $orderId,
-                    'description' => 'Wallet portion of split payment'
-                ]);
+            if($paymentMethod == WALLET_PAYMENT_METHOD_NAME){
+                return app(WalletCheckoutService::class)->processPostCheckoutOrder(
+                    $products,
+                    $request,
+                    $token,
+                    $sessionData
+                );
             }
-            // Process card payment here
-            // $cardResult = $this->processCardPayment($user, $cardAmount, $request->all());
 
             $paymentResult = [
                 'wallet_deduction' => $walletResult ?? null,
