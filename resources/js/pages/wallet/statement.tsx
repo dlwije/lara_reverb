@@ -92,7 +92,7 @@ export default function WalletStatementPage() {
             'All': 'all',
             'Credit': 'credit',
             'Debit': 'debit',
-            'This Month': 'this_month',
+            'This Month': 'current_month',
             'Last Month': 'last_month'
         };
 
@@ -248,7 +248,7 @@ export default function WalletStatementPage() {
                                                 'All': 'all',
                                                 'Credit': 'credit',
                                                 'Debit': 'debit',
-                                                'This Month': 'this_month',
+                                                'This Month': 'current_month',
                                                 'Last Month': 'last_month'
                                             };
                                             const isActive = filters.period === periodMap[tab];

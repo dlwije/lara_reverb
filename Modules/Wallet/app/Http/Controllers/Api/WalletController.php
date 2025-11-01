@@ -79,6 +79,7 @@ class WalletController extends Controller
             $user = auth()->user();
             $filters = $request->only(['period', 'search_input', 'payment_type', 'pay_method', 'from', 'to', 'min', 'max']);
             $perPage = $request->get('per_page', 15);
+            Log::info('filters: ',$filters);
 
             $transactions = $this->walletService->getUserTransactions($user, $filters, $perPage);
 
