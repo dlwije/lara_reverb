@@ -1,11 +1,14 @@
 {
     "name": "Cart",
     "alias": "cart",
-    "description": "",
+    "description": "Shopping cart module",
     "keywords": [],
     "priority": 0,
     "providers": [
         "Modules\\Cart\\Providers\\CartServiceProvider"
     ],
+    "aliases": {
+        "Cart": "Modules\\Cart\\Facades\\Cart"
+    },
     "files": []
 }

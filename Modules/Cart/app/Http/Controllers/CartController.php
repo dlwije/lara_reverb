@@ -2,72 +2,139 @@
 
 namespace Modules\Cart\Http\Controllers;
 
+use AllowDynamicProperties;
 use App\Http\Controllers\Controller;
 use App\Models\Sma\Product\Product;
 use Illuminate\Http\Request;
-use Modules\Cart\Facades\Cart;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
+use Modules\Cart\Classes\Cart;
 
+#[AllowDynamicProperties]
 class CartController extends Controller
 {
+    public function __construct(Cart $cart){
+        $this->cart = $cart->instance('cart');
+    }
     public function addToCart(Request $request)
     {
-        $product = Product::find($request->product_id);
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'qty' => 'required|integer|min:1',
+            'options' => 'sometimes|array'
+        ]);
 
-        Cart::instance('cart')->associate(Product::class)->add(
-            $product->id,
-            $product->name,
-            $request->qty,
-            $product->price,
-            ['image' => $product->image]
-        );
+        $product = Product::findOrFail($request->product_id);
+
+        $this->cart
+            ->associate(Product::class)
+            ->add(
+                $product->id,
+                $product->name,
+                $request->qty,
+                $product->price,
+                $request->options ?? []
+            );
 
         return response()->json([
+            'success' => true,
             'message' => 'Product added to cart',
-            'cart' => Cart::apiContent()
+            'data' => $this->cart->apiContent()
         ]);
     }
 
     public function getCart()
     {
-        return response()->json(Cart::instance('cart')->apiContent());
+        Log::info('All session data:', Session::all());
+        return response()->json([
+            'success' => true,
+            'data' => $this->cart->apiContent()
+        ]);
     }
 
-    public function updateCart(Request $request)
+    public function updateCart(Request $request, $rowId)
     {
-        Cart::instance('cart')->update($request->row_id, $request->qty);
+        $request->validate([
+            'qty' => 'required|integer|min:0'
+        ]);
+
+        if ($request->qty == 0) {
+            $this->cart->remove($rowId);
+        } else {
+            $this->cart->update($rowId, $request->qty);
+        }
 
         return response()->json([
-            'message' => 'Cart updated',
-            'cart' => Cart::apiContent()
+            'success' => true,
+            'message' => 'Cart updated successfully',
+            'data' => $this->cart->apiContent()
         ]);
     }
 
     public function removeFromCart($rowId)
     {
-        Cart::instance('cart')->remove($rowId);
+        $this->cart->remove($rowId);
 
         return response()->json([
+            'success' => true,
             'message' => 'Item removed from cart',
-            'cart' => Cart::apiContent()
+            'data' => $this->cart->apiContent()
+        ]);
+    }
+
+    public function clearCart()
+    {
+        $this->cart->destroy();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cart cleared successfully',
+            'data' => $this->cart->apiContent()
         ]);
     }
 
     public function saveCart(Request $request)
     {
-        $user = auth()->user();
-        Cart::instance('cart')->store($user->id);
+        if (auth()->check()) {
+            $this->cart->store(auth()->id());
 
-        return response()->json(['message' => 'Cart saved successfully']);
+            return response()->json([
+                'success' => true,
+                'message' => 'Cart saved successfully'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Please login to save your cart'
+        ], 401);
     }
 
     public function restoreCart()
     {
-        $user = auth()->user();
-        Cart::instance('cart')->restore($user->id, true);
+        if (auth()->check()) {
+            $this->cart->restore(auth()->id(), true);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cart restored successfully',
+                'data' => $this->cart->apiContent()
+            ]);
+        }
 
         return response()->json([
-            'message' => 'Cart restored',
-            'cart' => Cart::apiContent()
+            'success' => false,
+            'message' => 'Please login to restore your cart'
+        ], 401);
+    }
+
+    public function getCartCount()
+    {
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'count' => $this->cart->count()
+            ]
         ]);
     }
 

@@ -95,9 +95,17 @@ class CheckoutController extends Controller
         // if not redirect to the cart page
         // if there is products, then check the Out of Stock status and redirect with products message which doesn't have qty
 
+        $sessionCheckoutData = $this->processOrderData($token, $sessionCheckoutData, $request);
+
         Cart::instance('cart')->refresh();
 
         $products = Cart::instance('cart')->products();
+
+        if (! $products->count()) {
+            return $this
+                ->httpResponse()
+                ->setNextUrl(get_frontend_url('cart'));
+        }
     }
 
     public function processOrderData(string $token, array $sessionData, Request $request, bool $finished = false)
@@ -201,6 +209,7 @@ class CheckoutController extends Controller
 //            ];
             $order = Order::query()->create($data);
         }
+        return $order;
     }
     /**
      * Split payment (wallet + card)

@@ -2,6 +2,7 @@
 
 namespace Modules\Cart\Classes;
 
+use Carbon\Carbon;
 use Closure;
 use Illuminate\Session\SessionManager;
 use Illuminate\Support\Collection;
@@ -84,9 +85,15 @@ class Cart implements CartInterface
         $content = $this->getContent();
         $content->put($rowId, $cartItem);
 
+        $this->setLastUpdatedAt();
         $this->session->put($this->instance, $content);
 
         return $cartItem;
+    }
+
+    public function setLastUpdatedAt(): void
+    {
+        $this->session->put($this->instance . '_updated_at', Carbon::now());
     }
 
     public function update($rowId, $qty)

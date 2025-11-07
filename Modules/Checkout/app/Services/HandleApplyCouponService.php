@@ -11,16 +11,20 @@ use Illuminate\Support\Arr;
 
 class HandleApplyCouponService
 {
+    function __construct(public CheckoutOrderService $checkoutOrderService)
+    {
+
+    }
     public function execute(string $coupon, array $sessionData = [], array $cartData = [], string|null $prefix = ''): array
     {
-        $token = OrderHelper::getOrderSessionToken();
+        $token = $this->checkoutOrderService->getOrderSessionToken();
 
         if (! $token) {
-            $token = OrderHelper::getOrderSessionToken();
+            $token = $this->checkoutOrderService->getOrderSessionToken();
         }
 
         if (! $sessionData) {
-            $sessionData = OrderHelper::getOrderSessionData($token);
+            $sessionData = $this->checkoutOrderService->getOrderSessionData($token);
         }
 
         $rawTotal = Arr::get($cartData, 'rawTotal', Cart::instance('cart')->rawTotal());
@@ -89,7 +93,7 @@ class HandleApplyCouponService
             Arr::set($sessionData, 'coupon_discount_amount', $couponDiscountAmount);
         }
 
-        OrderHelper::setOrderSessionData($token, $sessionData);
+        $this->checkoutOrderService->setOrderSessionData($token, $sessionData);
 
         session()->put('applied_coupon_code', $couponCode);
         session()->forget('auto_apply_coupon_code');

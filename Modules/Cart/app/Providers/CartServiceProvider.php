@@ -36,17 +36,28 @@ class CartServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(CartInterface::class, function ($app) {
+//        $this->app->singleton(CartInterface::class, function ($app) {
+//            return new Cart(
+//                $app['session'],
+//                $app['events'],
+//                'cart'
+//            );
+//        });
+//
+//        $this->app->singleton('cart', function ($app) {
+//            return $app->make(CartInterface::class);
+//        });
+        $this->app->singleton('cart', function ($app) {
             return new Cart(
                 $app['session'],
-                $app['events'],
-                'cart'
+                $app['events']
             );
         });
 
-        $this->app->singleton('cart', function ($app) {
-            return $app->make(CartInterface::class);
-        });
+        $this->app->bind(CartInterface::class, Cart::class);
+
+        // Register the facade
+        $this->app->alias('cart', Cart::class);
 
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
@@ -151,7 +162,7 @@ class CartServiceProvider extends ServiceProvider
      */
     public function provides(): array
     {
-        return [];
+        return ['cart'];
     }
 
     private function getPublishableViewPaths(): array

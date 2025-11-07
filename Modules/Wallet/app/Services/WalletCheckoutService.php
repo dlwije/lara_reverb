@@ -15,9 +15,9 @@ use Modules\Checkout\Services\CheckoutOrderService;
 class WalletCheckoutService
 {
     function __construct(
-        public HandleApplyPromotionsService $promotionService,
-        public HandleShippingFeeService $shippingFeeService,
-        public HandleApplyCouponService $applyCouponService,
+//        public HandleApplyPromotionsService $promotionService,
+//        public HandleShippingFeeService $shippingFeeService,
+//        public HandleApplyCouponService $applyCouponService,
         public ControllerService $controllerService,
         public CheckoutOrderService $checkoutOrderService,
     ){ }
