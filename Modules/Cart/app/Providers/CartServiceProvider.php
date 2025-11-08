@@ -4,6 +4,7 @@ namespace Modules\Cart\Providers;
 
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
+use Modules\Cart\Classes\ApiCart;
 use Modules\Cart\Classes\Cart;
 use Modules\Cart\Interfaces\CartInterface;
 use Nwidart\Modules\Traits\PathNamespace;
@@ -36,17 +37,33 @@ class CartServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-//        $this->app->singleton(CartInterface::class, function ($app) {
-//            return new Cart(
-//                $app['session'],
-//                $app['events'],
-//                'cart'
-//            );
-//        });
-//
-//        $this->app->singleton('cart', function ($app) {
-//            return $app->make(CartInterface::class);
-//        });
+
+
+        $this->app->singleton('apicart', function ($app) {
+
+            $request = $app['request'];
+            // Get cart identifier from header or request
+            $identifier = $request->header('X-Cart-Identifier')
+                ?: $request->input('cart_identifier');
+
+            // Validate if identifier exists in database
+            if ($identifier && !$this->isValidCartIdentifier($identifier)) {
+                $identifier = null; // Invalid identifier, generate new one
+            }
+
+            // Generate a new identifier if none exists or invalid
+            if (!$identifier) {
+                $identifier = 'api_' . md5(uniqid('cart_', true) . time());
+            }
+
+            return new ApiCart($identifier);
+        });
+
+        // Or bind to interface
+        $this->app->bind(CartInterface::class, ApiCart::class);
+
+
+        /** Web-based cart (session) **/
         $this->app->singleton('cart', function ($app) {
             return new Cart(
                 $app['session'],
@@ -63,6 +80,13 @@ class CartServiceProvider extends ServiceProvider
         $this->app->register(RouteServiceProvider::class);
     }
 
+    protected function isValidCartIdentifier($identifier)
+    {
+        return \Modules\Cart\Models\Cart::where('identifier', $identifier)
+            ->where('instance', 'default')
+            ->active()
+            ->exists();
+    }
     /**
      * Register commands in the format of Command::class
      */

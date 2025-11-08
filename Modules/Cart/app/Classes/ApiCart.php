@@ -4,6 +4,7 @@ namespace Modules\Cart\Classes;
 
 use Carbon\Carbon;
 use Closure;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Modules\Cart\Interfaces\CartInterface;
 use Modules\Cart\Models\Cart as CartModel;
@@ -20,8 +21,71 @@ class ApiCart implements CartInterface
     public function __construct($identifier = null, $instance = null)
     {
         $this->instance($instance ?? self::DEFAULT_INSTANCE);
-        $this->identifier = $identifier ?: $this->generateIdentifier();
-        $this->loadCart();
+        $this->identifier = $identifier;
+        $this->initializeCart();
+    }
+
+    protected function initializeCart()
+    {
+        // If no identifier provided, generate new one and create cart
+        if (!$this->identifier) {
+            $this->identifier = $this->generateIdentifier();
+            $this->createNewCart();
+            return;
+        }
+
+        // Try to load existing cart with provided identifier
+        $this->loadExistingCart();
+
+        // If cart doesn't exist with provided identifier, create new one with that identifier
+        if (!$this->cart || !$this->cart->exists) {
+            $this->createNewCart($this->identifier);
+        }
+    }
+
+    protected function loadExistingCart()
+    {
+        $this->cart = CartModel::with(['items' => function($query) {
+            $query->whereHas('product');
+        }])
+            ->forIdentifier($this->identifier)
+            ->instance($this->instance)
+            ->active()
+            ->first();
+    }
+
+    protected function createNewCart($identifier = null)
+    {
+        $identifier = $identifier ?: $this->generateIdentifier();
+
+        $this->cart = CartModel::create([
+            'identifier' => $identifier,
+            'instance' => $this->instance,
+            'user_id' => Auth::id(),
+            'currency' => config('app.currency', 'USD'),
+            'subtotal' => 0,
+            'total' => 0,
+            'discount_amount' => 0,
+            'tax_amount' => 0,
+            'shipping_amount' => 0,
+            'expires_at' => Carbon::now()->addDays(30),
+        ]);
+
+        // Initialize empty items relationship
+        $this->cart->setRelation('items', new Collection());
+
+        // Update identifier in case it was generated
+        $this->identifier = $identifier;
+    }
+
+    public function getIdentifier()
+    {
+        return $this->identifier;
+    }
+
+    public function getCartModel()
+    {
+        return $this->cart;
     }
 
     public function setIdentifier($identifier)
@@ -180,6 +244,7 @@ class ApiCart implements CartInterface
 
     public function content()
     {
+        $this->cart->load('items'); // Ensure items are loaded
         return $this->cart->items->map(function ($item) {
             return $this->formatCartItem($item);
         });
@@ -187,7 +252,17 @@ class ApiCart implements CartInterface
 
     public function count()
     {
-        return $this->cart->items->sum('qty');
+        if (!$this->cart->relationLoaded('items')) {
+            $this->cart->load('items');
+        }
+        return $this->cart->items->sum('qty') ?: 0;
+    }
+    public function itemsCount()
+    {
+        if (!$this->cart->relationLoaded('items')) {
+            $this->cart->load('items');
+        }
+        return $this->cart->items->count() ?: 0;
     }
 
     public function total()
@@ -299,7 +374,9 @@ class ApiCart implements CartInterface
 
     protected function loadCart()
     {
-        $this->cart = CartModel::with('items')
+        $this->cart = CartModel::with(['items' => function($query) {
+            $query->whereHas('product'); // Ensure items have products
+        }])
             ->forIdentifier($this->identifier)
             ->instance($this->instance)
             ->active()
@@ -310,7 +387,7 @@ class ApiCart implements CartInterface
                 'identifier' => $this->identifier,
                 'instance' => $this->instance,
                 'user_id' => Auth::id(),
-                'currency' => config('app.currency', 'USD'),
+                'currency' => config('app.currency', 'AED'),
                 'subtotal' => 0,
                 'total' => 0,
                 'discount_amount' => 0,
@@ -359,11 +436,6 @@ class ApiCart implements CartInterface
         return 'api_' . md5(uniqid('cart_', true));
     }
 
-    public function getCartModel()
-    {
-        return $this->cart;
-    }
-
     public function mergeWithUserCart($userId)
     {
         $userCart = CartModel::with('items')
@@ -410,5 +482,18 @@ class ApiCart implements CartInterface
         $this->cart->update(['user_id' => $userId]);
 
         return $this;
+    }
+
+    // Add this method to debug cart loading
+    public function debug()
+    {
+        return [
+            'identifier' => $this->identifier,
+            'cart_exists' => !is_null($this->cart),
+            'cart_id' => $this->cart->id ?? null,
+            'items_count' => $this->cart->items->count() ?? 0,
+            'total_count' => $this->count(),
+            'cart_model' => $this->cart ? $this->cart->toArray() : null
+        ];
     }
 }

@@ -4,7 +4,9 @@ namespace Modules\Cart\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Modules\Cart\Classes\ApiCart;
+use Modules\Cart\Models\Cart;
 
 class IdentifyCart
 {
@@ -13,21 +15,17 @@ class IdentifyCart
      */
     public function handle(Request $request, Closure $next)
     {
-        // Get cart identifier from header, token, or generate new one
-        $identifier = $request->header('X-Cart-Identifier')
-            ?: $request->input('cart_identifier')
-                ?: $this->generateIdentifier();
-
-        // Initialize cart with identifier
-        app()->singleton('apicart', function () use ($identifier) {
-            return new ApiCart($identifier);
-        });
+        // The service provider already handles cart creation
+        // We just pass through and ensure identifier is returned
+        $cart = app('apicart');
 
         $response = $next($request);
 
-        // Add cart identifier to response for client to store
-        return $response->header('X-Cart-Identifier', $identifier);
+        // Always return the current cart identifier in response
+        return $response->header('X-Cart-Identifier', $cart->getIdentifier());
     }
+
+
 
     protected function generateIdentifier()
     {

@@ -9,13 +9,17 @@ Route::prefix('v1/cart')->group(function () {
 
     // Public cart routes that require cart identification
     Route::middleware([IdentifyCart::class])->group(function () {
+        Route::get('/debug', [CartApiController::class, 'getIdentifier']); // Debug purpose only
+
         Route::get('/', [CartApiController::class, 'index']);
+        Route::get('/get-cart', [CartApiController::class, 'getCart']);
         Route::post('/add', [CartApiController::class, 'add']);
         Route::put('/update/{rowId}', [CartApiController::class, 'update']);
         Route::delete('/remove/{rowId}', [CartApiController::class, 'remove']);
         Route::delete('/clear', [CartApiController::class, 'clear']);
         Route::post('/shipping', [CartApiController::class, 'setShipping']);
         Route::post('/discount', [CartApiController::class, 'setDiscount']);
+        Route::get('/items-count', [CartApiController::class, 'getItemsCount']);
     });
 
 // Cart routes that require authentication + cart identification

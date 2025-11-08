@@ -6,20 +6,55 @@ use AllowDynamicProperties;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
 use Modules\Cart\Classes\ApiCart;
 
 #[AllowDynamicProperties]
 class CartApiController extends Controller
 {
-    public function __construct(ApiCart $cart){
-        $this->cart = $cart->instance('apicart');
+    public function __construct(){
+
+        //Using Container Binding
+        // This is defined in the cart service provider
+        $this->cart = app('apicart');
+
+        // If you need different instances (wishlist, compare, etc.)
+//        $this->wishlist = (new ApiCart(null, 'wishlist'))->instance('wishlist');
+//        $this->compare = (new ApiCart(null, 'compare'))->instance('compare');
     }
 
-    public function index()
+    // Option B: Using interface (Alternative)
+    /*
+    public function __construct(CartInterface $cart)
+    {
+        $this->cart = $cart;
+    }
+    */
+
+    public function index(Request $request)
     {
         return response()->json([
             'success' => true,
             'data' => $this->cart->apiContent()
+        ]);
+    }
+
+    public function getCart(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $this->cart->apiContent()
+        ]);
+    }
+
+    public function getItemsCount(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'count' => $this->cart->itemsCount()
+            ]
         ]);
     }
 
@@ -31,8 +66,8 @@ class CartApiController extends Controller
     public function add(Request $request)
     {
         $request->validate([
-            'id' => 'required',
-            'name' => 'required|string',
+            'product_id' => 'required',
+            'name' => 'nullable|string',
             'qty' => 'required|integer|min:1',
             'price' => 'required|numeric|min:0',
             'options' => 'sometimes|array',
@@ -40,7 +75,7 @@ class CartApiController extends Controller
         ]);
 
         $item = $this->cart->add(
-            $request->id,
+            $request->product_id,
             $request->name,
             $request->qty,
             $request->price,
@@ -145,5 +180,15 @@ class CartApiController extends Controller
             'success' => false,
             'message' => 'User not authenticated'
         ], 401);
+    }
+
+    // Add identifier getter method
+    public function getIdentifier()
+    {
+        return response()->json([
+            'success' => true,
+            'identifier' => $this->cart->getIdentifier(),
+            'message' => 'Use this identifier in X-Cart-Identifier header'
+        ]);
     }
 }
