@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Http\Controllers\Customer;
+namespace Modules\Ecommerce\Http\Controllers\Customer;
 
-use App\Models\Product;
 use App\Http\Controllers\Controller;
+use Modules\Product\Models\Product;
 
 class ReviewController extends Controller
 {

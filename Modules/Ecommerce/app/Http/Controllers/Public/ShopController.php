@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Http\Controllers\Public;
+namespace Modules\Ecommerce\Http\Controllers\Public;
 
-use App\Models\Product;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
+use Modules\Product\Models\Product;
 
 class ShopController extends Controller
 {
     public function index() {
-        return Inertia::render('e-commerce/(public)/shop/page', [
+        return Inertia::render('e-commerce/public/shop/shopList', [
             'filters' => request()->only('search'),
         ]);
     }

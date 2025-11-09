@@ -1,7 +1,7 @@
-// components/NotificationPopover.tsx (for app-sidebar)
-import { useCallback, useEffect } from 'react';
+// components/NotificationPopover.tsx
+import { useCallback } from 'react';
 import { Popover } from '@headlessui/react';
-import { motion } from 'framer-motion'; // Removed useAnimation as it's now from context
+import { motion } from 'framer-motion';
 import { usePage } from '@inertiajs/react';
 import type { SharedData } from '@/types';
 import apiClient from '@/lib/apiClient';
@@ -15,22 +15,37 @@ export default function NotificationPopover() {
     const { unreadMessages, messages, markAsRead, notificationControls } = useNotification();
 
     // Mark messages as read when popover is opened
-    const handleMarkAsRead = useCallback(() => {
+    const handleMarkAsRead = useCallback(async () => {
         if (unreadMessages > 0 && user?.id) {
-            console.log('Marking messages as read');
-            apiClient
-                .post('/api/v1/mark-messages-read', {
-                    user_id: user.id,
-                })
-                .then(() => {
-                    console.log('Messages marked as read');
-                    markAsRead(); // Use context action to reset count
-                })
-                .catch(error => {
-                    console.error('Failed to mark messages as read:', error);
-                });
+            console.log('📝 Marking messages as read for user:', user.id);
+            try {
+                // FIX: Use the correct API endpoint and parameters
+                const response = await apiClient.post(`/api/v1/mark-messages-read/${user.id}`);
+
+                console.log('✅ Messages marked as read:', response.data);
+                markAsRead(); // Use context action to reset count
+            } catch (error) {
+                console.error('❌ Failed to mark messages as read:', error);
+                // If the API endpoint doesn't exist, you might need to mark messages individually
+                // or create the backend endpoint
+            }
         }
     }, [unreadMessages, user?.id, markAsRead]);
+
+    // Alternative: Mark specific messages as read if you have message IDs
+    const handleMarkMessageAsRead = useCallback(async (messageId: number) => {
+        if (!user?.id) return;
+
+        try {
+            const response = await apiClient.post('/api/v1/messages/mark-read', {
+                user_id: user.id,
+                message_id: messageId
+            });
+            console.log('✅ Message marked as read:', response.data);
+        } catch (error) {
+            console.error('❌ Failed to mark message as read:', error);
+        }
+    }, [user?.id]);
 
     return (
         <Popover className="relative z-50">
@@ -39,11 +54,19 @@ export default function NotificationPopover() {
                 onClick={handleMarkAsRead}
             >
                 {/* Apply controls directly to motion.div */}
-                <motion.div animate={notificationControls}>
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2"
-                         viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round"
-                              d="M15 17h5l-1.405-1.405M19 13V9a7 7 0 10-14 0v4l-1.405 1.405M5 17h5m0 0v1a3 3 0 006 0v-1m-6 0h6"/>
+                <motion.div key={`dineshstack`} animate={notificationControls}>
+                    <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M15 17h5l-1.405-1.405M19 13V9a7 7 0 10-14 0v4l-1.405 1.405M5 17h5m0 0v1a3 3 0 006 0v-1m-6 0h6"
+                        />
                     </svg>
                     {unreadMessages > 0 && (
                         <motion.span
@@ -78,13 +101,14 @@ export default function NotificationPopover() {
                     ) : (
                         messages.map((msg) => (
                             <motion.div
-                                key={msg.id}
+                                key={msg.id} // FIX: Added unique key prop
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 className="flex items-start gap-3 py-2"
+                                onClick={() => handleMarkMessageAsRead(msg.id)} // Optional: mark as read when clicked
                             >
                                 <img
-                                    src={`https://ui-avatars.com/api/?name=${msg.from.name}&size=64`}
+                                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(msg.from.name)}&size=64`}
                                     alt={msg.from.name}
                                     className="w-8 h-8 rounded-full"
                                 />
@@ -93,8 +117,11 @@ export default function NotificationPopover() {
                                         {msg.message}
                                     </p>
                                     <span className="text-xs text-gray-400 mt-1">
-                    {msg.from.name}
-                  </span>
+                                        {msg.from.name}
+                                    </span>
+                                    <span className="text-xs text-gray-400">
+                                        {new Date(msg.created_at).toLocaleDateString()}
+                                    </span>
                                 </div>
                             </motion.div>
                         ))

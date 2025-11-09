@@ -20,4 +20,5 @@ Route::middleware(['auth:api'])->prefix('v1')->name('v1.')->group(function () {
     Route::post('/conversations/{conversationId}/mark-read', [ChatController::class, 'markAsRead'])->name('conversation.markasread');
     Route::get('/conversations/{conversationId}/messages', [ChatController::class, 'getMessages'])->name('conversation.messages');
     Route::get('/conversation/users/search', [ChatController::class, 'getAvailableUsers'])->name('conversation.users');
+    Route::post('/mark-messages-read/{user_id}', [ChatController::class, 'markMessagesRead'])->name('conversation.messages.read');
 });

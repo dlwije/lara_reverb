@@ -1,9 +1,7 @@
 'use client';
 
 import { SheetDescription } from '@/components/ui/sheet';
-
-import type React from 'react';
-
+import React, { useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,7 +12,7 @@ import { useEchoChat } from '@/hooks/use-echo-chat';
 import type { Conversation } from '@/types/chat';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { AlertCircle, ArrowLeft, MessageCircle, Radio, WifiOff } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { ChatInterface } from './chat-interface';
 import { ConversationList } from './conversation-list';
 
@@ -26,10 +24,10 @@ interface GlobalChatProps {
         avatar?: string | null;
     };
     authToken: string;
-    trigger?: React.ReactNode; // Custom trigger component
+    trigger?: React.ReactNode;
     className?: string;
-    open?: boolean; // Allow external control of open state
-    onOpenChange?: (open: boolean) => void; // Allow external control of open state
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 export function GlobalChat({ currentUser, authToken, trigger, className, open: externalOpen, onOpenChange: externalOnOpenChange }: GlobalChatProps) {
@@ -37,17 +35,23 @@ export function GlobalChat({ currentUser, authToken, trigger, className, open: e
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
     const [showConversationList, setShowConversationList] = useState(true);
 
-    // Use external open state if provided, otherwise use internal state
     const open = externalOpen !== undefined ? externalOpen : internalOpen;
+    // ✅ Only initialize chat hook when conversation is selected AND chat is open
+    const shouldInitializeChat = open && selectedConversation && selectedConversation.user.id;
     const setOpen = externalOnOpenChange || setInternalOpen;
 
-    // Reset conversation selection when chat opens
+    // Log prop changes
+    const prevProps = useRef({ currentUser, authToken, externalOpen });
     useEffect(() => {
-        if (open) {
-            setSelectedConversation(null);
-            setShowConversationList(true);
-        }
-    }, [open]);
+        console.log('🔍 GlobalChat props changed:', {
+            currentUserChanged: prevProps.current.currentUser?.id !== currentUser?.id,
+            authTokenChanged: prevProps.current.authToken !== authToken,
+            openChanged: prevProps.current.externalOpen !== externalOpen,
+            timestamp: new Date().toISOString()
+        });
+        prevProps.current = { currentUser, authToken, externalOpen };
+    });
+
 
     // Use conversations hook
     const {
@@ -60,6 +64,17 @@ export function GlobalChat({ currentUser, authToken, trigger, className, open: e
         incrementUnreadCount,
         getTotalUnreadCount,
     } = useConversations(currentUser.id);
+
+
+    // Log conversations hook changes
+    useEffect(() => {
+        console.log('💬 Conversations hook state:', {
+            conversationsCount: conversations.length,
+            loading: conversationsLoading,
+            error: conversationsError,
+            timestamp: new Date().toISOString()
+        });
+    }, [conversations.length, conversationsLoading, conversationsError]);
 
     // Use chat hook only when conversation is selected
     const {
@@ -74,33 +89,61 @@ export function GlobalChat({ currentUser, authToken, trigger, className, open: e
         refreshMessages,
         reconnect,
         handleTyping,
-    } = useEchoChat(currentUser.id, selectedConversation?.user.id || 0, authToken, selectedConversation?.conversation_id);
+    } = useEchoChat(
+        shouldInitializeChat ? currentUser.id : 0,
+        shouldInitializeChat ? selectedConversation.user.id : 0,
+        shouldInitializeChat ? authToken : undefined,
+        shouldInitializeChat ? selectedConversation.conversation_id : undefined
+    );
 
-    // Add debugging
-    console.log('Selected conversation on glob chat:', selectedConversation);
-    console.log('🔍 GlobalChat - Chat hook parameters:', {
-        currentUserId: currentUser.id,
-        selectedConversationUserId: selectedConversation?.user.id,
-        expectedChannel: selectedConversation
-            ? `chat.${Math.min(currentUser.id, selectedConversation.user.id)}-${Math.max(currentUser.id, selectedConversation.user.id)}`
-            : 'none',
+    // Log when useEchoChat is called unnecessarily
+    useEffect(() => {
+        if (!shouldInitializeChat) {
+            console.log('🚫 useEchoChat called unnecessarily - no selected conversation');
+        }
+    }, [shouldInitializeChat]);
+    // Reset conversation selection when chat opens
+    useEffect(() => {
+        if (open) {
+            setSelectedConversation(null);
+            setShowConversationList(true);
+        }
+    }, [open]);
+
+    // Add debugging to see why this is re-rendering
+    useEffect(() => {
+        console.log('🔍 GlobalChat re-rendered:', {
+            open,
+            selectedConversation: selectedConversation?.conversation_id,
+            shouldInitializeChat,
+            timestamp: new Date().toISOString()
+        });
     });
 
-    const handleSelectConversation = async (conversation: Conversation) => {
+    // Fix: Properly handle conversation selection with read status update
+    const handleSelectConversation = useCallback(async (conversation: Conversation) => {
         console.log('🔄 Selecting conversation:', conversation);
         setSelectedConversation(conversation);
         setShowConversationList(false);
 
-        // Mark conversation as read
+        // Mark conversation as read if it has unread messages
         if (conversation.unread_count > 0) {
-            await markAsRead(conversation.conversation_id);
-        }
-    };
+            try {
+                await markAsRead(conversation.conversation_id);
+                console.log('✅ Conversation marked as read:', conversation.conversation_id);
 
-    const handleBackToList = () => {
+                // Force refresh conversations to update the unread count
+                await loadConversations();
+            } catch (error) {
+                console.error('❌ Failed to mark conversation as read:', error);
+            }
+        }
+    }, [markAsRead, loadConversations]);
+
+    const handleBackToList = useCallback(() => {
         setSelectedConversation(null);
         setShowConversationList(true);
-    };
+    }, []);
 
     const getConnectionStatus = () => {
         if (isConnected) {
@@ -143,6 +186,7 @@ export function GlobalChat({ currentUser, authToken, trigger, className, open: e
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>{trigger || defaultTrigger}</SheetTrigger>
+            <SheetTitle></SheetTitle>
             <SheetContent className="flex h-full w-full max-w-4xl flex-col border-zinc-800 bg-zinc-900 p-0 text-white">
                 {/* Show conversation list when no conversation is selected OR on desktop */}
                 <div
@@ -161,45 +205,40 @@ export function GlobalChat({ currentUser, authToken, trigger, className, open: e
                 {selectedConversation && (
                     <div className={`${showConversationList ? 'hidden lg:flex' : 'flex'} min-h-0 flex-1 flex-col`}>
                         <SheetHeader className="flex-shrink-0 border-b border-zinc-800 p-6">
-                            <SheetTitle>
-                                <div className="flex items-center gap-3">
-                                    <Button variant="ghost" size="sm" onClick={handleBackToList} className="text-zinc-400 hover:text-white lg:hidden">
-                                        <ArrowLeft className="h-4 w-4" />
-                                    </Button>
-                                    <Avatar className="h-12 w-12">
-                                        <AvatarImage
-                                            src={selectedConversation.user.avatar || '/placeholder.svg'}
-                                            alt={selectedConversation.user.name}
-                                        />
-                                        <AvatarFallback className="bg-white text-black">
-                                            {selectedConversation.user.name
-                                                .split(' ')
-                                                .map((n) => n[0])
-                                                .join('')}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="min-w-0 flex-1">
-                                        <h2 className="truncate text-lg font-semibold">Chat with {selectedConversation.user.name}</h2>
-                                        <p className="truncate text-sm text-zinc-400">
-                                            {selectedConversation.user.email}
-                                            {conversationId && <span className="ml-2">• Conv: {conversationId}</span>}
-                                            {otherUserTyping && <span className="ml-2 text-green-400">• typing...</span>}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-shrink-0 items-center gap-2">
-                                        {getConnectionStatus()}
-                                        {/*<Button*/}
-                                        {/*    variant="ghost"*/}
-                                        {/*    size="sm"*/}
-                                        {/*    onClick={refreshMessages}*/}
-                                        {/*    disabled={chatLoading}*/}
-                                        {/*    className="text-zinc-400 hover:text-white"*/}
-                                        {/*>*/}
-                                        {/*    Refresh*/}
-                                        {/*</Button>*/}
-                                    </div>
+                            <div className="flex items-center gap-3">
+                                {/* FIX: Show back arrow on all screen sizes when conversation is selected */}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleBackToList}
+                                    className="text-zinc-400 hover:text-white"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                </Button>
+                                <Avatar className="h-12 w-12">
+                                    <AvatarImage
+                                        src={selectedConversation.user.avatar || '/placeholder.svg'}
+                                        alt={selectedConversation.user.name}
+                                    />
+                                    <AvatarFallback className="bg-white text-black">
+                                        {selectedConversation.user.name
+                                            .split(' ')
+                                            .map((n) => n[0])
+                                            .join('')}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0 flex-1">
+                                    <h2 className="truncate text-lg font-semibold">Chat with {selectedConversation.user.name}</h2>
+                                    <p className="truncate text-sm text-zinc-400">
+                                        {selectedConversation.user.email}
+                                        {conversationId && <span className="ml-2">• Conv: {conversationId}</span>}
+                                        {otherUserTyping && <span className="ml-2 text-green-400">• typing...</span>}
+                                    </p>
                                 </div>
-                            </SheetTitle>
+                                <div className="flex flex-shrink-0 items-center gap-2">
+                                    {getConnectionStatus()}
+                                </div>
+                            </div>
                         </SheetHeader>
 
                         <VisuallyHidden>
@@ -234,10 +273,10 @@ export function GlobalChat({ currentUser, authToken, trigger, className, open: e
                             <div className="min-h-0 flex-1">
                                 <ChatInterface
                                     user={{
-                                        id: selectedConversation.user2.id.toString(),
-                                        name: selectedConversation.user2.name,
-                                        email: selectedConversation.user2.email,
-                                        avatar: selectedConversation.user2.avatar || undefined,
+                                        id: selectedConversation.user.id.toString(), // FIX: Use user instead of user2
+                                        name: selectedConversation.user.name,
+                                        email: selectedConversation.user.email,
+                                        avatar: selectedConversation.user.avatar || undefined,
                                     }}
                                     messages={messages}
                                     onSendMessage={sendMessage}

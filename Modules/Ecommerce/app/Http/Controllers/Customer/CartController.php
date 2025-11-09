@@ -1,12 +1,11 @@
 <?php
 
-namespace App\Http\Controllers\Customer;
+namespace Modules\Ecommerce\Http\Controllers\Customer;
 
-use App\Models\Cart;
-use App\Models\Product;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Modules\Product\Models\Product;
 
 class CartController extends Controller
 {
@@ -16,5 +15,5 @@ class CartController extends Controller
 
     public function store(Product $product) {}
 
-    public function destroy(Cart $cart) {}
+//    public function destroy(Cart $cart) {}
 }

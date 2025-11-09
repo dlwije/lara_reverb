@@ -1,11 +1,11 @@
 'use client'
-import ProductDescription from '@/components/e-commerce/ProductDescription.jsx';
-import ProductDetails from '@/components/e-commerce/ProductDetails.jsx';
 import { usePage } from '@inertiajs/react';
-import { router } from '@inertiajs/react';
+// import { router } from '@inertiajs/react';
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import PublicLayout from '@/pages/e-commerce/(public)/layout.jsx';
+import PublicLayout from '@/pages/e-commerce/public/layout';
+import ProductDetails from '@/components/e-commerce/public/productDetails';
+import ProductDescription from '@/components/e-commerce/public/productDescription';
 
 export default function Product() {
 

@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import { configureEcho } from '@laravel/echo-react';
 import './lib/i18n';
+import StoreProvider from '@/pages/e-commerce/storeProvider';
 
 
 configureEcho({
@@ -25,7 +26,9 @@ createInertiaApp({
         const root = createRoot(el);
 
         root.render(
-            <App {...props} />
+            <StoreProvider>
+                <App {...props} />
+            </StoreProvider>
         );
     },
     progress: {

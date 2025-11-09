@@ -1,9 +1,11 @@
 <?php
 
-namespace App\Http\Controllers\Customer;
+namespace Modules\Ecommerce\Http\Controllers\Customer;
 
-use App\Models\Order;
 use App\Http\Controllers\Controller;
+use App\Models\Sma\Pos\Order;
+
+//use App\Models\Sma\Pos\Order;
 
 class OrderController extends Controller
 {

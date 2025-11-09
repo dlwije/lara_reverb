@@ -11,14 +11,23 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import type { SharedData } from "@/types"
 import { Link, router, usePage } from "@inertiajs/react"
-import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, Sparkles } from "lucide-react"
+import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, MessageCircle, Sparkles } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useMobileNavigation } from "@/hooks/use-mobile-navigation"
-import { GlobalChat } from "./global-chat"
-import { useConversations } from "@/hooks/use-conversations"
-import { useState } from "react"
+// import { GlobalChat } from "./global-chat"
+// Lazy load the chat component
+import { lazy, Suspense, useState } from 'react';
+import { useUnreadCount } from '@/hooks/use-unread-count';
+import { useConversations } from '@/hooks/use-conversations';
+// Create a proper lazy-loaded component
+const LazyGlobalChat = lazy(() =>
+    import('@/components/global-chat').then(module => ({
+        default: module.GlobalChat
+    }))
+);
 
 export function NavUserWithChat() {
     const { auth } = usePage<SharedData>().props
@@ -28,7 +37,10 @@ export function NavUserWithChat() {
 
     // Get unread count for notifications badge
     const { getTotalUnreadCount } = useConversations(auth.user?.id || 0)
-    const totalUnreadCount = getTotalUnreadCount()
+
+    // Only load unread count, not full conversations
+    // const { unreadCount } = useUnreadCount(auth.user?.id || 0);
+    const totalUnreadCount = getTotalUnreadCount();
 
     const handleLogout = () => {
         // Clear frontend storage
@@ -41,15 +53,27 @@ export function NavUserWithChat() {
         setChatOpen(true)
     }
 
-    // Custom trigger for the chat - hidden button that we'll trigger programmatically
-    const chatTrigger = (
-        <button onClick={() => setChatOpen(true)} className="hidden" aria-hidden="true">
-            Open Chat
-        </button>
-    )
-
     return (
         <>
+            {/* Global Chat with proper lazy loading */}
+            <Suspense fallback={
+                <Button variant="ghost" size="sm" className="relative">
+                    <MessageCircle className="h-5 w-5" />
+                    <span className="sr-only">Loading chat...</span>
+                </Button>
+            }>
+                <LazyGlobalChat
+                    currentUser={{
+                        id: auth.user?.id || 0,
+                        name: auth.user?.name || "",
+                        email: auth.user?.email || "",
+                        avatar: auth.user?.avatar,
+                    }}
+                    authToken={auth.accessToken || ""}
+                    open={chatOpen}
+                    onOpenChange={setChatOpen}
+                />
+            </Suspense>
             <SidebarMenu>
                 <SidebarMenuItem>
                     <DropdownMenu>
@@ -142,20 +166,6 @@ export function NavUserWithChat() {
                     </DropdownMenu>
                 </SidebarMenuItem>
             </SidebarMenu>
-
-            {/* Global Chat Component */}
-            <GlobalChat
-                currentUser={{
-                    id: auth.user?.id || 0,
-                    name: auth.user?.name || "",
-                    email: auth.user?.email || "",
-                    avatar: auth.user?.avatar,
-                }}
-                authToken={auth.accessToken || ""}
-                trigger={chatTrigger}
-                open={chatOpen}
-                onOpenChange={setChatOpen}
-            />
         </>
     )
 }

@@ -9,5 +9,6 @@
     "Checkout": true,
     "Telr": true,
     "Cart": true,
-    "Wishlist": true
+    "Wishlist": true,
+    "Ecommerce": true
 }

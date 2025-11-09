@@ -333,6 +333,16 @@ class ChatController extends Controller
             ->get();
     }
 
+    public function markMessagesRead($user_id)
+    {
+        $userId = $user_id;
+        ChatMessage::where('receiver_id', $userId)
+            ->where('read_at', null)
+            ->update(['read_at' => now()]);
+
+        return self::success([], 'Message marked as read');
+    }
+
 //    public function showConversation($userId)
 //    {
 //        $receiverUserId = auth('api')->id(); // Or pass from query if needed

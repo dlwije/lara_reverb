@@ -36,32 +36,50 @@ export default function NotificationListener() {
     const { auth } = usePage<SharedData>().props;
     const user = auth.user;
     const echoRef = useRef<any>(null);
-    // Get context actions and controls
+    const channelRef = useRef<any>(null);
     const { addMessage, setUnreadMessages, setMessages, triggerNotificationAnimation } = useNotification();
 
-    // Initialize sound (only once)
+    // Initialize sound with better error handling
     const soundRef = useRef<Howl | null>(null);
     useEffect(() => {
         if (!soundRef.current) {
-            soundRef.current = new Howl({
-                src: ['/media/bell.mp3'],
-                volume: 0.5,
-                html5: true, // Use HTML5 Audio to avoid some autoplay issues
-            });
+            try {
+                soundRef.current = new Howl({
+                    src: ['/media/bell.mp3'],
+                    volume: 0.5,
+                    html5: true,
+                    preload: true,
+                    onloaderror: (id, error) => {
+                        console.error('Failed to load notification sound:', error);
+                    },
+                    onplayerror: (id, error) => {
+                        console.error('Failed to play notification sound:', error);
+                    }
+                });
+                console.log('🔔 Notification sound initialized');
+            } catch (error) {
+                console.error('❌ Failed to initialize notification sound:', error);
+            }
         }
     }, []);
 
-    // Handle new message received
+    // Handle new message received with better error handling
     const handleNewMessage = useCallback((data: NewMessageEvent) => {
         console.log('📨 New message received:', data);
 
-        // Only process if this message is for the current user (receiver)
-        if (data.receiver.id !== user?.id) {
-            console.log('Message not for current user, ignoring');
+        // Validate data
+        if (!data || !data.receiver || !data.sender || !data.message) {
+            console.error('❌ Invalid message data received:', data);
             return;
         }
 
-        const senderName = data.receiver.name; // Placeholder for missing sender name
+        // Only process if this message is for the current user
+        if (data.receiver.id !== user?.id) {
+            console.log('👤 Message not for current user, ignoring');
+            return;
+        }
+
+        const senderName = data.sender.name || `User ${data.sender.id}`;
 
         const newMessage = {
             id: data.message_id,
@@ -69,115 +87,157 @@ export default function NotificationListener() {
             from: {
                 name: senderName
             },
-            created_at: data.message.created_at
+            created_at: data.message.created_at,
+            conversation_id: data.conversation_id,
+            sender_id: data.sender.id
         };
 
-        addMessage(newMessage); // This also increments unread count
-
-        // Play sound
-        if (soundRef.current) {
-            try {
-                soundRef.current.play();
-                console.log('Sound played');
-            } catch (error) {
-                console.error('Failed to play sound:', error);
-            }
-        } else {
-            console.warn('Sound not initialized when trying to play.');
-        }
-
-        // Trigger animation via context
-        triggerNotificationAnimation();
-        console.log('Animation triggered via context');
-
-        // Show toast notification
         try {
+            // Add message to context
+            addMessage(newMessage);
+            console.log('✅ Message added to notification context');
+
+            // Play sound
+            if (soundRef.current) {
+                try {
+                    soundRef.current.play();
+                    console.log('🔊 Sound played');
+                } catch (error) {
+                    console.error('❌ Failed to play sound:', error);
+                }
+            }
+
+            // Trigger animation
+            triggerNotificationAnimation();
+            console.log('🎬 Animation triggered');
+
+            // Show toast notification
             toast.success(`New message from ${senderName}`, {
-                description: newMessage.message.substring(0, 50) + (newMessage.message.length > 50 ? '...' : ''),
+                description: data.message.message.substring(0, 50) + (data.message.message.length > 50 ? '...' : ''),
                 duration: 4000,
                 position: 'top-right',
+                action: {
+                    label: 'View',
+                    onClick: () => {
+                        // You can add navigation logic here
+                        console.log('Navigating to conversation:', data.conversation_id);
+                    }
+                }
             });
-            console.log('Toast notification shown');
+
         } catch (error) {
-            console.error('Failed to show toast:', error);
+            console.error('❌ Error processing new message:', error);
         }
     }, [addMessage, triggerNotificationAnimation, user?.id]);
 
     // Load initial unread messages
-    useEffect(() => {
-        if (user?.id) {
-            console.log('Loading initial unread messages for user:', user.id);
-            apiClient
-                .get(`/api/v1/get-unread-messages/${user.id}`, {
-                    user_id: user.id,
-                })
-                .then(res => {
-                    console.log('Initial unread messages loaded:', res.data);
-                    setUnreadMessages(res.data.length);
+    const loadUnreadMessages = useCallback(async () => {
+        if (!user?.id) return;
 
-                    const transformedMessages = res.data.data.map((msg: any) => ({
-                        id: msg.id,
-                        message: msg.message,
-                        from: {
-                            name: msg.from?.name || msg.sender?.name || `User ${msg.sender_id}`
-                        },
-                        created_at: msg.created_at
-                    }));
+        try {
+            console.log('📥 Loading initial unread messages for user:', user.id);
+            const response = await apiClient.get(`/api/v1/get-unread-messages/${user.id}`, {
+                params: { user_id: user.id }
+            });
 
-                    setMessages(transformedMessages);
-                })
-                .catch(error => {
-                    console.error('Failed to load unread messages:', error);
-                });
+            console.log('✅ Initial unread messages loaded:', response.data);
+
+            if (response.data && Array.isArray(response.data.data)) {
+                setUnreadMessages(response.data.data.length);
+
+                const transformedMessages = response.data.data.map((msg: any) => ({
+                    id: msg.id,
+                    message: msg.message,
+                    from: {
+                        name: msg.from?.name || msg.sender?.name || `User ${msg.sender_id}`
+                    },
+                    created_at: msg.created_at,
+                    conversation_id: msg.conversation_id,
+                    sender_id: msg.sender_id
+                }));
+
+                setMessages(transformedMessages);
+            }
+        } catch (error) {
+            console.error('❌ Failed to load unread messages:', error);
         }
     }, [user?.id, setUnreadMessages, setMessages]);
 
+    // Load unread messages on mount
+    useEffect(() => {
+        loadUnreadMessages();
+    }, [loadUnreadMessages]);
+
     // Set up Echo connection and listeners
     useEffect(() => {
-        if (!user?.id) return;
-
-        const authToken = auth.accessToken;
-        const echo = setupEcho(authToken);
-        if (!echo) {
-            console.error('Failed to setup Echo');
+        if (!user?.id || !auth.accessToken) {
+            console.log('⏸️ Skipping Echo setup: missing user ID or auth token');
             return;
         }
 
-        echoRef.current = echo;
-        const channelName = `notification.${user.id}`;
+        let isSubscribed = false;
 
-        try {
-            const channel = echo.private(channelName);
+        const initializeEcho = async () => {
+            try {
+                const echo = setupEcho(auth.accessToken);
+                if (!echo) {
+                    console.error('❌ Failed to setup Echo');
+                    return;
+                }
 
-            channel
-                .subscribed(() => {
-                    console.log('✅ Successfully subscribed to new message channel:', channelName);
-                })
-                .listen('.NewMessageNotification', (e: NewMessageEvent) => {
-                    console.log('📨 NewMessage received to listener:', e);
-                    handleNewMessage(e);
-                })
-                .error((error: any) => {
-                    console.error('❌ Error subscribing to new message channel:', error);
-                });
+                echoRef.current = echo;
+                const channelName = `notification.${user.id}`;
 
-            echoRef.current = channel;
+                console.log('🔄 Setting up notification channel:', channelName);
 
-        } catch (error) {
-            console.error('❌ Failed to setup new message channel:', error);
-        }
+                const channel = echo.private(channelName);
 
+                channel
+                    .subscribed(() => {
+                        isSubscribed = true;
+                        console.log('✅ Successfully subscribed to notification channel:', channelName);
+                    })
+                    .listen('.NewMessageNotification', (e: NewMessageEvent) => {
+                        console.log('📨 NewMessageNotification event received:', e);
+                        handleNewMessage(e);
+                    })
+                    .error((error: any) => {
+                        console.error('❌ Error in notification channel:', error);
+                        isSubscribed = false;
+                    });
+
+                channelRef.current = channel;
+
+            } catch (error) {
+                console.error('❌ Failed to setup notification channel:', error);
+            }
+        };
+
+        initializeEcho();
+
+        // Cleanup function
         return () => {
-            if (echoRef.current) {
+            console.log('🧹 Cleaning up notification listener');
+
+            if (channelRef.current) {
                 try {
-                    echoRef.current.stopListening('.NewMessage');
-                    console.log('Echo listener cleaned up');
+                    channelRef.current.stopListening('.NewMessageNotification');
+                    console.log('🔌 Stopped listening to notification events');
                 } catch (error) {
-                    console.error('Error during cleanup:', error);
+                    console.error('Error stopping listener:', error);
+                }
+            }
+
+            if (echoRef.current && isSubscribed) {
+                try {
+                    echoRef.current.leave(`notification.${user.id}`);
+                    console.log('🚪 Left notification channel');
+                } catch (error) {
+                    console.error('Error leaving channel:', error);
                 }
             }
         };
-    }, [user?.id, handleNewMessage, auth.accessToken]);
+    }, [user?.id, auth.accessToken, handleNewMessage]);
 
     return null;
 }
