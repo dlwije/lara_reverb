@@ -4,9 +4,22 @@ namespace Modules\Ecommerce\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class EcommerceController extends Controller
 {
+    public function home()
+    {
+        return Inertia::render('e-commerce/public/home/page', []);
+    }
+    public function aboutUs()
+    {
+        return Inertia::render('e-commerce/public/about/page', []);
+    }
+    public function contactUs()
+    {
+        return Inertia::render('e-commerce/public/contact/page', []);
+    }
     /**
      * Display a listing of the resource.
      */

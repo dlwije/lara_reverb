@@ -31,9 +31,9 @@ Route::prefix('manage-modules')->middleware('web')->group(function () {
         ->name('modules.disable')->can('manage-modules');
 });
 
-Route::get('/', function () {
-    return Inertia::render('welcome');
-})->name('home');
+//Route::get('/', function () {
+//    return Inertia::render('welcome');
+//})->name('home');
 
 Route::post('/locale', function (\Illuminate\Http\Request $request) {
     $locale = $request->input('locale', 'en');

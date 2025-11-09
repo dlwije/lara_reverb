@@ -16,9 +16,12 @@ use Modules\Wishlist\Http\Controllers\WishlistController;
 //    Route::resource('ecommerces', EcommerceController::class)->names('ecommerce');
 //});
 
+Route::get('/', [EcommerceController::class, 'home'])->name('home');
+Route::get('about-us', [EcommerceController::class, 'aboutUs'])->name('about-us');
+Route::get('contact-us', [EcommerceController::class, 'contactUs'])->name('contact-us');
 // Product Browsing
-Route::get('products', [ProductController::class, 'index']); // List all products
-Route::get('product/{product}', [ProductController::class, 'show'])->name(''); // Show product details
+Route::get('product-list', [ProductController::class, 'index'])->name('front.products'); // List all products
+Route::get('product/{product}', [ProductController::class, 'show']); // Show product details
 
 // Categories
 Route::get('product-categories', [ProductCategoryController::class, 'index']); // List all categories
