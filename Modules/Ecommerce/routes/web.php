@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Ecommerce\Http\Controllers\Customer\CartController;
+//use Modules\Ecommerce\Http\Controllers\Customer\CartController;
 use Modules\Ecommerce\Http\Controllers\Customer\OrderController;
 use Modules\Ecommerce\Http\Controllers\Customer\ProfileController;
 use Modules\Ecommerce\Http\Controllers\EcommerceController;
@@ -21,7 +21,7 @@ Route::get('about-us', [EcommerceController::class, 'aboutUs'])->name('about-us'
 Route::get('contact-us', [EcommerceController::class, 'contactUs'])->name('contact-us');
 // Product Browsing
 Route::get('product-list', [ProductController::class, 'index'])->name('front.products'); // List all products
-Route::get('product/{product}', [ProductController::class, 'show']); // Show product details
+Route::get('product/{slug}', [ProductController::class, 'show']); // Show product details
 
 // Categories
 Route::get('product-categories', [ProductCategoryController::class, 'index']); // List all categories

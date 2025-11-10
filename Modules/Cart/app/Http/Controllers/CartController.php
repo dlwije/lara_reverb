@@ -32,7 +32,7 @@ class CartController extends Controller
     {
         $request->validate([
             'product_id' => 'required|exists:products,id',
-            'qty' => 'required|integer|min:1',
+            'qty' => 'required|integer|min:1|max:9',
             'options' => 'sometimes|array'
         ]);
 
@@ -67,7 +67,7 @@ class CartController extends Controller
     public function updateCart(Request $request, $rowId)
     {
         $request->validate([
-            'qty' => 'required|integer|min:0'
+            'qty' => 'required|integer|min:1|max:9'
         ]);
 
         if ($request->qty == 0) {

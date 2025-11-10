@@ -42,10 +42,26 @@ class ProductController extends Controller
         return Inertia::render('e-commerce/public/product/product-list', $data_array);
     }
 
-    public function show(Product $product) {
+    public function show(Request $request, $slug) {
+
+        $product = Product::with([
+            'unit', 'unit.subunits', 'unitPrices',
+            'supplier:id,name,company', 'taxes:id,name',
+            'products:id,code,name', 'stocks', 'stores', 'variations.stocks',
+            'brand:id,name,slug,photo,description',
+            'category:id,name,category_id,slug,photo,description',
+            'subcategory:id,name,slug,photo,description',
+            'unit:id,code,name',
+        ])
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        if ($request->with == 'promotions') {
+            $product->load(['validPromotions', 'category.validPromotions']);
+        }
 
         return Inertia::render('e-commerce/public/product/page', [
-            'productId' => $product, // pass as prop
+            'single_product' => $product, // pass as prop
         ]);
     }
 }

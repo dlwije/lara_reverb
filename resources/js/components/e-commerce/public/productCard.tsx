@@ -22,6 +22,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, coming_from }) => {
     const [addedToCart, setAddedToCart] = useState(false);
 
     const productData = product;
+    // console.log('productData', productData);
     // Use actual data from your API response
     const { id, name, slug, code, price, cost, description, stocks, supplier, category, on_sale, active, photo } = productData;
 
@@ -91,7 +92,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, coming_from }) => {
             <CardContent className="flex flex-1 flex-col justify-between gap-6 pt-6">
                 <Link href={`/product/${slug}`} className="group block max-xl:mx-auto">
                     <div className="cursor-pointer">
-                        <div className="size-50 relative mx-auto flex items-center justify-center rounded-lg bg-gray-200">
+                        <div className="size-80 relative mx-auto flex items-center justify-center rounded-lg bg-gray-200">
                             {photo ? (
                                 <img src={photo} alt={name} className="h-full w-full rounded-lg object-cover" />
                             ) : (

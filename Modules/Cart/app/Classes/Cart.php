@@ -187,6 +187,12 @@ class Cart implements CartInterface
         return $this->getContent()->sum('qty');
     }
 
+    public function itemsCount()
+    {
+        $content = $this->getContent();
+        return $content->count();
+    }
+
     public function total()
     {
         $content = $this->getContent();
@@ -309,7 +315,7 @@ class Cart implements CartInterface
 
         return [
             'content' => $content->values(),
-            'count' => $this->count(),
+            'count' => $this->itemsCount(),
             'subtotal' => $this->subtotal(),
             'tax' => $this->tax(),
             'total' => $this->total(),

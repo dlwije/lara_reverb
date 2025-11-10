@@ -8,122 +8,19 @@ import PublicLayout from '@/pages/e-commerce/public/layout';
 import { CartData, CartItem } from '@/types/eCommerce/ecom.cart';
 import { Minus, Package, Plus, Shield, Trash2, Truck } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import CartListPage from '@/pages/e-commerce/public/cart/cart-list';
+import { useCart } from '@/contexts/CartContext';
 
 interface CartPageProps {
-    cart: CartData;
+    cart: any;
 }
 
 const CartPage = ({ cart: initialCart }: CartPageProps) => {
-    const [cart, setCart] = useState<CartData>(initialCart);
+    const { cart, loading, applyPromoCode } = useCart(); // Use cart from context
     const [promoCode, setPromoCode] = useState('');
     const [shippingMethod, setShippingMethod] = useState<'standard' | 'express'>('standard');
-    const [loading, setLoading] = useState(false);
-    const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     const shippingCost = shippingMethod === 'standard' ? 5.99 : 12.99;
-
-    // Update cart if initialCart changes
-    useEffect(() => {
-        setCart(initialCart);
-    }, [initialCart]);
-
-    const updateQuantity = async (rowId: string, newQty: number) => {
-        if (newQty < 1) return;
-
-        setActionLoading(`update-${rowId}`);
-        try {
-            const params = new URLSearchParams({
-                qty: newQty.toString(),
-            });
-
-            const response = await apiClient.put(`/cart/update/${rowId}?${params}`);
-
-            if (response.data.success) {
-                setCart(response.data.data);
-            } else {
-                console.error('Failed to update quantity');
-            }
-        } catch (error) {
-            console.error('Error updating quantity:', error);
-        } finally {
-            setActionLoading(null);
-        }
-    };
-
-    const removeItem = async (rowId: string) => {
-        setActionLoading(`remove-${rowId}`);
-        try {
-            const response = await apiClient.delete(`/cart/remove/${rowId}`);
-
-            if (response.data.success) {
-                setCart(response.data.data);
-            } else {
-                console.error('Failed to remove item');
-            }
-        } catch (error) {
-            console.error('Error removing item:', error);
-        } finally {
-            setActionLoading(null);
-        }
-    };
-
-    const applyPromoCode = async () => {
-        if (!promoCode.trim()) return;
-
-        setLoading(true);
-        try {
-            const params = new URLSearchParams({
-                promo_code: promoCode,
-            });
-
-            const response = await apiClient.post(`/cart/apply-promo?${params}`);
-
-            if (response.data.success) {
-                setCart(response.data.data);
-                setPromoCode('');
-            } else {
-                alert(response.data.message || 'Failed to apply promo code');
-            }
-        } catch (error) {
-            console.error('Error applying promo code:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const clearCart = async () => {
-        if (!confirm('Are you sure you want to clear your cart?')) return;
-
-        setLoading(true);
-        try {
-            const response = await apiClient.delete('/cart/clear');
-
-            if (response.data.success) {
-                setCart(response.data.data);
-            } else {
-                console.error('Failed to clear cart');
-            }
-        } catch (error) {
-            console.error('Error clearing cart:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const getProductImage = (item: CartItem) => {
-        return item.product?.image || item.options?.image || '/placeholder.svg';
-    };
-
-    const getProductName = (item: CartItem) => {
-        return item.name || item.product?.name || `Product ${item.id}`;
-    };
-
-    const getVariantInfo = (item: CartItem) => {
-        const parts = [];
-        if (item.options?.size) parts.push(item.options.size);
-        if (item.options?.color) parts.push(item.options.color);
-        return parts.join(' • ') || 'Standard';
-    };
 
     // Calculate totals from actual cart data
     const subtotal = parseFloat(cart.subtotal) || 0;
@@ -131,10 +28,19 @@ const CartPage = ({ cart: initialCart }: CartPageProps) => {
     const discount = parseFloat(cart.discount) || 0;
     const total = subtotal + tax + shippingCost - discount;
 
+    const handleApplyPromoCode = async () => {
+        if (!promoCode.trim()) return;
+
+        const success = await applyPromoCode(promoCode);
+        if (success) {
+            setPromoCode('');
+        }
+    };
+
     // Handle Enter key for promo code
     const handlePromoKeyPress = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
-            applyPromoCode();
+            handleApplyPromoCode();
         }
     };
 
@@ -143,129 +49,7 @@ const CartPage = ({ cart: initialCart }: CartPageProps) => {
             <section className="bg-background dark min-h-screen">
                 <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 gap-8 md:grid-cols-[2fr_1fr]">
-                        {/* Cart Items */}
-                        <div>
-                            <div className="mb-6 flex items-center justify-between">
-                                <div>
-                                    <h1 className="text-foreground text-3xl font-bold">Shopping Cart</h1>
-                                    <p className="text-muted-foreground">
-                                        {cart.count} {cart.count === 1 ? 'item' : 'items'} in your cart
-                                    </p>
-                                </div>
-                                {cart.content.length > 0 && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={clearCart}
-                                        disabled={loading}
-                                        className="text-destructive border-destructive hover:bg-destructive hover:text-white"
-                                    >
-                                        {loading ? 'Clearing...' : 'Clear Cart'}
-                                    </Button>
-                                )}
-                            </div>
-
-                            {cart.content.length === 0 ? (
-                                <Card className="border-border bg-card p-8 text-center">
-                                    <Package className="text-muted-foreground mx-auto mb-4 h-16 w-16" />
-                                    <h3 className="text-foreground mb-2 text-xl font-semibold">Your cart is empty</h3>
-                                    <p className="text-muted-foreground mb-4">Add some products to get started</p>
-                                    <Button asChild>
-                                        <a href={route('front.products')}>Continue Shopping</a>
-                                    </Button>
-                                </Card>
-                            ) : (
-                                <div className="space-y-4">
-                                    {cart.content.map((item) => (
-                                        <Card key={item.rowId} className="border-border bg-card overflow-hidden p-4">
-                                            <div className="flex gap-4">
-                                                <div className="bg-muted h-32 w-32 flex-shrink-0 overflow-hidden rounded-lg">
-                                                    <img
-                                                        src={getProductImage(item)}
-                                                        alt={getProductName(item)}
-                                                        className="h-full w-full object-cover"
-                                                        onError={(e) => {
-                                                            (e.target as HTMLImageElement).src = '/placeholder.svg';
-                                                        }}
-                                                    />
-                                                </div>
-
-                                                <div className="flex flex-1 flex-col justify-between">
-                                                    <div className="flex justify-between">
-                                                        <div>
-                                                            <h3 className="text-foreground text-lg font-semibold">{getProductName(item)}</h3>
-                                                            <p className="text-muted-foreground text-sm">{getVariantInfo(item)}</p>
-                                                            {item.options && Object.keys(item.options).length > 0 && (
-                                                                <div className="text-muted-foreground mt-1 text-xs">
-                                                                    {Object.entries(item.options)
-                                                                        .filter(([key]) => !['image', 'color', 'size'].includes(key))
-                                                                        .map(([key, value]) => (
-                                                                            <span key={key} className="mr-2">
-                                                                                {key}: {value}
-                                                                            </span>
-                                                                        ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => removeItem(item.rowId)}
-                                                            disabled={actionLoading === `remove-${item.rowId}`}
-                                                            className="text-muted-foreground hover:text-destructive"
-                                                        >
-                                                            {actionLoading === `remove-${item.rowId}` ? (
-                                                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                                            ) : (
-                                                                <Trash2 className="h-5 w-5" />
-                                                            )}
-                                                        </Button>
-                                                    </div>
-
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                onClick={() => updateQuantity(item.rowId, item.qty - 1)}
-                                                                disabled={actionLoading === `update-${item.rowId}` || item.qty <= 1}
-                                                                className="border-border bg-background h-9 w-9"
-                                                            >
-                                                                <Minus className="h-4 w-4" />
-                                                            </Button>
-                                                            <span className="text-foreground w-12 text-center">
-                                                                {actionLoading === `update-${item.rowId}` ? (
-                                                                    <div className="mx-auto h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                                                ) : (
-                                                                    item.qty
-                                                                )}
-                                                            </span>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                onClick={() => updateQuantity(item.rowId, item.qty + 1)}
-                                                                disabled={actionLoading === `update-${item.rowId}`}
-                                                                className="border-border bg-background h-9 w-9"
-                                                            >
-                                                                <Plus className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-
-                                                        <div className="text-right">
-                                                            <div className="text-foreground text-xl font-bold">
-                                                                ${parseFloat(item.price).toFixed(2)}
-                                                            </div>
-                                                            <div className="text-muted-foreground text-sm">
-                                                                ${parseFloat(item.total).toFixed(2)} total
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </Card>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        <CartListPage />
 
                         {/* Order Summary */}
                         <div className="lg:sticky lg:top-8 lg:self-start">
@@ -322,7 +106,7 @@ const CartPage = ({ cart: initialCart }: CartPageProps) => {
                                             />
                                             <Button
                                                 variant="default"
-                                                onClick={applyPromoCode}
+                                                onClick={handleApplyPromoCode}
                                                 disabled={loading || !promoCode.trim()}
                                                 className="whitespace-nowrap"
                                             >
@@ -334,7 +118,7 @@ const CartPage = ({ cart: initialCart }: CartPageProps) => {
                                     {/* Order Total */}
                                     <div className="border-border space-y-2 border-t pt-4">
                                         <div className="text-foreground flex justify-between">
-                                            <span>Subtotal</span>
+                                            <span>Subtotal {cart.count} {cart.count === 1 ? 'item' : 'items'})</span>
                                             <span className="font-semibold">${subtotal.toFixed(2)}</span>
                                         </div>
                                         <div className="text-foreground flex justify-between">

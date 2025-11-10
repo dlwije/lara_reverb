@@ -3,6 +3,7 @@ export interface CartItem {
     rowId: string;
     id: number;
     name: string | null;
+    slug: string | null;
     qty: number;
     price: string;
     taxRate: string;

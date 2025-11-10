@@ -22,11 +22,11 @@ interface CartContextType {
     loading: boolean;
     error: string | null;
     getCart: () => Promise<void>;
-    addToCart: (product: AddToCartProduct) => Promise<boolean>;
-    updateQuantity: (rowId: string, qty: number) => Promise<boolean>;
-    removeFromCart: (rowId: string) => Promise<boolean>;
-    clearCart: () => Promise<boolean>;
-    applyPromoCode: (promoCode: string) => Promise<boolean>;
+    addToCart: (product: AddToCartProduct) => Promise<{success: boolean; message?: string}>;
+    updateQuantity: (rowId: string, qty: number) => Promise<{success: boolean; message?: string}>;
+    removeFromCart: (rowId: string) => Promise<{success: boolean; message?: string}>;
+    clearCart: () => Promise<{success: boolean; message?: string}>;
+    applyPromoCode: (promoCode: string) => Promise<{success: boolean; message?: string}>;
 }
 
 interface AddToCartProduct {
@@ -101,7 +101,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const addToCart = async (product: AddToCartProduct): Promise<boolean> => {
+    const addToCart = async (product: AddToCartProduct): Promise<{success: boolean; message?: string}> => {
         dispatch({ type: 'SET_LOADING', payload: true });
         try {
             const payload = {
@@ -116,40 +116,59 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (response.data.success) {
                 dispatch({ type: 'ADD_ITEM', payload: response.data.data });
-                return true;
+                return {success: true};
             } else {
-                dispatch({ type: 'SET_ERROR', payload: response.data.message || 'Failed to add to cart' });
-                return false;
+                const errorMessage = response.data.message || 'Failed to update quantity';
+                dispatch({ type: 'SET_ERROR', payload: errorMessage});
+                return { success: false, message: errorMessage }
             }
-        } catch (error) {
-            dispatch({ type: 'SET_ERROR', payload: 'Error adding item to cart' });
-            return false;
+        } catch (error:any) {
+            // Handle different error formats
+            let errorMessage = 'Error updating quantity';
+
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            dispatch({ type: 'SET_ERROR', payload: errorMessage });
+            return { success: false, message: errorMessage };
         } finally {
             dispatch({ type: 'SET_LOADING', payload: false });
         }
     };
 
-    const updateQuantity = async (rowId: string, qty: number): Promise<boolean> => {
-        if (qty < 0) return false;
+    const updateQuantity = async (rowId: string, qty: number): Promise<{success: boolean; message?: string}> => {
+        if (qty < 0) return { success: false, message: 'Quantity cannot be negative' };
 
         dispatch({ type: 'SET_LOADING', payload: true });
         try {
             const payload = {
                 qty: qty
             }
-            const params = new URLSearchParams({ qty: qty.toString() });
+
             const response = await apiClient.put(`/cart/update/${rowId}`, payload);
 
             if (response.data.success) {
                 dispatch({ type: 'UPDATE_ITEM', payload: response.data.data });
-                return true;
+                return { success: true };
             } else {
-                dispatch({ type: 'SET_ERROR', payload: 'Failed to update quantity' });
-                return false;
+                const errorMessage = response.data.message || 'Failed to update quantity';
+                dispatch({ type: 'SET_ERROR', payload: errorMessage });
+                return { success: false, message: errorMessage };
             }
-        } catch (error) {
-            dispatch({ type: 'SET_ERROR', payload: 'Error updating quantity' });
-            return false;
+        } catch (error: any) {
+            // Handle different error formats
+            let errorMessage = 'Error updating quantity';
+
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            dispatch({ type: 'SET_ERROR', payload: errorMessage });
+            return { success: false, message: errorMessage };
         } finally {
             dispatch({ type: 'SET_LOADING', payload: false });
         }
