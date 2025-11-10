@@ -7,6 +7,7 @@ import { initializeTheme } from './hooks/use-appearance';
 import { configureEcho } from '@laravel/echo-react';
 import './lib/i18n';
 import StoreProvider from '@/pages/e-commerce/storeProvider';
+import { CartProvider } from '@/contexts/CartContext';
 
 
 configureEcho({
@@ -26,9 +27,11 @@ createInertiaApp({
         const root = createRoot(el);
 
         root.render(
+            <CartProvider>
             <StoreProvider>
                 <App {...props} />
             </StoreProvider>
+            </CartProvider>
         );
     },
     progress: {

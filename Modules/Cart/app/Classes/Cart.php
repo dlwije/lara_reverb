@@ -106,7 +106,7 @@ class Cart implements CartInterface
 
         if ($this->associatedModel && $this->associatedModel::find($cartItem->id)) {
             $cartItem->qty = $qty;
-            $cartItem->total = $qty * $cartItem->priceTax;
+            $cartItem->total = $qty * $cartItem->tax;
 
             $this->updateCartItem($rowId, $cartItem);
 
@@ -127,7 +127,7 @@ class Cart implements CartInterface
         $cartItem = $this->get($rowId);
         $cartItem->qty = $qty;
         $cartItem->total = $qty * $cartItem->price;
-        $cartItem->totalTax = $qty * $cartItem->priceTax;
+        $cartItem->totalTax = $qty * $cartItem->tax;
 
         $content = $this->getContent();
         $content->put($rowId, $cartItem);

@@ -37,16 +37,16 @@ Route::get('products/{product}/reviews', [ReviewController::class, 'index']); //
 Route::get('shops', [ShopController::class, 'index'])->name('shops');
 
 
-Route::get('cart', [CartController::class, 'index'])->name('cart'); // View cart
+//Route::get('cart', [CartController::class, 'index'])->name('cart'); // View cart
 Route::group(['middleware' => ['auth']], function () {
     // Cart Management
-    Route::post('cart/{product}', [CartController::class, 'store']); // Add to cart
-    Route::delete('cart/{cart}', [CartController::class, 'destroy']); // Remove from cart
-
-    // Wishlist Management
-    Route::get('wishlist', [WishlistController::class, 'index']); // View wishlist
-    Route::post('wishlist/{wishlist}', [WishlistController::class, 'store']); // Add to wishlist
-    Route::delete('wishlist/{wishlist}', [WishlistController::class, 'destroy']); // Remove from wishlist
+//    Route::post('cart/{product}', [CartController::class, 'store']); // Add to cart
+//    Route::delete('cart/{cart}', [CartController::class, 'destroy']); // Remove from cart
+//
+//    // Wishlist Management
+//    Route::get('wishlist', [WishlistController::class, 'index']); // View wishlist
+//    Route::post('wishlist/{wishlist}', [WishlistController::class, 'store']); // Add to wishlist
+//    Route::delete('wishlist/{wishlist}', [WishlistController::class, 'destroy']); // Remove from wishlist
 
     // Orders
     Route::get('orders', [OrderController::class, 'index'])->name('orders'); // List user orders

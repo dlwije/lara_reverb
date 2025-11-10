@@ -8,14 +8,26 @@ use App\Models\Sma\Product\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
+use Inertia\Inertia;
 use Modules\Cart\Classes\Cart;
 
 #[AllowDynamicProperties]
 class CartController extends Controller
 {
-    public function __construct(Cart $cart){
-        $this->cart = $cart->instance('cart');
+    public function __construct(){
+        $this->cart = app('cart');
     }
+
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
+    {
+        return Inertia::render('e-commerce/public/cart/page', [
+            'cart' => $this->cart->apiContent()
+        ]);
+    }
+
     public function addToCart(Request $request)
     {
         $request->validate([
@@ -45,7 +57,7 @@ class CartController extends Controller
 
     public function getCart()
     {
-        Log::info('All session data:', Session::all());
+        Log::info('All session data:', $this->cart->apiContent());
         return response()->json([
             'success' => true,
             'data' => $this->cart->apiContent()
@@ -61,7 +73,7 @@ class CartController extends Controller
         if ($request->qty == 0) {
             $this->cart->remove($rowId);
         } else {
-            $this->cart->update($rowId, $request->qty);
+            $this->cart->update($rowId, (float) $request->qty);
         }
 
         return response()->json([
@@ -136,14 +148,6 @@ class CartController extends Controller
                 'count' => $this->cart->count()
             ]
         ]);
-    }
-
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        return view('cart::index');
     }
 
     /**

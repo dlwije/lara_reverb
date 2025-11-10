@@ -16,7 +16,7 @@ const BestSelling = () => {
                        href={route('front.products')} />
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {products.slice().sort((a, b) => b.rating.length - a.rating.length).slice(0, displayQuantity).map((product, index) => (
-                        <ProductCard key={index} product={product} />
+                        <ProductCard key={index} product={product} coming_from={`best-selling`} />
                     ))}
                 </div>
             </div>

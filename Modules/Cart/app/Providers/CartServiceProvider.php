@@ -37,11 +37,10 @@ class CartServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-
-
+        // API Cart (Stateless) - for mobile apps, headless frontends, etc.
         $this->app->singleton('apicart', function ($app) {
-
             $request = $app['request'];
+
             // Get cart identifier from header or request
             $identifier = $request->header('X-Cart-Identifier')
                 ?: $request->input('cart_identifier');
@@ -59,11 +58,7 @@ class CartServiceProvider extends ServiceProvider
             return new ApiCart($identifier);
         });
 
-        // Or bind to interface
-        $this->app->bind(CartInterface::class, ApiCart::class);
-
-
-        /** Web-based cart (session) **/
+        // Web Cart (Stateful) - for traditional web sessions
         $this->app->singleton('cart', function ($app) {
             return new Cart(
                 $app['session'],
@@ -71,13 +66,35 @@ class CartServiceProvider extends ServiceProvider
             );
         });
 
-        $this->app->bind(CartInterface::class, Cart::class);
+        // Context-aware binding for CartInterface
+        $this->app->bind(CartInterface::class, function ($app) {
+            // Use ApiCart for API routes or when specific header is present
+            if ($this->isApiRequest()) {
+                return $app->make('apicart');
+            }
 
-        // Register the facade
+            // Default to web session cart
+            return $app->make('cart');
+        });
+
+        // Register facade alias (points to web cart by default)
         $this->app->alias('cart', Cart::class);
 
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
+    }
+
+    /**
+     * Determine if the current request is an API request
+     */
+    protected function isApiRequest(): bool
+    {
+        $request = app('request');
+
+        return $request->expectsJson() ||
+            $request->is('api/*') ||
+            $request->header('X-Requested-With') === 'XMLHttpRequest' ||
+            str_contains($request->header('Accept') ?? '', 'application/json');
     }
 
     protected function isValidCartIdentifier($identifier)

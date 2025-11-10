@@ -1,11 +1,10 @@
 'use client'
-import ProductCard from "@/components/ProductCard"
-import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { MailIcon, MapPinIcon } from "lucide-react"
 import { dummyStoreData, productDummyData } from '../../../../../../public/e-commerce/assets/assets';
 import InertiaImage from '@/components/e-commerce/public/inertiaImage';
 import Loading from '@/components/e-commerce/public/loading';
+import ProductCard from '@/components/e-commerce/public/productCard';
 
 export default function StoreShop() {
 
