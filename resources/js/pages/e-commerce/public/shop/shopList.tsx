@@ -2,7 +2,7 @@
 import { Suspense } from "react"
 import { MoveLeftIcon } from "lucide-react"
 import { usePage } from '@inertiajs/react';
-import { useSelector } from "react-redux"
+// import { useSelector } from "react-redux"
 import { router } from '@inertiajs/react';
 import PublicLayout from '@/pages/e-commerce/public/layout';
 import ProductCard from '@/components/e-commerce/public/productCard';
@@ -14,7 +14,7 @@ function ShopContent() {
     // const searchParams = useSearchParams()
     const search = props.filters?.search || ''; // if you pass filters via props
 
-    const products = useSelector(state => state.product.list)
+    // const products = useSelector(state => state.product.list)
 
     const filteredProducts = search
         ? products.filter(product =>

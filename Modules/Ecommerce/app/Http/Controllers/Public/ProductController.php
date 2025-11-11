@@ -7,6 +7,7 @@ use App\Http\Resources\Collection;
 use App\Models\Sma\Setting\CustomField;
 use App\Models\Sma\Setting\Store;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Modules\Product\Models\Product;
@@ -62,6 +63,100 @@ class ProductController extends Controller
 
         return Inertia::render('e-commerce/public/product/page', [
             'single_product' => $product, // pass as prop
+        ]);
+    }
+
+    /**
+     * Get latest products for homepage
+     */
+    public function getLatestProducts(Request $request)
+    {
+        $limit = $request->get('limit', 6);
+
+        $filters = $request->input('filters') ?? [];
+
+        if (! ($filters['store'] ?? null) && session('selected_store_id', null) && Store::count() > 1) {
+            $filters['store'] = session('selected_store_id');
+        }
+
+        $products = Product::with(
+            'supplier:id,name,company', 'taxes:id,name', 'stocks',
+            'brand:id,name', 'category:id,name,category_id', 'unit:id,code,name',
+        )
+            ->filter($filters)
+            ->latest('created_at')
+            ->take($limit)
+            ->get();
+
+        // Return JSON for API or Inertia response for frontend
+        if ($request->expectsJson()) {
+            return response()->json([
+                'products' => $products
+            ]);
+        }
+
+        return Inertia::render('e-commerce/public/components/LatestProducts', [
+            'products' => $products
+        ]);
+    }
+
+    /**
+     * Get best selling products for homepage
+     */
+    public function getBestSellingProducts(Request $request)
+    {
+        $limit = $request->get('limit', 4);
+        $period = $request->get('period', 'all');
+
+        $filters = $request->input('filters') ?? [];
+
+        if (! ($filters['store'] ?? null) && session('selected_store_id', null) && Store::count() > 1) {
+            $filters['store'] = session('selected_store_id');
+        }
+
+        $products = Product::with([
+            'supplier:id,name,company',
+            'taxes:id,name',
+            'stocks',
+            'brand:id,name',
+            'category:id,name,category_id',
+            'unit:id,code,name',
+        ])
+            ->whereHas('saleItems')
+            ->withCount(['saleItems as total_sold' => function($query) use ($period, $filters) {
+                $query->whereHas('sale', function($saleQuery) use ($period, $filters) {
+                    // Apply period filter
+                    if ($period === 'monthly') {
+                        $saleQuery->where('created_at', '>=', now()->subMonth());
+                    } elseif ($period === 'weekly') {
+                        $saleQuery->where('created_at', '>=', now()->subWeek());
+                    } elseif ($period === 'yearly') {
+                        $saleQuery->where('created_at', '>=', now()->subYear());
+                    }
+
+                    // Apply store filter
+                    if (isset($filters['store'])) {
+                        $saleQuery->where('store_id', $filters['store']);
+                    }
+
+                    // Only completed sales
+//                    $saleQuery->where('status', 'completed');
+                });
+
+                $query->select(DB::raw('COALESCE(SUM(quantity), 0)'));
+            }])
+            ->orderBy('total_sold', 'desc')
+            ->take($limit)
+            ->get();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'products' => $products
+            ]);
+        }
+
+        return Inertia::render('e-commerce/public/components/BestSellingProducts', [
+            'products' => $products
         ]);
     }
 }

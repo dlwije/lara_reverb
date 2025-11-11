@@ -9,7 +9,7 @@ use Modules\Product\Models\Product;
 class ShopController extends Controller
 {
     public function index() {
-        return Inertia::render('e-commerce/public/shop/shopList', [
+        return Inertia::render('e-commerce/public/shop/page', [
             'filters' => request()->only('search'),
         ]);
     }

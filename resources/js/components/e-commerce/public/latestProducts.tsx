@@ -1,13 +1,36 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Title from '@/components/e-commerce/public/title';
 import { useSelector } from 'react-redux';
 import ProductCard from '@/components/e-commerce/public/productCard';
+import apiClient from '@/lib/apiClient';
 
 const LatestProducts = () => {
 
-    const displayQuantity = 4;
-    const products = useSelector(state => state.product.list);
+    const displayQuantity = 6;
+    // If you're fetching via API instead of Redux, use this:
+
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchLatestProducts = async () => {
+            try {
+                setLoading(true);
+                const response = await apiClient.get('/api/v1/latest-products');
+                setProducts(response.data.products);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchLatestProducts();
+    }, []);
+
+    const latestProducts = products.slice(0, displayQuantity);
 
     return (
         <section className="bg-muted py-8 sm:py-16 lg:py-24">

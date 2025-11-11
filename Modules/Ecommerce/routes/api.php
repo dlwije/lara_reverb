@@ -8,8 +8,15 @@ use Modules\Ecommerce\Http\Controllers\Public\ReviewController;
 use Modules\Ecommerce\Http\Controllers\Public\ShopController;
 use Modules\Ecommerce\Http\Controllers\Public\VendorController;
 
-Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
+
+Route::prefix('v1')->group(function () {
+    Route::get('latest-products', [ProductController::class, 'getLatestProducts'])->name('latest-products');
+    Route::get('best-selling-products', [ProductController::class, 'getBestSellingProducts'])->name('best-selling-products');
+});
+
+Route::middleware(['auth:api'])->prefix('v1')->group(function () {
     Route::apiResource('ecommerces', EcommerceController::class)->names('ecommerce');
+    // For API endpoint
 });
 
 //// Product Browsing
