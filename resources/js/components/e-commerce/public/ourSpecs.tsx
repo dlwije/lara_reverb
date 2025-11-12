@@ -1,30 +1,60 @@
 import React from 'react'
 import Title from '@/components/e-commerce/public/title';
 import { ourSpecsData } from '../../../../../public/e-commerce/assets/assets';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from "@/components/ui/button"
+import { Clock, Shield, Zap } from 'lucide-react';
 
 const OurSpecs = () => {
 
     return (
-        <div className='px-6 my-20 max-w-6xl mx-auto'>
-            <Title visibleButton={false} title='Our Specifications' description="We offer top-tier service and convenience to ensure your shopping experience is smooth, secure and completely hassle-free." />
+        <section className="py-20 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
+                {/* Badge */}
+                <div className="flex justify-center mb-6">
+                    <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-border bg-background text-sm font-medium text-foreground">
+                        Why Choose Us?
+                    </div>
+                </div>
 
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7 gap-y-10 mt-26'>
-                {
-                    ourSpecsData.map((spec, index) => {
-                        return (
-                            <div className='relative h-44 px-8 flex flex-col items-center justify-center w-full text-center border rounded-lg group' style={{ backgroundColor: spec.accent + 10, borderColor: spec.accent + 30 }} key={index}>
-                                <h3 className='text-slate-800 font-medium'>{spec.title}</h3>
-                                <p className='text-sm text-slate-600 mt-3'>{spec.description}</p>
-                                <div className='absolute -top-5 text-white size-10 flex items-center justify-center rounded-md group-hover:scale-105 transition' style={{ backgroundColor: spec.accent }}>
-                                    <spec.icon size={20} />
+                {/* Heading */}
+                <h2 className="text-4xl sm:text-5xl font-bold text-center mb-6 text-foreground">Experience the Difference</h2>
+
+                {/* Subheading */}
+                <p className="text-center text-muted-foreground text-lg max-w-3xl mx-auto mb-16 leading-relaxed">
+                    {/*We provide lightning-fast service, 24/7 support, and top-tier security for all your needs. See how we stand*/}
+                    {/*out from the competition.*/}
+                    We offer top-tier service and convenience to ensure your shopping experience is smooth, secure and completely hassle-free.
+                </p>
+
+                {/* Feature Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                    {ourSpecsData.map((feature, index) => (
+                        <Card key={index} className="bg-card border-border transition-all hover:border-muted-foreground/50">
+                            <CardContent className="p-8 flex flex-col items-center text-center">
+                                {/* Icon Container */}
+                                <div className="mb-6 p-4 rounded-lg bg-muted">
+                                    <feature.icon className="w-6 h-6 text-foreground" />
                                 </div>
-                            </div>
-                        )
-                    })
-                }
-            </div>
 
-        </div>
+                                {/* Title */}
+                                <h3 className="text-xl font-semibold mb-3 text-foreground">{feature.title}</h3>
+
+                                {/* Description */}
+                                <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+
+                {/* CTA Button */}
+                <div className="flex justify-center">
+                    <Button size="lg" className="px-8">
+                        Get Started Today
+                    </Button>
+                </div>
+            </div>
+        </section>
     )
 }
 

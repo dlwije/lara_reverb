@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import StarRating from "./star-rating"
 import ImageCarousel from "./image-carousel"
 import QuantitySelector from "./quantity-selector"
+import { useCart } from '@/contexts/CartContext';
 
 export default function ProductDetail({ single_product }) {
     const [selectedColor, setSelectedColor] = useState("black")
@@ -18,6 +19,10 @@ export default function ProductDetail({ single_product }) {
     const [selectedWarranty, setSelectedWarranty] = useState(null)
     const [quantity, setQuantity] = useState(1)
     const [isWishlisted, setIsWishlisted] = useState(false)
+
+    const { addToCart, cart } = useCart();
+    const [loading, setLoading] = useState(false);
+    const [addedToCart, setAddedToCart] = useState(false);
 
     // Use actual product data from backend
     const product = single_product || {}
@@ -117,6 +122,49 @@ export default function ProductDetail({ single_product }) {
     if (!single_product) {
         return <div>Loading...</div>
     }
+    const { id, name, slug, code, price, cost, description, stocks, supplier, category, on_sale, active, photo } = single_product;
+
+    // Calculate stock quantity
+    const stockQuantity = stocks?.[0]?.balance || 0;
+
+    // Check if product is in stock
+    const inStock = stockQuantity > 0;
+
+    // Check if product is on sale (you might want to add logic based on cost vs price)
+    const isOnSale = cost && parseFloat(cost) > parseFloat(price);
+
+    // Check if this product is already in cart
+    const isInCart = cart.content.some((item) => item.id === id);
+
+    const handleAddToCart = async (e) => {
+        setQuantity(e.taget.value);
+
+        if (!inStock) return;
+
+        setLoading(true);
+        try {
+            const success = await addToCart({
+                id,
+                name,
+                qty: quantity,
+                price,
+                options: { // Pass as object, not string because backend expect a options array
+                    category: category?.name,
+                    supplier: supplier?.name,
+                    // Add any other options as key-value pairs
+                }
+            });
+
+            if (success) {
+                setAddedToCart(true);
+                setTimeout(() => setAddedToCart(false), 2000);
+            }
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="w-full">
@@ -216,7 +264,7 @@ export default function ProductDetail({ single_product }) {
 
                         {/* Quantity and CTA */}
                         <div className="flex gap-3">
-                            <QuantitySelector value={quantity} onChange={setQuantity} />
+                            <QuantitySelector value={quantity} onChange={handleAddToCart} />
                             <Button size="lg" className="flex-1 bg-foreground text-background hover:bg-muted-foreground">
                                 Buy Now
                             </Button>

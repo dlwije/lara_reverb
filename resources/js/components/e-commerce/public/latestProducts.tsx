@@ -33,8 +33,8 @@ const LatestProducts = () => {
     const latestProducts = products.slice(0, displayQuantity);
 
     return (
-        <section className="bg-muted py-8 sm:py-16 lg:py-24">
-            <div className="mx-auto max-w-7xl space-y-12 px-4 sm:space-y-16 sm:px-6 lg:space-y-24 lg:px-8">
+        <section className="bg-muted py-8 sm:py-16 lg:py-16">
+            <div className="mx-auto max-w-7xl space-y-12 px-4 sm:space-y-16 sm:px-6 lg:space-y-16 lg:px-8">
                 <Title title="Latest Products"
                        description={`Showing ${products.length < displayQuantity ? products.length : displayQuantity} of ${products.length} products`}
                        href="/shops" />

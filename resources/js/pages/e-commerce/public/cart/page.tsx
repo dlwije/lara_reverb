@@ -5,7 +5,6 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import apiClient from '@/lib/apiClient';
 import PublicLayout from '@/pages/e-commerce/public/layout';
-import { CartData, CartItem } from '@/types/eCommerce/ecom.cart';
 import { Minus, Package, Plus, Shield, Trash2, Truck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import CartListPage from '@/pages/e-commerce/public/cart/cart-list';
