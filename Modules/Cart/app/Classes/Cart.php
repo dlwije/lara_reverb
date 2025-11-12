@@ -7,6 +7,7 @@ use Closure;
 use Illuminate\Session\SessionManager;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Modules\Cart\Interfaces\CartInterface;
 use Modules\Cart\Models\Cart as CartModel;
 use Modules\Cart\Models\CartItem;
@@ -19,12 +20,14 @@ class Cart implements CartInterface
     protected $events;
     protected $instance;
     protected $associatedModel;
+    protected $identifier; // Add identifier property
 
     public function __construct(SessionManager $session, $events = null, $instance = null)
     {
         $this->session = $session;
         $this->events = $events;
         $this->instance($instance ?? self::DEFAULT_INSTANCE);
+        $this->initializeSessionIdentifier(); // Initialize session identifier
     }
 
     public function instance($instance = null)
@@ -39,6 +42,27 @@ class Cart implements CartInterface
     public function currentInstance()
     {
         return str_replace('cart.', '', $this->instance);
+    }
+
+    public function getIdentifier()
+    {
+        return $this->identifier;
+    }
+
+    protected function initializeSessionIdentifier()
+    {
+        Log::info('all_session: ',$this->session->all());
+        // Get or create session identifier
+        $sessionKey = $this->instance . '_identifier';
+
+        if (!$this->session->has($sessionKey)) {
+            $this->identifier = $this->generateIdentifier();
+            Log::info('sessionKey: ' . $sessionKey);
+            Log::info('identifier: ' . $this->identifier);
+            $this->session->put($sessionKey, $this->identifier);
+        } else {
+            $this->identifier = $this->session->get($sessionKey);
+        }
     }
 
     public function add($id, $name = null, $qty = null, $price = null, array $options = [])
@@ -174,6 +198,8 @@ class Cart implements CartInterface
     public function destroy()
     {
         $this->session->remove($this->instance);
+        $this->session->remove($this->instance . '_identifier');
+        $this->session->remove($this->instance . '_updated_at');
         $this->events->dispatch('cart.destroyed');
     }
 
@@ -239,56 +265,198 @@ class Cart implements CartInterface
         return $this;
     }
 
-    public function store($identifier)
+    /**
+     * Check if cart already exists in database
+     */
+    public function existsInDatabase($identifier = null)
     {
+        $identifier = $identifier ?: $this->identifier;
+
+        return CartModel::where('identifier', $identifier)
+            ->where('instance', $this->currentInstance())
+            ->exists();
+    }
+
+    /**
+     * Get existing database cart
+     */
+    public function getExistingDatabaseCart($identifier = null)
+    {
+        $identifier = $identifier ?: $this->identifier;
+
+        return CartModel::with('items')
+            ->where('identifier', $identifier)
+            ->where('instance', $this->currentInstance())
+            ->first();
+    }
+
+    /**
+     * Store session cart to database (with duplicate prevention)
+     */
+    public function store($identifier = null, $forceCreate = false)
+    {
+        // Use provided identifier or session identifier
+        $identifier = $identifier ?: $this->identifier;
+
+        Log::info($identifier);
+
         $content = $this->getContent();
 
         if ($content->isEmpty()) {
-            return;
+            return null;
         }
 
-        $cart = CartModel::updateOrCreate(
-            [
-                'identifier' => $identifier,
-                'instance' => $this->currentInstance(),
-            ],
-            [
-                'content' => serialize($content),
-                'user_id' => Auth::id(),
-            ]
-        );
+        // If forceCreate is false, check if cart already exists
+        if (!$forceCreate && $this->existsInDatabase($identifier)) {
+            $cart = $this->getExistingDatabaseCart($identifier);
 
-        // Store individual items for better querying
+            // Check if this cart is already completed/ordered
+            if ($this->isCartCompleted($cart)) {
+                // Cart is completed, create a new one with new identifier
+                $newIdentifier = $this->generateIdentifier();
+                $this->updateSessionIdentifier($newIdentifier);
+                return $this->createNewDatabaseCart($newIdentifier, $content);
+            } else {
+                // Cart exists but not completed - update it
+                return $this->updateExistingCart($cart, $content);
+            }
+        } else {
+            // Create new cart
+            return $this->createNewDatabaseCart($identifier, $content);
+        }
+    }
+
+    /**
+     * Update existing cart in database
+     */
+    protected function updateExistingCart($cart, $content)
+    {
+        // Clear existing items
+        $cart->items()->delete();
+
+        // Store individual items
         foreach ($content as $rowId => $item) {
-            CartItem::updateOrCreate(
-                [
-                    'cart_id' => $cart->id,
-                    'row_id' => $rowId,
-                ],
-                [
-                    'product_id' => $item->id,
-                    'name' => $item->name,
-                    'qty' => $item->qty,
-                    'price' => $item->price,
-                    'options' => json_encode($item->options),
-                ]
-            );
+            CartItem::create([
+                'cart_id' => $cart->id,
+                'row_id' => $rowId,
+                'product_id' => $item->id,
+                'name' => $item->name,
+                'qty' => $item->qty,
+                'price' => $item->price,
+                'options' => json_encode($item->options),
+                'tax_rate' => $item->taxRate ?? 0,
+                'tax_amount' => $item->taxAmount ?? 0,
+                'discount_amount' => $item->discountAmount ?? 0,
+            ]);
         }
+
+        // Recalculate and update cart totals
+        $this->recalculateCartTotals($cart);
 
         return $cart;
     }
 
-    public function restore($identifier, $merge = false)
+    /**
+     * Create new cart in database
+     */
+    protected function createNewDatabaseCart($identifier, $content)
     {
-        $cart = CartModel::where('identifier', $identifier)
+        $cart = CartModel::create([
+            'identifier' => $identifier,
+            'instance' => $this->currentInstance(),
+            'user_id' => Auth::id() ?? null,
+            'currency' => config('app.currency', 'AED'),
+            'expires_at' => Carbon::now()->addDays(30),
+        ]);
+
+        // Store individual items
+        foreach ($content as $rowId => $item) {
+            CartItem::create([
+                'cart_id' => $cart->id,
+                'row_id' => $rowId,
+                'product_id' => $item->id,
+                'name' => $item->name,
+                'qty' => $item->qty,
+                'price' => $item->price,
+                'options' => json_encode($item->options),
+                'tax_rate' => $item->taxRate ?? 0,
+                'tax_amount' => $item->taxAmount ?? 0,
+                'discount_amount' => $item->discountAmount ?? 0,
+            ]);
+        }
+
+        // Recalculate and update cart totals
+        $this->recalculateCartTotals($cart);
+
+        return $cart;
+    }
+
+    /**
+     * Check if cart is already completed/ordered
+     */
+    protected function isCartCompleted($cart)
+    {
+        // Check if cart has an associated order
+        // You might have an 'order_id' or 'status' field in your cart model
+        return $cart->order_id !== null ||
+            $cart->status === 'completed' ||
+            $cart->status === 'ordered';
+    }
+
+    /**
+     * Update session identifier
+     */
+    protected function updateSessionIdentifier($identifier)
+    {
+        $this->identifier = $identifier;
+        $this->session->put($this->instance . '_identifier', $identifier);
+    }
+    /**
+     * Recalculate cart totals and update database
+     */
+    protected function recalculateCartTotals($cart)
+    {
+        $cart->load('items');
+
+        $subtotal = $cart->items->sum(function ($item) {
+            return $item->qty * $item->price;
+        });
+
+        $taxAmount = $cart->items->sum('tax_amount');
+        $discountAmount = $cart->items->sum('discount_amount');
+
+        $total = $subtotal + $taxAmount + $cart->shipping_amount - $discountAmount;
+
+        $cart->update([
+            'subtotal' => $subtotal,
+            'tax_amount' => $taxAmount,
+            'discount_amount' => $discountAmount,
+            'total' => $total,
+        ]);
+    }
+
+    /**
+     * Restore cart from database to session
+     */
+    public function restore($identifier = null, $merge = false)
+    {
+        $identifier = $identifier ?: $this->identifier;
+
+        $cart = CartModel::with('items')
+            ->where('identifier', $identifier)
             ->where('instance', $this->currentInstance())
             ->first();
 
         if (!$cart) {
-            return;
+            return $this;
         }
 
-        $storedContent = unserialize($cart->content);
+        // Convert database items to session format
+        $storedContent = new Collection();
+
+        foreach ($cart->items as $item) {
+            $storedContent->put($item->row_id, $this->createCartItemFromDatabase($item));
+        }
 
         if ($merge) {
             $currentContent = $this->getContent();
@@ -304,9 +472,33 @@ class Cart implements CartInterface
             $this->session->put($this->instance, $storedContent);
         }
 
+        // Update session identifier
+        $this->identifier = $identifier;
+        $this->session->put($this->instance . '_identifier', $identifier);
+
         $this->events->dispatch('cart.restored');
 
         return $this;
+    }
+
+    /**
+     * Create cart item from database model
+     */
+    protected function createCartItemFromDatabase($item)
+    {
+        return (object) [
+            'rowId' => $item->row_id,
+            'id' => $item->product_id,
+            'name' => $item->name,
+            'qty' => $item->qty,
+            'price' => $item->price,
+            'options' => $item->options ? json_decode($item->options, true) : [],
+            'tax' => $item->tax_amount,
+            'total' => $item->qty * $item->price,
+            'totalTax' => $item->tax_amount,
+            'isSaved' => false,
+            'product' => $this->associatedModel ? $this->associatedModel::find($item->product_id) : null,
+        ];
     }
 
     public function apiContent()
@@ -320,7 +512,73 @@ class Cart implements CartInterface
             'tax' => $this->tax(),
             'total' => $this->total(),
             'instance' => $this->currentInstance(),
+            'identifier' => $this->identifier,
         ];
+    }
+
+    /**
+     * Get database cart model (useful for checkout)
+     */
+    public function getDatabaseCart($identifier = null)
+    {
+        $identifier = $identifier ?: $this->identifier;
+
+        return CartModel::with('items.product')
+            ->where('identifier', $identifier)
+            ->where('instance', $this->currentInstance())
+            ->first();
+    }
+
+    /**
+     * Merge session cart with user's database cart (when user logs in)
+     */
+    public function mergeWithUser($userId)
+    {
+        $userCart = CartModel::with('items')
+            ->where('user_id', $userId)
+            ->where('instance', $this->currentInstance())
+            ->active()
+            ->first();
+
+        $sessionContent = $this->getContent();
+
+        if ($userCart) {
+            // Merge session items with user cart
+            foreach ($sessionContent as $cartItem) {
+                $existingItem = $userCart->items()
+                    ->where('row_id', $cartItem->rowId)
+                    ->first();
+
+                if ($existingItem) {
+                    $existingItem->update([
+                        'qty' => $existingItem->qty + $cartItem->qty
+                    ]);
+                } else {
+                    $userCart->items()->create([
+                        'row_id' => $cartItem->rowId,
+                        'product_id' => $cartItem->id,
+                        'name' => $cartItem->name,
+                        'qty' => $cartItem->qty,
+                        'price' => $cartItem->price,
+                        'options' => json_encode($cartItem->options),
+                    ]);
+                }
+            }
+
+            // Update session identifier to user cart identifier
+            $this->identifier = $userCart->identifier;
+            $this->session->put($this->instance . '_identifier', $userCart->identifier);
+
+            // Reload session from merged database cart
+            $this->restore($userCart->identifier, false);
+        } else {
+            // Associate current session cart with user
+            $this->store($this->identifier);
+            CartModel::where('identifier', $this->identifier)
+                ->update(['user_id' => $userId]);
+        }
+
+        return $this;
     }
 
     protected function getContent()
@@ -384,5 +642,10 @@ class Cart implements CartInterface
         }
 
         return is_array(head($items)) || head($items) instanceof Buyable;
+    }
+
+    protected function generateIdentifier()
+    {
+        return 'web_' . md5(uniqid('cart_', true));
     }
 }

@@ -12,6 +12,15 @@ use Laravel\Fortify\Actions\EnableTwoFactorAuthentication;
 //    return $request->user();
 //})->middleware('auth:sanctum');
 
+Route::get('/auth/check', function (Request $request) {
+    return auth('api')->check()
+        ? response()->json([
+            'authenticated' => true,
+            'user' => auth('api')->user(),
+        ])
+        : response()->json(['authenticated' => false], 200);
+});
+
 Broadcast::routes(['middleware' => ['auth:api']]);
 
 // Send a private message

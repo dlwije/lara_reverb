@@ -5,6 +5,7 @@ use Modules\Cart\Http\Controllers\CartController;
 
 Route::prefix('cart')->group(function () {
 
+    Route::post('/store-to-database', [CartController::class, 'storeCartToDatabase']);
     Route::get('/data', [CartController::class, 'getCart']);
     Route::get('/', [CartController::class, 'index'])->name('cart');
     Route::post('/add', [CartController::class, 'addToCart'])->name('cart.add');

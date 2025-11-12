@@ -6,6 +6,7 @@ use AllowDynamicProperties;
 use App\Http\Controllers\Controller;
 use App\Models\Sma\Product\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
@@ -105,21 +106,23 @@ class CartController extends Controller
         ]);
     }
 
-    public function saveCart(Request $request)
+    public function storeCartToDatabase(Request $request)
     {
-        if (auth()->check()) {
-            $this->cart->store(auth()->id());
+        DB::beginTransaction();
+        try {
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Cart saved successfully'
-            ]);
+            $identifier = $request->input('identifier', null);
+
+            $cart = $this->cart->store($identifier);
+
+            DB::commit();
+            return self::success($cart);
+        }catch (\Exception $e) {
+
+            DB::rollBack();
+            Log::error($e);
+            return self::error($e->getMessage(),500);
         }
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Please login to save your cart'
-        ], 401);
     }
 
     public function restoreCart()

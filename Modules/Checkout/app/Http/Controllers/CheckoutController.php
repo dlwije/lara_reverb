@@ -2,11 +2,14 @@
 
 namespace Modules\Checkout\Http\Controllers;
 
+use AllowDynamicProperties;
 use App\Http\Controllers\Controller;
 use App\Models\Sma\Pos\Order;
 use App\Models\Sma\Product\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 use Modules\Cart\Facades\Cart;
 use Modules\Checkout\Http\Requests\CheckoutRequest;
 use Modules\Checkout\Services\CheckoutOrderService;
@@ -14,13 +17,17 @@ use Modules\Wallet\Services\KYCService;
 use Modules\Wallet\Services\WalletCheckoutService;
 use Modules\Wallet\Services\WalletService;
 
+#[AllowDynamicProperties]
 class CheckoutController extends Controller
 {
     public function __construct(
         public WalletService $walletService,
         public KYCService $kycService,
         public CheckoutOrderService $checkoutOrderService
-    ) {}
+    ) {
+        // For session based binding
+        $this->cart = app('cart');
+    }
 
     /**
      * Preview wallet deduction before actual purchase
@@ -74,38 +81,43 @@ class CheckoutController extends Controller
             return self::error($e->getMessage(),500);
         }
     }
-
-    public function getCheckoutPage(string $token, Request $request)
+    
+    public function getCheckoutPage(Request $request)
     {
+
+
+
         // First get the checkout data from session if there were
 
         // If the provided token is not equal to the current session token
-        if($token !== session('order_checkout_token')){
-
-            $order = Order::query()->where(['token' => $token, 'is_finished' => false])->first();
+//        if($token !== session('order_checkout_token')){
+//
+//            $order = Order::query()->where(['token' => $token, 'is_finished' => false])->first();
 
 //            if (! $order) {
                 // If there is no order on that token will redirect to the home page
 //            }
-        }
+//        }
 
-        $sessionCheckoutData = $this->checkoutOrderService->getOrderSessionData($token);
+//        $sessionCheckoutData = $this->checkoutOrderService->getOrderSessionData($token);
 
         // Here we can check cart has products or not
         // if not redirect to the cart page
         // if there is products, then check the Out of Stock status and redirect with products message which doesn't have qty
 
-        $sessionCheckoutData = $this->processOrderData($token, $sessionCheckoutData, $request);
+//        $sessionCheckoutData = $this->processOrderData($token, $sessionCheckoutData, $request);
+//
+//        Cart::instance('cart')->refresh();
+//
+//        $products = Cart::instance('cart')->products();
+//
+//        if (! $products->count()) {
+//            return $this
+//                ->httpResponse()
+//                ->setNextUrl(get_frontend_url('cart'));
+//        }
 
-        Cart::instance('cart')->refresh();
-
-        $products = Cart::instance('cart')->products();
-
-        if (! $products->count()) {
-            return $this
-                ->httpResponse()
-                ->setNextUrl(get_frontend_url('cart'));
-        }
+        return Inertia::render('e-commerce/public/checkout/page',[]);
     }
 
     public function processOrderData(string $token, array $sessionData, Request $request, bool $finished = false)
