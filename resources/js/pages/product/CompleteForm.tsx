@@ -3,10 +3,10 @@
 import { debounce } from 'lodash';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import AutoComplete from '../../Components/AutoComplete';
 // import PhotoInput from '../../Components/PhotoInput';
 import AppLayout from '@/layouts/app-layout';
 import { Product } from '@/types/product';
+import AutoComplete from '@/components/AutoComplete';
 
 interface Unit {
     id: number;
