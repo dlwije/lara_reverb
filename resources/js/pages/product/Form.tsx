@@ -1,9 +1,9 @@
 'use client';
 
-import AutoComplete from '@/Components/AutoComplete';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Product } from '@/types/product';
+import AutoComplete from '@/components/AutoComplete';
 
 interface FormProps {
     current?: Product;
