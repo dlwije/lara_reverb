@@ -2,12 +2,12 @@
 
 return [
     'redirects' => [
-        'super-admin' => 'super-admin.dashboard',
-        'admin' => 'admin.dashboard',
-        'customer' => 'customer.dashboard',
-        'supplier' => 'supplier.dashboard',
-        'service-manager' => 'service-manager.dashboard',
-        'user' => 'user.dashboard',
+        'Super Admin' => 'super-admin.dashboard',
+        'Admin' => 'admin.dashboard',
+        'Customer' => 'customer.dashboard',
+        'Supplier' => 'supplier.dashboard',
+        'Service-manager' => 'service-manager.dashboard',
+        'User' => 'user.dashboard',
     ],
 
     'default' => 'dashboard',

@@ -131,19 +131,23 @@ const Footer = () => {
         {
             title: "CONTACT",
             links: [
-                { text: "+1-212-456-7890", path: '/', icon: MailIcon },
-                { text: "contact@example.com", path: '/', icon: PhoneIcon },
-                { text: "794 Francisco, 94102", path: '/', icon: MapPinIcon }
+                { text: "+", path: '/', icon: PhoneIcon },
+                { text: "info@orions360.com", path: '/', icon: MailIcon },
+                { text: "United Arab Emirates, 94102", path: '/', icon: MapPinIcon }
             ]
         }
     ];
 
     const socialIcons = [
         { icon: FacebookIcon, link: "https://www.facebook.com" },
-        { icon: InstagramIcon, link: "https://www.instagram.com" },
-        { icon: TwitterIcon, link: "https://twitter.com" },
+        { icon: InstagramIcon, link: "https://www.instagram.com/dineshstack" },
+        { icon: TwitterIcon, link: "https://x.com/dineshstacks" },
         { icon: LinkedinIcon, link: "https://www.linkedin.com" },
     ]
+
+    const handleRedirect = (url) => {
+        window.location.href = url;
+    }
 
     return (
         <footer className="mx-6 bg-background">
@@ -173,9 +177,13 @@ const Footer = () => {
                                             asChild
                                             className="w-10 h-10 rounded-full hover:scale-105 transition-transform"
                                         >
-                                            <Link href={item.link} target="_blank" rel="noopener noreferrer">
+                                            <a
+                                                href={item.link}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
                                                 <item.icon />
-                                            </Link>
+                                            </a>
                                         </Button>
                                     ))}
                                 </div>

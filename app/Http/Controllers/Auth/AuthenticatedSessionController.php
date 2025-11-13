@@ -70,11 +70,15 @@ class AuthenticatedSessionController extends Controller
         foreach ($redirects as $role => $route) {
             Log::info('role: '. $role);
             if ($user->hasRole($role)) {
+                $newUrl = preg_replace('/^https?:\/\/[^\/]+/', config('app.url'), route($route));
+                Log::info('route: '. $newUrl);
+                redirect()->setIntendedUrl(config('app.url'));
+                Log::info(redirect()->getIntendedUrl());
                 return redirect()->intended(route($route, absolute: false));
             }
         }
 
-        return redirect()->intended(route($default, absolute: false));
+        return redirect()->route(route($default, absolute: true));
     }
 
     /**

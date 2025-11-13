@@ -1,6 +1,6 @@
 'use client'
 import { Search, ShoppingCart, Moon, Sun } from "lucide-react";
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { useState } from "react";
 import { useSelector } from "react-redux";
 import { Link } from '@inertiajs/react';
@@ -15,22 +15,17 @@ import {
     NavigationMenuItem,
     NavigationMenuLink,
 } from "@/components/ui/navigation-menu";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useAppearance } from '@/hooks/use-appearance';
 import CartIcon from '@/components/e-commerce/public/cartIcon';
+import ThemeToggle from '@/components/e-commerce/template/ThemeToggle';
+import { SharedData } from '@/types';
 
 const Navbar = () => {
+    const { auth } = usePage<SharedData>().props;
     const [search, setSearch] = useState('')
     const cartCount = useSelector(state => state.cart.total)
-    const { appearance, updateAppearance } = useAppearance();
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault()
@@ -99,26 +94,7 @@ const Navbar = () => {
                             <CartIcon />
 
                             {/* Theme Toggle */}
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon">
-                                        <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                                        <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                                        <span className="sr-only">Toggle theme</span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => updateAppearance("light")}>
-                                        Light
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => updateAppearance("dark")}>
-                                        Dark
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => updateAppearance("system")}>
-                                        System
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <ThemeToggle />
 
                             <Button asChild>
                                 <Link href={route('login')}>
@@ -131,11 +107,7 @@ const Navbar = () => {
                     {/* Mobile Navigation */}
                     <div className="sm:hidden flex items-center gap-2">
                         {/* Theme Toggle Mobile */}
-                        <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                            <span className="sr-only">Toggle theme</span>
-                        </Button>
+                        <ThemeToggle />
 
                         {/* Mobile Sheet Menu */}
                         <Sheet>
@@ -157,7 +129,7 @@ const Navbar = () => {
                                     </svg>
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent>
+                            <SheetContent className={'p-4'}>
                                 <ScrollArea className="h-full py-6">
                                     <div className="flex flex-col space-y-6">
                                         {/* Mobile Navigation Items */}
