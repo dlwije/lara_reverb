@@ -25,30 +25,6 @@ const CheckoutPage = () => {
     const [discountAmount, setDiscountAmount] = useState(9.0)
     const [expandedAccordion, setExpandedAccordion] = useState("personal-details")
 
-    const cartItems: CartItem[] = [
-        {
-            id: "1",
-            name: "Red cap",
-            description: "Red and white cap",
-            price: 36.0,
-            image: "/red-cap.jpg",
-        },
-        {
-            id: "2",
-            name: "Oversized T-shirt",
-            description: "Awesome white T-shirt",
-            price: 29.0,
-            image: "/oversized-tshirt.jpg",
-        },
-        {
-            id: "3",
-            name: "Girl brown T-shirt",
-            description: "it's a nice brown t-shirt",
-            price: 30.0,
-            image: "/brown-tshirt.jpg",
-        },
-    ]
-
     const shippingCost = 10.66;
 
     // Calculate totals from actual cart data

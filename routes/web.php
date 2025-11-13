@@ -45,8 +45,12 @@ Route::post('/locale', function (\Illuminate\Http\Request $request) {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
+        return Inertia::render('dashboard', []);
     })->name('dashboard');
+
+    Route::get('customer/dashboard', function () {
+        return Inertia::render('e-commerce/customer/page',[]);
+    })->name('customer.dashboard');
 });
 
 require __DIR__.'/settings.php';

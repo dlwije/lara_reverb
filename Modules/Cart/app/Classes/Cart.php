@@ -336,6 +336,12 @@ class Cart implements CartInterface
 
         // Store individual items
         foreach ($content as $rowId => $item) {
+            $qty = $item->qty;
+            $price = $item->price;
+            $subtotal = $qty * $price;
+            $taxAmount = $subtotal * ($item->taxRate ?? 0) / 100;
+            $discountAmount = $item->discountAmount ?? 0;
+            $total = ($subtotal - $discountAmount) + $taxAmount;
             CartItem::create([
                 'cart_id' => $cart->id,
                 'row_id' => $rowId,
@@ -344,9 +350,11 @@ class Cart implements CartInterface
                 'qty' => $item->qty,
                 'price' => $item->price,
                 'options' => json_encode($item->options),
+                'subtotal' => $subtotal ?? 0,
                 'tax_rate' => $item->taxRate ?? 0,
                 'tax_amount' => $item->taxAmount ?? 0,
                 'discount_amount' => $item->discountAmount ?? 0,
+                'total' => $total ?? 0,
             ]);
         }
 
@@ -371,17 +379,26 @@ class Cart implements CartInterface
 
         // Store individual items
         foreach ($content as $rowId => $item) {
+            $qty = $item->qty;
+            $price = $item->price;
+            $subtotal = $qty * $price;
+            $taxAmount = $subtotal * ($item->taxRate ?? 0) / 100;
+            $discountAmount = $item->discountAmount ?? 0;
+            $total = ($subtotal - $discountAmount) + $taxAmount;
+
             CartItem::create([
                 'cart_id' => $cart->id,
                 'row_id' => $rowId,
                 'product_id' => $item->id,
                 'name' => $item->name,
-                'qty' => $item->qty,
-                'price' => $item->price,
+                'qty' => $qty,
+                'price' => $price,
                 'options' => json_encode($item->options),
+                'subtotal' => $subtotal ?? 0,
                 'tax_rate' => $item->taxRate ?? 0,
-                'tax_amount' => $item->taxAmount ?? 0,
-                'discount_amount' => $item->discountAmount ?? 0,
+                'tax_amount' => $taxAmount ?? 0,
+                'discount_amount' => $discountAmount ?? 0,
+                'total' => $total ?? 0,
             ]);
         }
 

@@ -94,7 +94,7 @@ const  ShopPage:React.FC<ShopPageProps> = ({ products, pagination, custom_fields
     const showingRange = getShowingRange();
 
     const FiltersContent = () => (
-        <div className="space-y-8">
+        <div className="p-4 space-y-8">
             {/* Search */}
             <div>
                 <h3 className="mb-4 text-sm font-semibold text-foreground">Search</h3>
@@ -186,7 +186,7 @@ const  ShopPage:React.FC<ShopPageProps> = ({ products, pagination, custom_fields
                                 </Button>
                             </SheetTrigger>
                             <SheetContent side="right" className="w-[300px] overflow-y-auto">
-                                <SheetHeader className="mb-8">
+                                <SheetHeader className="-mb-4">
                                     <SheetTitle>Filters</SheetTitle>
                                 </SheetHeader>
                                 <FiltersContent />

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 
 const CheckoutSummaryPage = () => {
     const [shippingMethod, setShippingMethod] = useState<'standard' | 'express'>('standard');
+    const [paymentMethod, setPaymentMethod] = useState<'card' | 'wallet'>('card');
     const [couponCode, setCouponCode] = useState("")
     const [discountAmount, setDiscountAmount] = useState(0)
 
@@ -140,6 +141,40 @@ const CheckoutSummaryPage = () => {
                                     </Label>
                                 </div>
                                 <div className="text-foreground font-semibold">$12.99</div>
+                            </div>
+                        </Card>
+                    </RadioGroup>
+                </div>
+
+                {/* Payment Method */}
+                <div>
+                    <h3 className="text-foreground mb-3 text-sm font-semibold">Pay with</h3>
+                    <RadioGroup
+                        value={paymentMethod}
+                        onValueChange={(value) => setPaymentMethod(value as 'card' | 'wallet')}
+                    >
+                        <Card className="border-border bg-background mb-2 p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex flex-1 items-center gap-3">
+                                    <RadioGroupItem value="wallet" id="wallet" />
+                                    <Label htmlFor="wallet" className="flex-1 cursor-pointer">
+                                        <div className="text-foreground font-medium">Wallet</div>
+                                        {/*<div className="text-muted-foreground text-sm">3-5 days</div>*/}
+                                    </Label>
+                                </div>
+                                <div className="text-foreground font-semibold">$5.99</div>
+                            </div>
+                        </Card>
+                        <Card className="border-border bg-background p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex flex-1 items-center gap-3">
+                                    <RadioGroupItem value="card" id="card" />
+                                    <Label htmlFor="card" className="flex-1 cursor-pointer">
+                                        <div className="text-foreground font-medium">Debit / Credit card</div>
+                                        {/*<div className="text-muted-foreground text-sm">1-2 days</div>*/}
+                                    </Label>
+                                </div>
+                                {/*<div className="text-foreground font-semibold">$12.99</div>*/}
                             </div>
                         </Card>
                     </RadioGroup>

@@ -91,6 +91,8 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),
+                'roles' => fn() => $request->user()?->roles->pluck('name') ?? null,
+                'permissions' => fn() => $request->user()?->getAllPermissions()->pluck('name') ?? null,
                 'accessToken' => fn () => session('access_token'),
             ],
 

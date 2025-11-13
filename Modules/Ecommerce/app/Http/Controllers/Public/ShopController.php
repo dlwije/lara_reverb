@@ -22,7 +22,7 @@ class ShopController extends Controller
         $products = Product::with(
             'supplier:id,name,company', 'taxes:id,name', 'stocks',
             'brand:id,name', 'category:id,name,category_id', 'unit:id,code,name',
-        )->filter($filters)->latest('id')->orderBy('name')->paginate();
+        )->filter($filters)->latest('id')->orderBy('name')->paginate(42);
 
         $data_array = [
             'custom_fields' => CustomField::ofModel('product')->get(),

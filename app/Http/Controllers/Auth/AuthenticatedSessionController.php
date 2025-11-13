@@ -47,7 +47,7 @@ class AuthenticatedSessionController extends Controller
                 'refresh_token_expires_in' => round(now()->diffInSeconds(now()->addDays(15))), // 15 * 24 * 60 * 60 // 1296000 seconds
             ]);
 
-            return redirect()->intended(route('dashboard', absolute: false));
+            return $this->getRedirectBasedOnRole(Auth::guard()->user());
         }catch (\Throwable $th) {
 
             Log::error($th);
@@ -56,6 +56,25 @@ class AuthenticatedSessionController extends Controller
                 'action' => __('deleted'),
             ]));
         }
+    }
+
+    protected function getRedirectBasedOnRole($user): RedirectResponse
+    {
+        $redirects = config('role_redirects.redirects');
+        $default = config('role_redirects.default');
+
+//        $intendedUrl = session()->get('url.intended');
+//        Log::info('intendedUrl: '. $intendedUrl);
+
+        Log::info('user: '. request()->user()?->roles->pluck('name'));
+        foreach ($redirects as $role => $route) {
+            Log::info('role: '. $role);
+            if ($user->hasRole($role)) {
+                return redirect()->intended(route($route, absolute: false));
+            }
+        }
+
+        return redirect()->intended(route($default, absolute: false));
     }
 
     /**

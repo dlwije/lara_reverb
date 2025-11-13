@@ -4,9 +4,11 @@ import Title from '@/components/e-commerce/public/title';
 import { useSelector } from 'react-redux';
 import ProductCard from '@/components/e-commerce/public/productCard';
 import apiClient from '@/lib/apiClient';
+import { usePage } from '@inertiajs/react';
 
 const LatestProducts = () => {
 
+    console.log(usePage());
     const displayQuantity = 6;
     // If you're fetching via API instead of Redux, use this:
 
