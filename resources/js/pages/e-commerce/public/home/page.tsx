@@ -5,6 +5,7 @@ import LatestProducts from '@/components/e-commerce/public/latestProducts';
 import BestSelling from '@/components/e-commerce/public/bestSelling';
 import OurSpecs from '@/components/e-commerce/public/ourSpecs';
 import Newsletter from '@/components/e-commerce/public/newsletter';
+import { PopularCategories } from '@/components/e-commerce/public/PopularCategories';
 
 export default function Welcome({
                                     canRegister = true,
@@ -22,6 +23,7 @@ export default function Welcome({
             </Head>
             <PublicLayout>
                 <Hero />
+                <PopularCategories />
                 <LatestProducts />
                 <BestSelling />
                 <OurSpecs />
