@@ -40,7 +40,7 @@ const LatestProducts = () => {
                 <Title title="Latest Products"
                        description={`Showing ${products.length < displayQuantity ? products.length : displayQuantity} of ${products.length} products`}
                        href="/shops" />
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-2 gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {products.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, displayQuantity).map((product, index) => (
                         <ProductCard key={index} product={product} />
                     ))}

@@ -35,42 +35,6 @@ interface ShopPageProps {
     stores: Store[];
 }
 
-const products = [
-    {
-        id: 1,
-        name: "Classic Leather Watch",
-        category: "Accessories",
-        rating: 4.9,
-        reviews: 128,
-        price: 299,
-        originalPrice: 399,
-        image: "/white-elegant-leather-watch.jpg",
-        tags: ["Water Resistant", "Leather Strap"],
-    },
-    {
-        id: 2,
-        name: "Smart Watch Pro",
-        category: "Electronics",
-        rating: 4.8,
-        reviews: 256,
-        price: 499,
-        originalPrice: 599,
-        image: "/white-smartwatch-technology.jpg",
-        tags: ["Heart Rate Monitor", "GPS", "Sleep Tracking", "Notifications"],
-    },
-    {
-        id: 3,
-        name: "Sport Watch Elite",
-        category: "Sports",
-        rating: 4.7,
-        reviews: 192,
-        price: 399,
-        originalPrice: 449,
-        image: "/white-sports-watch.jpg",
-        tags: ["Water Resistant", "Heart Rate Monitor", "GPS"],
-    },
-]
-
 const  ShopPage:React.FC<ShopPageProps> = ({ products, pagination, custom_fields, stores }) => {
     const [selectedCategory, setSelectedCategory] = useState("All")
     const [priceRange, setPriceRange] = useState([0, 1000])
@@ -196,7 +160,7 @@ const  ShopPage:React.FC<ShopPageProps> = ({ products, pagination, custom_fields
 
                         {products && products.length > 0 ? (
                             <>
-                                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                                <div className="grid grid-cols-2 gap-6 md:grid-cols-2 lg:grid-cols-3">
                                     {/* Product Cards */}
                                     {products.map((product) => (
                                         <ProductCard key={product.id} product={product} />
@@ -285,7 +249,7 @@ const ProductCard = ({ product }) => {
                 <div className="flex items-center justify-between pb-4">
                     {isOnSale ? (
                         <div className="flex items-center gap-2.5">
-                                <span className="text-2xl font-semibold">
+                                <span className="text-sm md:text-2xl font-semibold">
                                     {currency}
                                     {parseFloat(price).toFixed(2)}
                                 </span>
@@ -295,13 +259,13 @@ const ProductCard = ({ product }) => {
                                 </span>
                         </div>
                     ) : (
-                        <span className="text-2xl font-semibold">
+                        <span className="text-sm md:text-2xl font-semibold">
                                 {currency}
                             {parseFloat(price).toFixed(2)}
                             </span>
                     )}
 
-                    <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <div className="flex items-center gap-1 text-sm md:text-md text-gray-500">
                         <div className={`h-2 w-2 rounded-full ${inStock ? 'bg-green-500' : 'bg-red-500'}`}></div>
                         <span>{inStock ? `In Stock (${stockQuantity})` : 'Out of Stock'}</span>
                     </div>
@@ -309,7 +273,7 @@ const ProductCard = ({ product }) => {
                 <div className="flex-1 space-y-3">
                     <div className="space-y-2">
                         <Link href={`/product/${slug}`} className="group block max-xl:mx-auto">
-                            <h3 className="line-clamp-2 text-lg font-semibold text-foreground">{name}</h3>
+                            <h3 className="line-clamp-2 text-sm md:text-lg font-semibold text-foreground">{name}</h3>
                         </Link>
                         <Badge variant="secondary" className="w-fit bg-muted text-foreground">
                             {category.name || "Uncategorized"}

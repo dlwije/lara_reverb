@@ -92,11 +92,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, coming_from }) => {
             <CardContent className="flex flex-1 flex-col justify-between gap-6 pt-6">
                 <Link href={`/product/${slug}`} className="group block max-xl:mx-auto">
                     <div className="cursor-pointer">
-                        <div className="size-80 relative mx-auto flex items-center justify-center rounded-lg bg-gray-200">
+                        <div className="mx-auto flex items-center justify-center rounded-lg bg-gray-200">
                             {photo ? (
                                 <img src={photo} alt={name} className="h-full w-full rounded-lg object-cover" />
                             ) : (
-                                <span className="text-sm text-gray-400">No Image</span>
+                                <img src={'/placeholder.svg'} alt={'0360_product_placeholder'}
+                                     className="h-full w-full rounded-lg object-cover" />
                             )}
                         </div>
                     </div>
@@ -106,7 +107,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, coming_from }) => {
                     <div className="flex flex-col gap-2 text-center">
                         <Link href={`/product/${slug}`} className="group block max-xl:mx-auto">
                             <div className="cursor-pointer">
-                                <h3 className="line-clamp-2 text-xl font-semibold">{name}</h3>
+                                <h3 className="line-clamp-2 text-sm md:text-xl font-semibold">{name}</h3>
                                 <p className="mt-1 text-sm text-gray-500">{code}</p>
                             </div>
                         </Link>
@@ -122,12 +123,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, coming_from }) => {
 
                     <Separator />
 
-                    {description && <p className="line-clamp-2 text-center text-sm text-gray-600">{description}</p>}
+                    {description && <p className="line-clamp-2 text-center text-xs md:text-sm text-gray-600">{description}</p>}
 
                     <div className="flex items-center justify-between">
                         {isOnSale ? (
                             <div className="flex items-center gap-2.5">
-                                <span className="text-2xl font-semibold">
+                                <span className="text-sm md:text-2xl font-semibold">
                                     {currency}
                                     {parseFloat(price).toFixed(2)}
                                 </span>
@@ -137,7 +138,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, coming_from }) => {
                                 </span>
                             </div>
                         ) : (
-                            <span className="text-2xl font-semibold">
+                            <span className="text-sm md:text-2xl font-semibold">
                                 {currency}
                                 {parseFloat(price).toFixed(2)}
                             </span>

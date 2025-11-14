@@ -38,7 +38,7 @@ const ProductList: React.FC<ProductListResponse> = ({ products, pagination, cust
 
                     {products && products.length > 0 ? (
                         <>
-                            <div className='grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3'>
+                            <div className='grid grid-cols-2 gap-6 md:grid-cols-2 lg:grid-cols-3'>
                                 {/* Product Cards */}
                                 {products.map((product) => (
                                     <ProductCard key={product.id} product={product} />

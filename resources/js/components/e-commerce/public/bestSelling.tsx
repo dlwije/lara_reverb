@@ -47,7 +47,7 @@ const BestSelling = () => {
                         <Skeleton className="h-8 w-64" />
                         <Skeleton className="h-4 w-96" />
                     </div>
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-6 md:grid-cols-2 lg:grid-cols-4">
                         {Array.from({ length: displayQuantity }).map((_, index) => (
                             <Card key={index} className="overflow-hidden">
                                 <CardHeader className="p-0">
@@ -87,7 +87,7 @@ const BestSelling = () => {
                 </div>
 
                 {/* Products Grid */}
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-2 gap-6 md:grid-cols-2 lg:grid-cols-4">
                     {bestSellingProducts.map((product, index) => (
                         <ProductCard key={product.id} product={product} rank={index + 1} />
                     ))}
@@ -145,7 +145,7 @@ const ProductCard = ({ product, rank }) => {
                 )}
 
                 {/* Product Name */}
-                <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-colors">
+                <CardTitle className="text-sm md:text-lg line-clamp-2 group-hover:text-primary transition-colors">
                     {product.name}
                 </CardTitle>
 
@@ -159,7 +159,7 @@ const ProductCard = ({ product, rank }) => {
 
             <CardFooter className="p-4 pt-0 flex items-center justify-between">
                 <div className="space-y-1">
-                    <p className="text-lg font-semibold text-foreground">
+                    <p className="text-sm md:text-lg font-semibold text-foreground">
                         {formatPrice(product.price)}
                     </p>
                 </div>
