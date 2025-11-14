@@ -12,6 +12,7 @@ use Modules\Ecommerce\Http\Controllers\Public\VendorController;
 Route::prefix('v1')->group(function () {
     Route::get('latest-products', [ProductController::class, 'getLatestProducts'])->name('latest-products');
     Route::get('best-selling-products', [ProductController::class, 'getBestSellingProducts'])->name('best-selling-products');
+    Route::get('slider-categories/{category_type}', [ProductCategoryController::class, 'apiCategories'])->name('slider-categories');
 });
 
 Route::middleware(['auth:api'])->prefix('v1')->group(function () {

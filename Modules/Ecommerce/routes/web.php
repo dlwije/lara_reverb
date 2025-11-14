@@ -25,7 +25,7 @@ Route::get('product/{slug}', [ProductController::class, 'show']); // Show produc
 
 // Categories
 Route::get('product-categories', [ProductCategoryController::class, 'index']); // List all categories
-Route::get('product-categories/{category}', [ProductCategoryController::class, 'show']); // Show category products
+Route::get('product-categories/{slug}', [ProductCategoryController::class, 'show'])->name('product.categories.show'); // Show category products
 
 // Vendor Information
 Route::get('vendors/{vendor}', [VendorController::class, 'show']); // Show vendor details
