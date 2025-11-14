@@ -101,15 +101,17 @@ export function PopularCategories() {
                     Explore Popular Categories
                 </h2>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-6 md:gap-8">
-                    {categories.map((category) => (
-                        <CategoryCard
-                            category={category}
-                            key={category.id} // Use id instead of name for better key
-                            name={category.name}
-                            image={category.image}
-                        />
-                    ))}
+                <div className="flex justify-center">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-6 md:gap-8">
+                        {categories.map((category) => (
+                            <CategoryCard
+                                category={category}
+                                key={category.id}
+                                name={category.name}
+                                image={category.image}
+                            />
+                        ))}
+                    </div>
                 </div>
             </div>
         </section>
