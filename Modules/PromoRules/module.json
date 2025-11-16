@@ -1,0 +1,11 @@
+{
+    "name": "PromoRules",
+    "alias": "promorules",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\PromoRules\\Providers\\PromoRulesServiceProvider"
+    ],
+    "files": []
+}

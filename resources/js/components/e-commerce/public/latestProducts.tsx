@@ -1,0 +1,53 @@
+'use client';
+import React, { useEffect, useState } from 'react';
+import Title from '@/components/e-commerce/public/title';
+import { useSelector } from 'react-redux';
+import ProductCard from '@/components/e-commerce/public/productCard';
+import apiClient from '@/lib/apiClient';
+import { usePage } from '@inertiajs/react';
+
+const LatestProducts = () => {
+
+    console.log(usePage());
+    const displayQuantity = 6;
+    // If you're fetching via API instead of Redux, use this:
+
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchLatestProducts = async () => {
+            try {
+                setLoading(true);
+                const response = await apiClient.get('/api/v1/latest-products');
+                setProducts(response.data.products);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchLatestProducts();
+    }, []);
+
+    const latestProducts = products.slice(0, displayQuantity);
+
+    return (
+        <section className="py-8 sm:py-16 lg:py-16">
+            <div className="mx-auto max-w-7xl space-y-12 px-4 sm:space-y-16 sm:px-6 lg:space-y-16 lg:px-8">
+                <Title title="Latest Products"
+                       description={`Showing ${products.length < displayQuantity ? products.length : displayQuantity} of ${products.length} products`}
+                       href="/shops" />
+                <div className="grid grid-cols-2 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {products.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, displayQuantity).map((product, index) => (
+                        <ProductCard key={index} product={product} />
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+};
+
+export default LatestProducts;

@@ -1,0 +1,11 @@
+{
+    "name": "Telr",
+    "alias": "telr",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Telr\\Providers\\TelrServiceProvider"
+    ],
+    "files": []
+}

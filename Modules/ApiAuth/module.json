@@ -1,0 +1,11 @@
+{
+    "name": "ApiAuth",
+    "alias": "apiauth",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\ApiAuth\\Providers\\ApiAuthServiceProvider"
+    ],
+    "files": []
+}
