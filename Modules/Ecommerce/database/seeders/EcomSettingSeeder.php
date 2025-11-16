@@ -126,13 +126,13 @@ class EcomSettingSeeder extends Seeder
             'services'         => [
                 'paypal' => [
                     'enabled'   => '1',
-                    'client_id' => 'AXVE4fpuDxeEDDRwoc3WDKwog6uL6yizmuM5nse54kFl3R0901VQdy2lemcWZWoTK1XRTTuUD4uLQmDF',
-                    'secret'    => 'EFnQQ_XgtwgqNa6p32aWQhPyeE4jyOprFyuFZbgLji2QyJ1St2xEMPj9UCJrVyoww4zSZc0gU_zS8wv-',
+                    'client_id' => '',
+                    'secret'    => '',
                 ],
                 'stripe' => [
                     'enabled' => '1',
-                    'key'     => 'pk_test_515LpChLkXRKe1IYhsQa8cl6Xtk0MNzoQF0g53FGtG5u0d5apCU8OqG7a1pUsbugrtVgcW2O0fM3FtCJg1d2AEdK400rQBLZNdt',
-                    'secret'  => 'sk_test_515LpChLkXRKe1IYhWsCzVIdorJlvGT8wkDKUqUjo3lAAWjGVRTyFrZCqI8remH466frXeotGdl6JWnNgF7lIwHoZ00sqklcFcd',
+                    'key'     => '',
+                    'secret'  => '',
                 ],
             ],
         ])]);
