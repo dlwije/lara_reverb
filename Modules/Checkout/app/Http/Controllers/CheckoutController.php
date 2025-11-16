@@ -3,16 +3,21 @@
 namespace Modules\Checkout\Http\Controllers;
 
 use AllowDynamicProperties;
+use App\Actions\Sma\FreeItem;
 use App\Http\Controllers\Controller;
 use App\Models\Sma\Pos\Order;
 use App\Models\Sma\Product\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Modules\Cart\Facades\Cart;
+use Modules\Cart\Models\CartItem;
+use Modules\Checkout\Actions\AddSale;
 use Modules\Checkout\Http\Requests\CheckoutRequest;
 use Modules\Checkout\Services\CheckoutOrderService;
+use Modules\Ecommerce\Services\CartHelper;
 use Modules\Wallet\Services\KYCService;
 use Modules\Wallet\Services\WalletCheckoutService;
 use Modules\Wallet\Services\WalletService;
@@ -23,7 +28,8 @@ class CheckoutController extends Controller
     public function __construct(
         public WalletService $walletService,
         public KYCService $kycService,
-        public CheckoutOrderService $checkoutOrderService
+        public CheckoutOrderService $checkoutOrderService,
+        public CartHelper $cartHelper,
     ) {
         // For session based binding
         $this->cart = app('cart');
@@ -81,12 +87,93 @@ class CheckoutController extends Controller
             return self::error($e->getMessage(),500);
         }
     }
-    
+
     public function getCheckoutPage(Request $request)
     {
 
+        $settings = get_settings('general');
+        $guest_checkout = $settings['guest_checkout'];
+        if (!$guest_checkout && my_unpaid_shop_orders() >= $settings['max_unpaid_orders']) {
+            return Inertia::render('e-commerce/public/checkout/page', [
+                'errors' => [
+                    'message' => __('You have reached maximum unpaid orders limit. Please settle your unpaid orders first by visiting orders menu.')
+                ]
+            ])->with('error', __('You have reached maximum unpaid orders limit. Please settle your unpaid orders first by visiting orders menu.'));
+        }
 
+        $prepareItems = $this->cartHelper->prepareItems();
 
+        if ($request->payment_method && ($request->payment_method == 'Balance' || $request->payment_method == 'Cash on Delivery')) {
+            $user = auth()->user();
+            if (!$user) {
+                return Inertia::render('e-commerce/public/checkout/page', [
+                    'errors' => [
+                        'payment_method' => __('Please login to use this payment method.')
+                    ]
+                ])->with('error', __('Please login to use this payment method.'));
+            }
+
+            if ($request->payment_method == 'Balance') {
+                $balance = $user->customer?->balance ?? 0;
+                if ($balance < $prepareItems['data']['grand_total']) {
+                    return Inertia::render('e-commerce/public/checkout/page', [
+                        'errors' => [
+                            'payment_method' => __('You do not have balance to make this payment.')
+                        ]
+                    ])->with('error', __('You do not have balance to make this payment.'));
+                }
+            }
+        }
+
+        if ($freeItems = $prepareItems['cart_items']->whereNotNull('oId')->where('oId', '!=', '')) {
+            foreach ($freeItems as $freeItem) {
+                $mainItem = $prepareItems['cart_items']->where('product_id', $freeItem->oId)->first();
+                $valid = FreeItem::check($mainItem, $freeItem);
+
+                if (!$valid) {
+                    CartItem::where('product_id', $freeItem->product_id)->where('oId', $freeItem->oId)->delete();
+
+                    return Inertia::render('e-commerce/public/checkout/page', [
+                        'errors' => [
+                            'message' => __('Promotion has expired or changed for free item named :item and removed from cart.', ['item' => $freeItem->item->name])
+                        ]
+                    ])->with('error', __('Promotion has expired or changed for free item named :item and removed from cart.', ['item' => $freeItem->item->name]));
+                }
+            }
+        }
+
+        $sale = AddSale::fromCart($prepareItems['form'], $prepareItems['cart_items'], $prepareItems['shipping_methods']);
+
+        if ($sale->payment_method == 'PayPal') {
+            return Inertia::location(route('payment.paypal', ['sale_id' => $sale->id]));
+        } else {
+            // For other payment methods, redirect to payment page
+            if ($payment = $sale->directPendingPayments()->first()) {
+                if (auth()->guest()) {
+                    $url = URL::signedRoute('shop.payment.guest', [
+                        'type'    => 'pay',
+                        'id'      => $payment->id,
+                        'hash'    => $payment->hash,
+                        'gateway' => $sale->payment_method,
+                    ]);
+                    return Inertia::location($url);
+                }
+
+                return Inertia::location(route('shop.payment', [
+                    'type'    => 'pay',
+                    'id'      => $payment->id,
+                    'gateway' => $sale->payment_method,
+                ]));
+            }
+
+            // If no direct payment, redirect to order confirmation
+            if (auth()->guest()) {
+                $url = URL::signedRoute('shop.order.guest', ['id' => $sale->id, 'hash' => $sale->hash]);
+                return Inertia::location($url);
+            }
+
+            return Inertia::location(route('shop.order.confirmation', ['id' => $sale->id]));
+        }
         // First get the checkout data from session if there were
 
         // If the provided token is not equal to the current session token

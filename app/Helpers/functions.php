@@ -158,7 +158,10 @@ if (! function_exists('get_public_settings')) {
 if (! function_exists('json_settings_fields')) {
     function json_settings_fields()
     {
-        return ['scale_barcode', 'mail', 'payment', 'loyalty', 'product_taxes', 'quick_cash'];
+        return [
+            'scale_barcode', 'mail', 'payment', 'loyalty', 'product_taxes', 'quick_cash',
+            'general', 'seo', 'shop_slider', 'shop_cta', 'shop_footer', 'page_menus', 'social_links', 'notification',
+        ];
     }
 }
 
@@ -166,7 +169,7 @@ if (! function_exists('json_settings_fields')) {
 if (! function_exists('settings_remove_private_fields')) {
     function settings_remove_private_fields($settings)
     {
-        $safe = collect($settings)->forget(['mail', 'payment'])->all();
+        $safe = collect($settings)->forget(['mail', 'payment', 'captcha_secret_key'])->all();
 
         // Set payment public fields
         $safe['payment']['gateway'] = $settings['payment']['gateway'] ?? null;
@@ -177,6 +180,18 @@ if (! function_exists('settings_remove_private_fields')) {
         $safe['payment']['services']['stripe']['key'] = $settings['payment']['services']['stripe']['key'] ?? null;
 
         return $safe;
+    }
+}
+
+// default currency
+if (! function_exists('default_currency')) {
+    function default_currency()
+    {
+        return cache()->flexible('default_currency', [15, 30], function () {
+            $id = get_settings('currency_id');
+
+            return $id ? Nnjeim\World\Models\Currency::find($id) : Nnjeim\World\Models\Currency::where('code', 'USD')->first();
+        });
     }
 }
 
@@ -257,6 +272,24 @@ if (! function_exists('format_number')) {
         }
 
         return number_format($number, $decimals, $ds, $ts);
+    }
+}
+
+// Get countries
+if (! function_exists('get_countries')) {
+    function get_countries()
+    {
+        return Nnjeim\World\Models\Country::with('states:id,name,country_id')->get()->toArray();
+    }
+}
+
+// Get states
+if (! function_exists('get_states')) {
+    function get_states($country_id)
+    {
+        $country = Nnjeim\World\Models\Country::with('states:id,name,country_id')->find($country_id);
+
+        return $country ? $country->states->toArray() : [];
     }
 }
 
@@ -451,3 +484,5 @@ if (! function_exists('get_sql_query')) {
         return vsprintf(str_replace('?', '%s', str_replace('?', "'?'", $query->toSql())), $query->getBindings());
     }
 }
+
+/** E-commerce */

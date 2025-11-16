@@ -68,7 +68,25 @@ class Sale extends Model
     public function payments(): MorphToMany
     {
         return $this->morphToMany(Payment::class, 'payable')
-            ->withPivot('amount')->withoutGlobalScope(OfStore::class);
+            ->withPivot('amount')->received()->withoutGlobalScope(OfStore::class);
+    }
+
+    public function paymentRequests(): MorphToMany
+    {
+        return $this->morphToMany(Payment::class, 'payable')
+            ->withPivot('amount')->pending()->withoutGlobalScope(OfStore::class);
+    }
+
+    public function directPayments(): HasMany
+    {
+        return $this->hasMany(Payment::class)
+            ->withoutGlobalScopes()->received();
+    }
+
+    public function directPendingPayments(): HasMany
+    {
+        return $this->hasMany(Payment::class)
+            ->withoutGlobalScopes()->pending();
     }
 
     public function order()
@@ -164,6 +182,8 @@ class Sale extends Model
             ->when($filters['search'] ?? null, fn ($query, $search) => $query->search($search))
             ->when($filters['paid'] ?? null, fn ($query) => $query->paid())
             ->when($filters['overdue'] ?? null, fn ($query) => $query->due())
+            ->when($filters['pos'] ?? null, fn ($query) => $query->where('pos', 1))
+            ->when($filters['shop'] ?? null, fn ($query) => $query->where('shop', 1))
             ->when($filters['unpaid'] ?? null, fn ($query) => $query->unpaid())
             ->when($filters['end'] ?? null, fn ($query, $end) => $query->where('created_at', '<=', $end))
             ->when($filters['start'] ?? null, fn ($query, $start) => $query->where('created_at', '>=', $start))
@@ -173,7 +193,8 @@ class Sale extends Model
             ->when($filters['products'] ?? null, fn ($query, $products) => $query->whereHas('items', fn ($q) => $q->whereIn('product_id', $products)))
             ->when($filters['reference'] ?? null, fn ($query, $reference) => $query->where('reference', 'like', "%{$reference}%"))
             ->when($filters['start_date'] ?? null, fn ($query, $date) => $query->where('date', '>=', $date))
-            ->when($filters['end_date'] ?? null, fn ($query, $date) => $query->where('date', '<=', $date));
+            ->when($filters['end_date'] ?? null, fn ($query, $date) => $query->where('date', '<=', $date))
+            ->when($filters['sort'] ?? null, fn ($query, $sort) => $query->sort($sort));
     }
 
     public function scopePaid($query)

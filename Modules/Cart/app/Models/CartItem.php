@@ -71,4 +71,18 @@ class CartItem extends Model
     {
         return data_get($this->product_attributes, $key, $default);
     }
+
+    public function scopeOfUser($query)
+    {
+        if ($user = auth()->user()) {
+            $query->where('user_id', $user->id);
+        }
+
+        return $query;
+    }
+
+    public function scopeOfCart($query, $cartId)
+    {
+        return $query->where('cart_id', $cartId);
+    }
 }
