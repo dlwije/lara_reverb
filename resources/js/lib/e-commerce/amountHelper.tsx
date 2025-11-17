@@ -630,7 +630,7 @@ export const numberFormat = (
 };
 
 // Array chunking
-export const chunkArray = <T>(array: T[], size: number): T[][] => {
+export const chunkArray = <T,>(array: T[], size: number): T[][] => {
     if (size <= 0) return [array];
 
     return array.reduce((result: T[][], _, index) => {
@@ -639,28 +639,6 @@ export const chunkArray = <T>(array: T[], size: number): T[][] => {
     }, []);
 };
 
-// Export all functions with their original names for backward compatibility
-export {
-    capitalize as $capitalize,
-    formatAddress as $address,
-    formatDecimal as $decimal,
-    formatDecimalQty as $decimal_qty,
-    formatMeta as $meta,
-    formatNumber as $number,
-    formatCurrency as $currency,
-    formatUnit as $unit,
-    formatNumberQty as $number_qty,
-    formatWeight as $weight,
-    formatLength as $length,
-    formatDate as $date,
-    formatDateTime as $datetime,
-    formatBoolean as $boolean,
-    formatExtras as $extras,
-    hasPermission as $can,
-    random as $random,
-    hasValueWithZero as has_value_with_zero,
-    numberFormat as number_format,
-};
 
 // Note: The remaining functions (calculate_item, calculate_discount, calculate_inclusive_tax,
 // calculate_exclusive_tax, calculate_taxes, convert_to_base_unit, discount_keypress, check_promotions)

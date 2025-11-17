@@ -34,5 +34,8 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-
+    'pos' => [
+        'url' => env('POS_APP_URL', 'http://st_mana_beta5.test'),
+        'api_token' => env('POS_API_TOKEN', ''),
+    ],
 ];

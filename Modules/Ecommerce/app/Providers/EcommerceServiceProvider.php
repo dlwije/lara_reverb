@@ -3,6 +3,7 @@
 namespace Modules\Ecommerce\Providers;
 
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\ServiceProvider;
 use Nwidart\Modules\Traits\PathNamespace;
 use RecursiveDirectoryIterator;
@@ -21,6 +22,13 @@ class EcommerceServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register POS API HTTP macro
+        Http::macro('posApi', function () {
+            return Http::withHeaders([
+                'Authorization' => 'Bearer ' . config('services.pos.api_token'),
+                'Accept' => 'application/json',
+            ])->baseUrl(config('services.pos.url') . '/api');
+        });
         $this->registerCommands();
         $this->registerCommandSchedules();
         $this->registerTranslations();

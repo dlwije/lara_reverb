@@ -2,6 +2,7 @@
 
 namespace Modules\Product\Models;
 
+use App\Helpers\ImageHelper;
 use App\Models\Model;
 use App\Models\Sma\Order\PurchaseItem;
 use App\Models\Sma\Order\SaleItem;
@@ -23,6 +24,7 @@ use App\Traits\HasSchemalessAttributes;
 use App\Traits\HasStock;
 use App\Traits\HasTaxes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Modules\Ecommerce\Traits\HasPosImages;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
 
@@ -38,6 +40,7 @@ class Product extends Model
     use HasPromotions;
     use HasAttachments;
     use HasSchemalessAttributes;
+    use HasPosImages;
 
     public static $hasSku = true;
 
@@ -240,6 +243,61 @@ class Product extends Model
         $this->setProductStock();
     }
 
+    /** E-commerce **/
+    /**
+     * Get the transformed image URL
+     */
+    public function getImageUrlAttribute()
+    {
+        if (empty($this->image)) {
+            return ImageHelper::posImageWithFallback(null);
+        }
+
+        return ImageHelper::posImageWithFallback($this->image);
+    }
+
+    /**
+     * Get multiple gallery image URLs
+     */
+    public function getGalleryUrlsAttribute()
+    {
+        if (empty($this->images)) {
+            return [ImageHelper::posImageWithFallback(null)];
+        }
+
+        if (is_string($this->images)) {
+            // If images is a JSON string
+            $imagesArray = json_decode($this->images, true) ?? [$this->images];
+        } else {
+            $imagesArray = (array) $this->images;
+        }
+
+        return array_map(function($image) {
+            return ImageHelper::posImageWithFallback($image);
+        }, $imagesArray);
+    }
+
+    /**
+     * Get the first gallery image URL (for thumbnails)
+     */
+    public function getThumbnailUrlAttribute()
+    {
+        $galleryUrls = $this->gallery_urls;
+        return $galleryUrls[0] ?? $this->image_url;
+    }
+
+    /**
+     * Check if image exists in POS system
+     */
+    public function getImageExistsAttribute()
+    {
+        if (empty($this->image)) {
+            return false;
+        }
+
+        return ImageHelper::posImageExists($this->image);
+    }
+    
     protected static function booted()
     {
         parent::booted();
