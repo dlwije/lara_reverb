@@ -10,6 +10,7 @@ import { Link } from '@inertiajs/react';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import { HeartIcon, ShoppingCartIcon } from 'lucide-react';
 import React, { useState } from 'react';
+import { formatCurrency } from '@/lib/e-commerce/amountHelper';
 
 interface ProductCardProps {
     product: Product;
@@ -107,7 +108,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, coming_from }) => {
                     <div className="flex flex-col gap-2 text-center">
                         <Link href={`/product/${slug}`} className="group block max-xl:mx-auto">
                             <div className="cursor-pointer">
-                                <h3 className="line-clamp-2 text-sm md:text-xl font-semibold">{name}</h3>
+                                <h3 className="line-clamp-1 sm:line-clamp-2 text-sm md:text-xl font-semibold">{name}</h3>
                                 <p className="mt-1 text-sm text-gray-500">{code}</p>
                             </div>
                         </Link>
@@ -123,30 +124,27 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, coming_from }) => {
 
                     <Separator />
 
-                    {description && <p className="line-clamp-2 text-center text-xs md:text-sm text-gray-600">{description}</p>}
+                    {/*{description && <p className="line-clamp-2 text-center text-xs md:text-sm text-gray-600">{description}</p>}*/}
 
                     <div className="flex items-center justify-between">
                         {isOnSale ? (
-                            <div className="flex items-center gap-2.5">
+                            <div className="hidden flex items-center gap-2.5">
                                 <span className="text-sm md:text-2xl font-semibold">
-                                    {currency}
-                                    {parseFloat(price).toFixed(2)}
+                                    {formatCurrency(price)}
                                 </span>
                                 <span className="text-muted-foreground font-medium line-through">
-                                    {currency}
-                                    {parseFloat(cost || '0').toFixed(2)}
+                                    {formatCurrency(cost)}
                                 </span>
                             </div>
                         ) : (
-                            <span className="text-sm md:text-2xl font-semibold">
-                                {currency}
-                                {parseFloat(price).toFixed(2)}
+                            <span className={ `${inStock ? 'sm:flex' : 'hidden'} text-sm md:text-2xl font-semibold`}>
+                                {formatCurrency(price)}
                             </span>
                         )}
 
-                        <div className="flex items-center gap-1 text-sm text-gray-500">
+                        <div className={`flex items-center gap-1 text-sm text-gray-500 ${ !inStock ? 'w-full justify-center' : ''}`}>
                             <div className={`h-2 w-2 rounded-full ${inStock ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                            <span>{inStock ? `In Stock (${stockQuantity})` : 'Out of Stock'}</span>
+                            <span className={`text-center`}>{inStock ? `In Stock (${stockQuantity})` : 'Out of Stock'}</span>
                         </div>
                     </div>
 

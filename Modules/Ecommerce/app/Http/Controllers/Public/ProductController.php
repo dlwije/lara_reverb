@@ -159,4 +159,106 @@ class ProductController extends Controller
             'products' => $products
         ]);
     }
+
+    public function featuredProducts()
+    {
+        $products = Product::with(['brand', 'category'])
+            ->where('featured', 1)
+//            ->where('active', 1)
+            ->where('hide_in_shop', 0)
+            ->whereNull('deleted_at')
+            ->orderBy('created_at', 'desc')
+            ->take(8)
+            ->get()
+            ->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'currency' => default_currency(),
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'price' => $product->price,
+                    'original_price' => $product->cost,
+                    'on_sale' => $product->on_sale,
+                    'photo' => $product->photo ? asset('storage/' . $product->photo) : null,
+                    'secondary_name' => $product->secondary_name,
+                    'brand' => $product->brand?->name,
+                    'category' => $product->category?->name,
+                    'featured' => $product->featured,
+                ];
+            });
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Featured products retrieved successfully',
+            'data' => $products
+        ]);
+    }
+
+    public function hotDeals()
+    {
+        $products = Product::with(['brand'])
+            ->where('on_sale', 1)
+//            ->where('active', 1)
+            ->where('hide_in_shop', 0)
+            ->where(function ($query) {
+                $query->whereNull('start_date')
+                    ->orWhere('start_date', '<=', now());
+            })
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now());
+            })
+            ->whereNull('deleted_at')
+            ->orderBy('created_at', 'desc')
+            ->take(6)
+            ->get()
+            ->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'price' => $product->price,
+                    'original_price' => $product->cost,
+                    'photo' => $product->photo ? asset('storage/' . $product->photo) : null,
+                    'end_date' => $product->end_date,
+                    // Add stock information if available
+                    'stock_percentage' => 75, // Example
+                    'sold_count' => 45, // Example
+                    'stock_available' => 15, // Example
+                ];
+            });
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Hot deals retrieved successfully',
+            'data' => $products
+        ]);
+    }
+
+    public function newArrivals()
+    {
+        $products = Product::with(['brand'])
+//            ->where('active', 1)
+            ->where('hide_in_shop', 0)
+            ->whereNull('deleted_at')
+            ->orderBy('created_at', 'desc')
+            ->take(10)
+            ->get()
+            ->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'price' => $product->price,
+                    'photo' => $product->photo ? asset('storage/' . $product->photo) : null,
+                    'created_at' => $product->created_at,
+                ];
+            });
+
+        return response()->json([
+            'status' => true,
+            'message' => 'New arrivals retrieved successfully',
+            'data' => $products
+        ]);
+    }
 }

@@ -5,11 +5,11 @@ import { useSelector } from 'react-redux'
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from "@/components/ui/button";
 import { route } from 'ziggy-js';
 import { Link } from '@inertiajs/react';
+import BestSellingProductCard from '@/components/e-commerce/public/bestSellingProductCard';
 
 const BestSelling = () => {
 
@@ -89,7 +89,7 @@ const BestSelling = () => {
                 {/* Products Grid */}
                 <div className="grid grid-cols-2 gap-6 md:grid-cols-2 lg:grid-cols-4">
                     {bestSellingProducts.map((product, index) => (
-                        <ProductCard key={product.id} product={product} rank={index + 1} />
+                        <BestSellingProductCard key={product.id} product={product} rank={index + 1} />
                     ))}
                 </div>
 
@@ -102,76 +102,5 @@ const BestSelling = () => {
         </section>
     );
 }
-
-// Product Card with sales rank
-const ProductCard = ({ product, rank }) => {
-    const formatPrice = (price) => {
-        if (!price || price === "0.0000") return "Price on request";
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD'
-        }).format(parseFloat(price));
-    };
-
-    return (
-        <Card className="group overflow-hidden hover:shadow-lg transition-all duration-300">
-            <CardHeader className="p-0 relative">
-                {/* Product Image */}
-                <div className="aspect-square w-full bg-muted flex items-center justify-center">
-                    <div className="text-muted-foreground text-sm text-center p-4">
-                        No image available
-                    </div>
-                </div>
-
-                {/* Sales Rank Badge */}
-                <Badge className="absolute top-2 left-2 bg-primary">
-                    #{rank} Best Seller
-                </Badge>
-
-                {/* Total Sold Badge */}
-                {product.total_sold > 0 && (
-                    <Badge variant="secondary" className="absolute top-2 right-2">
-                        {product.total_sold} sold
-                    </Badge>
-                )}
-            </CardHeader>
-
-            <CardContent className="p-4 space-y-2">
-                {/* Supplier */}
-                {product.supplier && (
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                        {product.supplier.name}
-                    </p>
-                )}
-
-                {/* Product Name */}
-                <CardTitle className="text-sm md:text-lg line-clamp-2 group-hover:text-primary transition-colors">
-                    {product.name}
-                </CardTitle>
-
-                {/* Product Code */}
-                {product.code && (
-                    <CardDescription className="text-sm">
-                        Code: {product.code}
-                    </CardDescription>
-                )}
-            </CardContent>
-
-            <CardFooter className="p-4 pt-0 flex items-center justify-between">
-                <div className="space-y-1">
-                    <p className="text-sm md:text-lg font-semibold text-foreground">
-                        {formatPrice(product.price)}
-                    </p>
-                </div>
-
-                <Button size="sm" asChild>
-                    <Link href={`/product/${product.slug || product.id}`}>
-                        View Details
-                    </Link>
-                </Button>
-            </CardFooter>
-        </Card>
-    );
-};
 
 export default BestSelling;

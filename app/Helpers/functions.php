@@ -190,7 +190,7 @@ if (! function_exists('default_currency')) {
         return cache()->flexible('default_currency', [15, 30], function () {
             $id = get_settings('currency_id');
 
-            return $id ? Nnjeim\World\Models\Currency::find($id) : Nnjeim\World\Models\Currency::where('code', 'USD')->first();
+            return $id ? Nnjeim\World\Models\Currency::find($id) : Nnjeim\World\Models\Currency::where('code', 'AED')->first();
         });
     }
 }

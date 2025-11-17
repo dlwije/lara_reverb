@@ -10,6 +10,16 @@ use Modules\Ecommerce\Http\Controllers\Public\VendorController;
 
 
 Route::prefix('v1')->group(function () {
+    Route::get('/home/top-selling', [EcommerceController::class, 'topSellingProducts']);
+    Route::get('/home/promotions/active', [EcommerceController::class, 'activePromotions']);
+    Route::get('/home/brands/featured', [EcommerceController::class, 'featuredBrands']);
+    Route::get('/home/stats', [EcommerceController::class, 'homepageStats']);
+
+    // Existing routes
+    Route::get('/products/featured', [ProductController::class, 'featuredProducts']);
+    Route::get('/products/hot-deals', [ProductController::class, 'hotDeals']);
+    Route::get('/products/new-arrivals', [ProductController::class, 'newArrivals']);
+
     Route::get('latest-products', [ProductController::class, 'getLatestProducts'])->name('latest-products');
     Route::get('best-selling-products', [ProductController::class, 'getBestSellingProducts'])->name('best-selling-products');
     Route::get('slider-categories/{category_type}', [ProductCategoryController::class, 'apiCategories'])->name('slider-categories');
