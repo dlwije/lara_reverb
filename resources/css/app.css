@@ -167,3 +167,23 @@
     @apply bg-background text-foreground;
     }
 }
+
+/* Add to your global CSS */
+@layer utilities {
+    .z-dropdown {
+        z-index: 50;
+    }
+
+    .z-overlay {
+        z-index: 100;
+    }
+}
+
+/* Ensure navigation menus don't overlap */
+[data-radix-navigation-menu-content] {
+    z-index: 50 !important;
+}
+
+[data-radix-dropdown-menu-content] {
+    z-index: 50 !important;
+}

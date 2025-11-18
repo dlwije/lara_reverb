@@ -12,6 +12,58 @@ export interface Category {
     children?: Category[];
 }
 
+export interface Address {
+    id: number;
+    name: string;
+    street: string;
+    city: string;
+    state: string;
+    zip_code: string;
+    country: string;
+    is_default: boolean;
+}
+
+export interface Language {
+    code: string;
+    name: string;
+    native_name: string;
+    flag: string;
+}
+
+export interface WishlistItem {
+    rowId: string;
+    id: number;
+    name: string | null;
+    slug: string | null;
+    qty: number;
+    price: string;
+    taxRate: string;
+    taxAmount: string;
+    discountAmount: string;
+    subtotal: string;
+    total: string;
+    options: {
+        size?: string;
+        color?: string;
+        [key: string]: any;
+    };
+    productAttributes: any[];
+    product: any;
+}
+
+export interface WishList {
+    content: WishlistItem[];
+    count: number;
+    subtotal: string;
+    tax: string;
+    discount: string;
+    shipping: string;
+    total: string;
+    instance: string;
+    currency: string;
+    identifier: string;
+}
+
 export interface Brand {
     id: number;
     name: string;
