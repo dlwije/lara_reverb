@@ -288,12 +288,12 @@ class ProductController extends Controller
                     'category:id,name,category_id',
                     'unit:id,code,name',
                     'variations.stocks'
-                ])->where('active', 1);
+                ]);
             },
             'productToBuy',
             'productToGet'
         ])
-            ->active()
+            ->valid()
             ->latest('id')
             ->get();
 
