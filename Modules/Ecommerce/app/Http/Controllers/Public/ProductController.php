@@ -2,6 +2,7 @@
 
 namespace Modules\Ecommerce\Http\Controllers\Public;
 
+use App\Helpers\ImageHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Collection;
 use App\Models\Sma\Setting\CustomField;
@@ -179,7 +180,7 @@ class ProductController extends Controller
                     'price' => $product->price,
                     'original_price' => $product->cost,
                     'on_sale' => $product->on_sale,
-                    'photo' => $product->photo ? asset('storage/' . $product->photo) : null,
+                    'photo' => ImageHelper::posImageUrl($product->photo) ?: null,
                     'secondary_name' => $product->secondary_name,
                     'brand' => $product->brand?->name,
                     'category' => $product->category?->name,
@@ -219,7 +220,7 @@ class ProductController extends Controller
                     'slug' => $product->slug,
                     'price' => $product->price,
                     'original_price' => $product->cost,
-                    'photo' => $product->photo ? asset('storage/' . $product->photo) : null,
+                    'photo' => ImageHelper::posImageUrl($product->photo) ?: null,
                     'end_date' => $product->end_date,
                     // Add stock information if available
                     'stock_percentage' => 75, // Example
@@ -250,7 +251,7 @@ class ProductController extends Controller
                     'name' => $product->name,
                     'slug' => $product->slug,
                     'price' => $product->price,
-                    'photo' => $product->photo ? asset('storage/' . $product->photo) : null,
+                    'photo' => ImageHelper::posImageUrl($product->photo) ?: null,
                     'created_at' => $product->created_at,
                 ];
             });
