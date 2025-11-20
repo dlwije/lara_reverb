@@ -77,21 +77,16 @@ class ImageHelper
     private static function generateApiUrl($filename)
     {
         $baseUrl = config('services.pos.url') . '/api';
-
-        // Remove any URL fragments from filename (in case it still contains parts of URL)
         $cleanFilename = self::cleanFilename($filename);
 
-        // Always use the products endpoint for product images
-        $endpoint = '/images/products/' . $cleanFilename;
+        // Use public endpoint to avoid authentication issues
+//        $endpoint = '/public/images/products/' . $cleanFilename;
 
-        $apiUrl = $baseUrl . $endpoint;
+        // If you want to use authenticated endpoint, include token
+         $endpoint = '/images/products/' . $cleanFilename;
+         $apiUrl = $baseUrl . $endpoint . '?token=' . config('services.pos.api_token');
 
-        // Debug log
-        Log::info('Generated API URL', [
-            'filename' => $filename,
-            'clean_filename' => $cleanFilename,
-            'api_url' => $apiUrl
-        ]);
+//        $apiUrl = $baseUrl . $endpoint;
 
         return $apiUrl;
     }
