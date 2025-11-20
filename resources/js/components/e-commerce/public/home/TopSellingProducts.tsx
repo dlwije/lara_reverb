@@ -21,7 +21,7 @@ export function TopSellingProducts() {
         const fetchTopSelling = async () => {
             try {
                 setLoading(true);
-                const response = await apiClient.get<ApiResponse>('/api/v1/products/top-selling');
+                const response = await apiClient.get<ApiResponse>('/api/v1/home/top-selling');
 
                 if (response.data.status) {
                     setProducts(response.data.data);

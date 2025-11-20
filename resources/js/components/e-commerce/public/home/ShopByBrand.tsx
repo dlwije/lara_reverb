@@ -18,7 +18,7 @@ export function ShopByBrand() {
         const fetchBrands = async () => {
             try {
                 setLoading(true);
-                const response = await apiClient.get<ApiResponse>('/api/v1/brands/featured');
+                const response = await apiClient.get<ApiResponse>('/api/v1/home/brands/featured');
 
                 if (response.data.status) {
                     setBrands(response.data.data);
