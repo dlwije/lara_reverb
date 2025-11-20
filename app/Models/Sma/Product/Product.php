@@ -6,6 +6,7 @@ use App\Helpers\ImageHelper;
 use App\Models\Model;
 use App\Traits\HasStock;
 use App\Traits\HasPromotions;
+use Illuminate\Support\Facades\Log;
 use Modules\Ecommerce\Traits\HasPosImages;
 use Spatie\Sluggable\HasSlug;
 use App\Traits\HasAttachments;
@@ -226,6 +227,9 @@ class Product extends Model
      */
     public function getImageUrlAttribute()
     {
+        // Debug the transformation
+        $debugInfo = ImageHelper::debugUrlTransformation($this->image);
+        Log::info('Product/Product image URL transformation', $debugInfo);
         if (empty($this->image)) {
             return ImageHelper::posImageWithFallback(null);
         }

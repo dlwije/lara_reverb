@@ -24,6 +24,7 @@ use App\Traits\HasSchemalessAttributes;
 use App\Traits\HasStock;
 use App\Traits\HasTaxes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Log;
 use Modules\Ecommerce\Traits\HasPosImages;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
@@ -249,6 +250,10 @@ class Product extends Model
      */
     public function getImageUrlAttribute()
     {
+        // Debug the transformation
+        $debugInfo = ImageHelper::debugUrlTransformation($this->image);
+        Log::info('Models/Product image URL transformation', $debugInfo);
+
         if (empty($this->image)) {
             return ImageHelper::posImageWithFallback(null);
         }
