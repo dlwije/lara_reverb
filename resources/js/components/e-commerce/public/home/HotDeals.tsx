@@ -196,7 +196,7 @@ function DealCard({ deal }) {
             <CardContent className="p-4">
                 {/* Product Info */}
                 <div className="space-y-2 mb-4">
-                    <Link href={`/products/${deal.slug}`}>
+                    <Link href={`/product/${deal.slug}`}>
                         <h3 className="font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
                             {deal.name}
                         </h3>

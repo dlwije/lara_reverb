@@ -159,7 +159,7 @@ function ProductCard({ product }) {
         <Card className="border-border bg-card hover:shadow-lg transition-all duration-300 group overflow-hidden">
             <div className="relative overflow-hidden">
                 {/* Product Image */}
-                <Link href={`/products/${product.slug}`}>
+                <Link href={`/product/${product.slug}`}>
                     <div className="relative h-48 w-full bg-muted overflow-hidden">
                         {!imageLoaded && (
                             <Skeleton className="w-full h-full bg-muted" />
@@ -207,7 +207,7 @@ function ProductCard({ product }) {
                 )}
 
                 {/* Product Name */}
-                <Link href={`/products/${product.slug}`}>
+                <Link href={`/product/${product.slug}`}>
                     <h3 className="font-semibold text-foreground mb-2 line-clamp-2 group-hover:text-primary transition-colors">
                         {product.name}
                     </h3>

@@ -122,7 +122,7 @@ function TopSellingProductCard({ item, rank }: TopSellingProductCardProps) {
                 </Badge>
 
                 {/* Product Image */}
-                <Link href={`/products/${product.slug}`}>
+                <Link href={`/product/${product.slug}`}>
                     <div className="relative h-48 w-full bg-muted overflow-hidden">
                         <img
                             src={product.photo || '/images/placeholder-product.jpg'}
@@ -143,7 +143,7 @@ function TopSellingProductCard({ item, rank }: TopSellingProductCardProps) {
             <CardContent className="p-4">
                 {/* Product Info */}
                 <div className="space-y-2 mb-3">
-                    <Link href={`/products/${product.slug}`}>
+                    <Link href={`/product/${product.slug}`}>
                         <h3 className="font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
                             {product.name}
                         </h3>

@@ -64,7 +64,7 @@ const HeartIcon = () => {
                                         <p className="text-primary text-sm font-semibold">${item.price}</p>
                                     </div>
                                     <Button size="sm" variant="outline" asChild>
-                                        <Link href={`/products/${item.slug}`}>View</Link>
+                                        <Link href={`/product/${item.slug}`}>View</Link>
                                     </Button>
                                 </div>
                             ))}
