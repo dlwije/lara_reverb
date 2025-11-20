@@ -41,11 +41,13 @@ class EcommerceController extends Controller
                 ->with(['product' => function($query) {
                     $query->select(['id', 'name', 'slug', 'price', 'photo', 'secondary_name', 'brand_id', 'category_id'])
                         ->with(['brand:id,name', 'category:id,name'])
-                        ->where('active', 1)
+//                        ->where('active', 1)
                         ->where('hide_in_shop', 0);
                 }])
                 ->whereHas('product', function($query) {
-                    $query->where('active', 1)->where('hide_in_shop', 0);
+                    $query
+//                        ->where('active', 1)
+                        ->where('hide_in_shop', 0);
                 })
                 ->groupBy('product_id')
                 ->orderByDesc('total_quantity')

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Search, ArrowRight, Star, TrendingUp, ShoppingBag, Flame } from 'lucide-react'
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel'
+import { Link } from '@inertiajs/react';
 
 interface Product {
   id: number
@@ -126,10 +127,12 @@ export default function HeroBanner2() {
                 Shop Now
                 <ArrowRight className='size-4' />
               </Button>
-              <Button size='lg' variant='outline' className='cursor-pointer gap-2 rounded-full px-8'>
-                <ShoppingBag className='size-4' />
-                View Catalog
-              </Button>
+                <Link href={`/product-list`}>
+                  <Button size='lg' variant='outline' className='cursor-pointer gap-2 rounded-full px-8'>
+                    <ShoppingBag className='size-4' />
+                    View Catalog
+                  </Button>
+                </Link>
             </div>
           </header>
 
