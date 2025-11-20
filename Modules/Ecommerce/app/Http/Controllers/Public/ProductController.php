@@ -334,7 +334,7 @@ class ProductController extends Controller
             }
         ])
             ->whereHas('promotions', function($q) {
-                $q->active();
+                $q->valid();
             })
             ->filter($filters)
             ->latest('products.id')
