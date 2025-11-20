@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -11,37 +11,59 @@ import StarRating from "./star-rating"
 import ImageCarousel from "./image-carousel"
 import QuantitySelector from "./quantity-selector"
 import { useCart } from '@/contexts/CartContext';
+import { formatCurrency } from '@/lib/e-commerce/amountHelper';
 
 export default function ProductDetail({ single_product }) {
-    const [selectedColor, setSelectedColor] = useState("black")
-    const [selectedSize, setSelectedSize] = useState("L")
+    const [selectedColor, setSelectedColor] = useState("")
+    const [selectedSize, setSelectedSize] = useState("")
     const [selectedDelivery, setSelectedDelivery] = useState("shipping")
     const [selectedWarranty, setSelectedWarranty] = useState(null)
     const [quantity, setQuantity] = useState(1)
     const [isWishlisted, setIsWishlisted] = useState(false)
+    const [selectedVariation, setSelectedVariation] = useState(null)
 
     const { addToCart, cart } = useCart();
     const [loading, setLoading] = useState(false);
     const [addedToCart, setAddedToCart] = useState(false);
 
-    // Use actual product data from backend
     const product = single_product || {}
-    console.log(product)
 
-    // Helper functions to extract data from backend response
+    // Extract available colors and sizes from variations
+    const availableColors = [...new Set(product.variations?.map(v => v.meta?.Color).filter(Boolean) || [])]
+    const availableSizes = [...new Set(product.variations?.map(v => v.meta?.Size).filter(Boolean) || [])]
+
+    // Initialize selected color and size
+    useEffect(() => {
+        if (availableColors.length > 0 && !selectedColor) {
+            setSelectedColor(availableColors[0])
+        }
+        if (availableSizes.length > 0 && !selectedSize) {
+            setSelectedSize(availableSizes[0])
+        }
+    }, [availableColors, availableSizes, selectedColor, selectedSize])
+
+    // Find the current variation based on selected color and size
+    useEffect(() => {
+        if (selectedColor && selectedSize && product.variations) {
+            const variation = product.variations.find(v =>
+                v.meta?.Color === selectedColor && v.meta?.Size === selectedSize
+            )
+            setSelectedVariation(variation || null)
+        }
+    }, [selectedColor, selectedSize, product.variations])
+
+    // Helper functions to extract data
     const getProductPrice = () => {
-        // Assuming you have a price field in your product model
-        return product.price || product.unitPrices?.[0]?.price || 0
+        return selectedVariation?.price || product.price || 0
     }
 
     const getOriginalPrice = () => {
-        // You might have a original_price or compare_at_price field
-        return product.original_price || product.compare_at_price || getProductPrice() * 1.5
+        return selectedVariation?.cost || product.cost || getProductPrice() * 1.5
     }
 
     const getDiscount = () => {
-        const currentPrice = getProductPrice()
-        const originalPrice = getOriginalPrice()
+        const currentPrice = parseFloat(getProductPrice())
+        const originalPrice = parseFloat(getOriginalPrice())
         if (originalPrice > currentPrice) {
             return Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
         }
@@ -49,52 +71,16 @@ export default function ProductDetail({ single_product }) {
     }
 
     const getProductImages = () => {
-        // Handle different possible image data structures from backend
-        if (product.images && Array.isArray(product.images)) {
-            return product.images
-        }
-        if (product.media && Array.isArray(product.media)) {
-            return product.media
-        }
-        if (product.image) {
-            return [product.image] // Single image
-        }
         if (product.photo) {
-            return [product.photo] // Single image
+            return [product.photo]
         }
-        if (product.featured_image) {
-            return [product.featured_image]
-        }
-        return [] // Return empty array if no images
-    }
-
-    const getProductColors = () => {
-        // Extract from variations or product attributes
-        if (product.variations && product.variations.length > 0) {
-            return product.variations.map(variation => ({
-                name: variation.color || variation.name,
-                value: variation.color?.toLowerCase() || variation.id,
-                hex: getColorHex(variation.color)
-            }))
-        }
-        return [
-            { name: "Default", value: "default", hex: "#1a1a1a" }
-        ]
-    }
-
-    const getProductSizes = () => {
-        // Extract from variations, unit, or product attributes
-        if (product.variations && product.variations.length > 0) {
-            return [...new Set(product.variations.map(v => v.size))].filter(Boolean)
-        }
-        if (product.unit?.subunits) {
-            return product.unit.subunits.map(subunit => subunit.name)
-        }
-        return ["S", "M", "L"] // fallback
+        return []
     }
 
     const getColorHex = (colorName) => {
         const colorMap = {
+            silver: "#c0c0c0",
+            yellow: "#fde047",
             black: "#1a1a1a",
             green: "#6b9e7f",
             blue: "#3b82f6",
@@ -105,14 +91,64 @@ export default function ProductDetail({ single_product }) {
         return colorMap[colorName?.toLowerCase()] || "#1a1a1a"
     }
 
-    // Delivery options (you might want to make this dynamic based on product/shipping rules)
+    // Get stock quantity for current variation
+    const getStockQuantity = () => {
+        if (selectedVariation?.stocks?.length > 0) {
+            return selectedVariation.stocks.reduce((total, stock) => total + (stock.balance || 0), 0)
+        }
+        return 0
+    }
+
+    const stockQuantity = getStockQuantity()
+    const inStock = stockQuantity > 0
+
+    // Check if this product is already in cart
+    const isInCart = cart.content.some((item) => item.id === product.id)
+
+    const handleQuantityChange = (newQuantity) => {
+        setQuantity(newQuantity)
+    }
+
+    const handleAddToCart = async () => {
+        if (!inStock) return
+
+        setLoading(true)
+        try {
+            const itemToAdd = {
+                id: selectedVariation?.id || product.id,
+                name: product.name,
+                qty: quantity,
+                price: getProductPrice(),
+                options: {
+                    color: selectedColor,
+                    size: selectedSize,
+                    category: product.category?.name,
+                    supplier: product.supplier?.name,
+                    variationCode: selectedVariation?.code
+                }
+            }
+
+            const success = await addToCart(itemToAdd)
+
+            if (success) {
+                setAddedToCart(true)
+                setTimeout(() => setAddedToCart(false), 2000)
+            }
+        } catch (error) {
+            console.error('Error adding to cart:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Delivery options
     const deliveryOptions = [
         { id: "shipping", label: "Shipping - $19", date: "Arrives in 3-5 days", price: 19 },
         { id: "flowbox", label: "Pickup from Flowbox - $9", note: "Pick a Flowbox near you", price: 9 },
         { id: "store", label: "Pickup from our store", note: "Not Available", available: false },
     ]
 
-    // Warranty options (you might want to fetch these from backend)
+    // Warranty options
     const warranties = [
         { id: "1year", label: "1 year", price: 39 },
         { id: "2year", label: "2 year", price: 45 },
@@ -122,49 +158,6 @@ export default function ProductDetail({ single_product }) {
     if (!single_product) {
         return <div>Loading...</div>
     }
-    const { id, name, slug, code, price, cost, description, stocks, supplier, category, on_sale, active, photo } = single_product;
-
-    // Calculate stock quantity
-    const stockQuantity = stocks?.[0]?.balance || 0;
-
-    // Check if product is in stock
-    const inStock = stockQuantity > 0;
-
-    // Check if product is on sale (you might want to add logic based on cost vs price)
-    const isOnSale = cost && parseFloat(cost) > parseFloat(price);
-
-    // Check if this product is already in cart
-    const isInCart = cart.content.some((item) => item.id === id);
-
-    const handleAddToCart = async (e) => {
-        setQuantity(e.taget.value);
-
-        if (!inStock) return;
-
-        setLoading(true);
-        try {
-            const success = await addToCart({
-                id,
-                name,
-                qty: quantity,
-                price,
-                options: { // Pass as object, not string because backend expect a options array
-                    category: category?.name,
-                    supplier: supplier?.name,
-                    // Add any other options as key-value pairs
-                }
-            });
-
-            if (success) {
-                setAddedToCart(true);
-                setTimeout(() => setAddedToCart(false), 2000);
-            }
-        } catch (error) {
-            console.error('Error adding to cart:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     return (
         <div className="w-full">
@@ -181,6 +174,9 @@ export default function ProductDetail({ single_product }) {
                         {/* Title and Rating */}
                         <div>
                             <h1 className="text-3xl font-bold text-foreground">{product.name}</h1>
+                            <div className="mt-2 text-sm text-muted-foreground">
+                                Code: {selectedVariation?.code || product.code}
+                            </div>
                             <div className="mt-4 flex items-center gap-3">
                                 <StarRating rating={product.rating || 0} />
                                 <span className="text-sm text-muted-foreground">
@@ -189,16 +185,21 @@ export default function ProductDetail({ single_product }) {
                             </div>
                         </div>
 
+                        {/* Stock Status */}
+                        <div className={`text-sm font-medium ${inStock ? 'text-green-600' : 'text-red-600'}`}>
+                            {inStock ? `In Stock (${stockQuantity} available)` : 'Out of Stock'}
+                        </div>
+
                         {/* Pricing */}
                         <div className="space-y-2">
                             <div className="flex items-end gap-3">
                                 <span className="text-3xl font-bold text-foreground">
-                                    ${getProductPrice()}
+                                    {formatCurrency(getProductPrice())}
                                 </span>
                                 {getDiscount() > 0 && (
                                     <>
                                         <span className="text-lg text-muted-foreground line-through">
-                                            ${getOriginalPrice().toFixed(2)}
+                                            {formatCurrency(getOriginalPrice())}
                                         </span>
                                         <span className="text-lg font-semibold text-red-500">
                                             ( {getDiscount()}% OFF )
@@ -212,27 +213,37 @@ export default function ProductDetail({ single_product }) {
                         </div>
 
                         {/* Description */}
-                        <p className="text-sm leading-relaxed text-muted-foreground">
-                            {product.description || "No description available."}
-                        </p>
+                        {product.description && (
+                            <p className="text-sm leading-relaxed text-muted-foreground">
+                                {product.description}
+                            </p>
+                        )}
 
-                        {/* Color Selection - Only show if we have colors */}
-                        {getProductColors().length > 0 && (
+                        {/* Features */}
+                        {product.features && (
+                            <div className="space-y-2">
+                                <h3 className="font-semibold text-foreground">Features:</h3>
+                                <p className="text-sm text-muted-foreground">{product.features}</p>
+                            </div>
+                        )}
+
+                        {/* Color Selection */}
+                        {availableColors.length > 0 && (
                             <div className="space-y-3">
                                 <h3 className="font-semibold text-foreground">Color:</h3>
                                 <div className="flex gap-4">
-                                    {getProductColors().map((color) => (
+                                    {availableColors.map((color) => (
                                         <button
-                                            key={color.value}
-                                            onClick={() => setSelectedColor(color.value)}
+                                            key={color}
+                                            onClick={() => setSelectedColor(color)}
                                             className={`flex h-16 w-16 items-center justify-center rounded-lg border-2 transition-all ${
-                                                selectedColor === color.value ? "border-primary" : "border-border hover:border-muted-foreground"
+                                                selectedColor === color ? "border-primary" : "border-border hover:border-muted-foreground"
                                             }`}
                                         >
                                             <div
-                                                className="h-12 w-12 rounded-lg"
-                                                style={{ backgroundColor: color.hex }}
-                                                title={color.name}
+                                                className="h-12 w-12 rounded-lg border border-gray-300"
+                                                style={{ backgroundColor: getColorHex(color) }}
+                                                title={color}
                                             />
                                         </button>
                                     ))}
@@ -240,12 +251,12 @@ export default function ProductDetail({ single_product }) {
                             </div>
                         )}
 
-                        {/* Size Selection - Only show if we have sizes */}
-                        {getProductSizes().length > 0 && (
+                        {/* Size Selection */}
+                        {availableSizes.length > 0 && (
                             <div className="space-y-3">
                                 <h3 className="font-semibold text-foreground">Size:</h3>
-                                <div className="flex gap-3">
-                                    {getProductSizes().map((size) => (
+                                <div className="flex gap-3 flex-wrap">
+                                    {availableSizes.map((size) => (
                                         <button
                                             key={size}
                                             onClick={() => setSelectedSize(size)}
@@ -262,16 +273,47 @@ export default function ProductDetail({ single_product }) {
                             </div>
                         )}
 
+                        {/* Selected Variation Info */}
+                        {selectedVariation && (
+                            <div className="p-3 bg-muted rounded-lg">
+                                <p className="text-sm text-muted-foreground">
+                                    Selected: {selectedColor} - {selectedSize} |
+                                    SKU: {selectedVariation.sku} |
+                                    Stock: {stockQuantity}
+                                </p>
+                            </div>
+                        )}
+
                         {/* Quantity and CTA */}
                         <div className="flex gap-3">
-                            <QuantitySelector value={quantity} onChange={handleAddToCart} />
-                            <Button size="lg" className="flex-1 bg-foreground text-background hover:bg-muted-foreground">
-                                Buy Now
+                            <QuantitySelector
+                                value={quantity}
+                                onChange={handleQuantityChange}
+                                max={stockQuantity}
+                                disabled={!inStock}
+                            />
+                            <Button
+                                size="lg"
+                                className="flex-1 bg-foreground text-background hover:bg-muted-foreground"
+                                disabled={!inStock || loading}
+                            >
+                                {loading ? "Adding..." : "Buy Now"}
                             </Button>
-                            <Button size="lg" variant="outline" onClick={() => setIsWishlisted(!isWishlisted)}>
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                onClick={() => setIsWishlisted(!isWishlisted)}
+                                disabled={!inStock}
+                            >
                                 <Heart className={`h-5 w-5 ${isWishlisted ? "fill-current text-red-500" : ""}`} />
                             </Button>
                         </div>
+
+                        {addedToCart && (
+                            <div className="text-green-600 text-sm font-medium">
+                                ✓ Added to cart successfully!
+                            </div>
+                        )}
 
                         {/* Delivery Options */}
                         <Card className="border-border bg-card p-4">
@@ -334,7 +376,7 @@ export default function ProductDetail({ single_product }) {
                                 Product Details
                             </AccordionTrigger>
                             <AccordionContent className="text-muted-foreground">
-                                {product.long_description || product.details || "No detailed description available."}
+                                {product.details || "No detailed description available."}
                             </AccordionContent>
                         </AccordionItem>
 
@@ -343,11 +385,12 @@ export default function ProductDetail({ single_product }) {
                                 Specifications
                             </AccordionTrigger>
                             <AccordionContent className="space-y-2 text-muted-foreground">
-                                {/* Add actual product specifications here */}
-                                {product.brand && <div>Brand: {product.brand.name}</div>}
-                                {product.category && <div>Category: {product.category.name}</div>}
-                                {product.unit && <div>Unit: {product.unit.name}</div>}
-                                {/* Add more specifications as needed */}
+                                {product.brand && <div><strong>Brand:</strong> {product.brand.name}</div>}
+                                {product.category && <div><strong>Category:</strong> {product.category.name}</div>}
+                                {product.unit && <div><strong>Unit:</strong> {product.unit.name}</div>}
+                                {product.supplier && <div><strong>Supplier:</strong> {product.supplier.name}</div>}
+                                {product.code && <div><strong>Product Code:</strong> {product.code}</div>}
+                                {selectedVariation?.code && <div><strong>Variation Code:</strong> {selectedVariation.code}</div>}
                             </AccordionContent>
                         </AccordionItem>
 
