@@ -2,15 +2,12 @@
 
 namespace App\Helpers;
 
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ImageHelper
 {
     /**
-     * Convert POS stored URL to API URL
+     * Convert POS stored URL to direct asset URL
      */
     public static function posImageUrl($posStoredUrl)
     {
@@ -19,27 +16,48 @@ class ImageHelper
             return null;
         }
 
-        // If it's already a full POS URL, extract filename and convert to API URL
-        if (self::isPosStoredUrl($posStoredUrl)) {
-            $filename = self::extractFilenameFromUrl($posStoredUrl);
-            return self::generateApiUrl($filename);
+        // If it's already a full POS URL with the correct path, return as is
+        if (self::isCorrectAssetUrl($posStoredUrl)) {
+            return $posStoredUrl;
         }
 
-        // If it's just a filename, generate API URL directly
-        return self::generateApiUrl($posStoredUrl);
+        // If it's a full POS URL but wrong path, convert to correct asset path
+        if (self::isPosStoredUrl($posStoredUrl)) {
+            $filename = self::extractFilenameFromUrl($posStoredUrl);
+            return self::generateAssetUrl($filename);
+        }
+
+        // If it's just a filename, generate asset URL
+        return self::generateAssetUrl($posStoredUrl);
     }
 
     /**
-     * Check if the URL is a POS stored URL
+     * Check if the URL is already in the correct asset format
+     */
+    private static function isCorrectAssetUrl($url)
+    {
+        $correctPatterns = [
+            'https://nposds.orions360.com/asset/images/products/',
+            'http://nposds.orions360.com/asset/images/products/',
+        ];
+
+        foreach ($correctPatterns as $pattern) {
+            if (Str::startsWith($url, $pattern)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if it's a POS stored URL (any format)
      */
     private static function isPosStoredUrl($url)
     {
         $posDomains = [
             'https://nposds.orions360.com',
             'http://nposds.orions360.com',
-            'https://st_mana_beta5.test',
-            'http://st_mana_beta5.test',
-            // Add other possible POS domains here
         ];
 
         foreach ($posDomains as $domain) {
@@ -61,34 +79,18 @@ class ImageHelper
         // Remove any leading paths and get just the filename
         $filename = basename($path);
 
-        // Debug log to see what's being extracted
-        Log::info('Extracted filename', [
-            'original_url' => $url,
-            'path' => $path,
-            'filename' => $filename
-        ]);
-
         return $filename;
     }
 
     /**
-     * Generate API URL with Sanctum token
+     * Generate direct asset URL
      */
-    private static function generateApiUrl($filename)
+    private static function generateAssetUrl($filename)
     {
-        $baseUrl = config('services.pos.url') . '/api';
+        $baseUrl = config('services.pos.url', 'https://nposds.orions360.com');
         $cleanFilename = self::cleanFilename($filename);
 
-        // Use public endpoint to avoid authentication issues
-        $endpoint = '/public/images/products/' . $cleanFilename;
-
-        // If you want to use authenticated endpoint, include token
-//         $endpoint = '/images/products/' . $cleanFilename;
-//         $apiUrl = $baseUrl . $endpoint . '?token=' . config('services.pos.api_token');
-
-        $apiUrl = $baseUrl . $endpoint;
-
-        return $apiUrl;
+        return $baseUrl . '/asset/images/products/' . $cleanFilename;
     }
 
     /**
@@ -96,7 +98,7 @@ class ImageHelper
      */
     private static function cleanFilename($filename)
     {
-        // If the filename still contains a full URL, extract just the filename part
+        // If the filename contains a full URL, extract just the filename part
         if (filter_var($filename, FILTER_VALIDATE_URL)) {
             $path = parse_url($filename, PHP_URL_PATH);
             return basename($path);
@@ -123,32 +125,6 @@ class ImageHelper
     }
 
     /**
-     * Check if image exists via API
-     */
-    public static function posImageExists($filename)
-    {
-        // Extract clean filename if it's a full URL
-        $cleanFilename = self::cleanFilename($filename);
-
-        $cacheKey = "pos_image_exists_{$cleanFilename}";
-
-        return Cache::remember($cacheKey, 3600, function () use ($cleanFilename) {
-            $url = self::generateApiUrl($cleanFilename);
-
-            try {
-                $response = Http::posApi()->timeout(3)->head($url);
-                return $response->successful();
-            } catch (\Exception $e) {
-                Log::warning('POS image check failed', [
-                    'filename' => $cleanFilename,
-                    'error' => $e->getMessage()
-                ]);
-                return false;
-            }
-        });
-    }
-
-    /**
      * Get multiple image URLs from array or string
      */
     public static function getPosImageUrls($images)
@@ -167,16 +143,16 @@ class ImageHelper
     }
 
     /**
-     * Debug method to see what's happening with URL transformation
+     * Debug method to see URL transformation
      */
     public static function debugUrlTransformation($originalUrl)
     {
         return [
             'original_url' => $originalUrl,
             'is_pos_url' => self::isPosStoredUrl($originalUrl),
+            'is_correct_asset_url' => self::isCorrectAssetUrl($originalUrl),
             'extracted_filename' => self::extractFilenameFromUrl($originalUrl),
-            'clean_filename' => self::cleanFilename($originalUrl),
-            'final_api_url' => self::posImageUrl($originalUrl),
+            'final_url' => self::posImageUrl($originalUrl),
         ];
     }
 }
