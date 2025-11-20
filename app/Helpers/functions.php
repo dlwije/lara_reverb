@@ -454,7 +454,7 @@ if (! function_exists('convert_to_base_unit')) {
 
         $subunit = $unit->subunits->where('id', $unit_id)->first();
 
-        return match ($subunit->operator) {
+        return match ($subunit?->operator) {
             '*'     => $value * $subunit->operation_value,
             '/'     => $value / $subunit->operation_value,
             '+'     => $value + $subunit->operation_value,

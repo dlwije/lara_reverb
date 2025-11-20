@@ -297,7 +297,7 @@ class Product extends Model
 
         return ImageHelper::posImageExists($this->image);
     }
-    
+
     protected static function booted()
     {
         parent::booted();

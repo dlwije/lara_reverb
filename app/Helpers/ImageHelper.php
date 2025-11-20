@@ -2,8 +2,9 @@
 
 namespace App\Helpers;
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ImageHelper
@@ -13,8 +14,13 @@ class ImageHelper
      */
     public static function posImageUrl($posStoredUrl)
     {
+        // If it's empty, return null
+        if (empty($posStoredUrl)) {
+            return null;
+        }
+
         // If it's already a full POS URL, extract filename and convert to API URL
-        if (Str::startsWith($posStoredUrl, config('services.pos.url'))) {
+        if (self::isPosStoredUrl($posStoredUrl)) {
             $filename = self::extractFilenameFromUrl($posStoredUrl);
             return self::generateApiUrl($filename);
         }
@@ -24,12 +30,45 @@ class ImageHelper
     }
 
     /**
+     * Check if the URL is a POS stored URL
+     */
+    private static function isPosStoredUrl($url)
+    {
+        $posDomains = [
+            'https://nposds.orions360.com',
+            'http://nposds.orions360.com',
+            'https://st_mana_beta5.test',
+            'http://st_mana_beta5.test',
+            // Add other possible POS domains here
+        ];
+
+        foreach ($posDomains as $domain) {
+            if (Str::startsWith($url, $domain)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Extract filename from POS stored URL
      */
     private static function extractFilenameFromUrl($url)
     {
         $path = parse_url($url, PHP_URL_PATH);
-        return basename($path);
+
+        // Remove any leading paths and get just the filename
+        $filename = basename($path);
+
+        // Debug log to see what's being extracted
+        Log::info('Extracted filename', [
+            'original_url' => $url,
+            'path' => $path,
+            'filename' => $filename
+        ]);
+
+        return $filename;
     }
 
     /**
@@ -39,31 +78,37 @@ class ImageHelper
     {
         $baseUrl = config('services.pos.url') . '/api';
 
-        // Determine the appropriate API endpoint based on the original path pattern
-        if (Str::contains($filename, 'products/')) {
-            $endpoint = '/assets/images/products/' . basename($filename);
-        } else {
-            $endpoint = '/images/' . $filename;
-        }
+        // Remove any URL fragments from filename (in case it still contains parts of URL)
+        $cleanFilename = self::cleanFilename($filename);
 
-        return $baseUrl . $endpoint;
+        // Always use the products endpoint for product images
+        $endpoint = '/images/products/' . $cleanFilename;
+
+        $apiUrl = $baseUrl . $endpoint;
+
+        // Debug log
+        Log::info('Generated API URL', [
+            'filename' => $filename,
+            'clean_filename' => $cleanFilename,
+            'api_url' => $apiUrl
+        ]);
+
+        return $apiUrl;
     }
 
     /**
-     * Check if image exists via API
+     * Clean filename - remove any URL parts that might be included
      */
-    public static function posImageExists($filename)
+    private static function cleanFilename($filename)
     {
-        return Cache::remember("pos_image_exists_{$filename}", 3600, function () use ($filename) {
-            $url = self::generateApiUrl($filename);
+        // If the filename still contains a full URL, extract just the filename part
+        if (filter_var($filename, FILTER_VALIDATE_URL)) {
+            $path = parse_url($filename, PHP_URL_PATH);
+            return basename($path);
+        }
 
-            try {
-                $response = Http::posApi()->timeout(3)->head($url);
-                return $response->successful();
-            } catch (\Exception $e) {
-                return false;
-            }
-        });
+        // Remove any path segments and get just the filename
+        return basename($filename);
     }
 
     /**
@@ -83,6 +128,32 @@ class ImageHelper
     }
 
     /**
+     * Check if image exists via API
+     */
+    public static function posImageExists($filename)
+    {
+        // Extract clean filename if it's a full URL
+        $cleanFilename = self::cleanFilename($filename);
+
+        $cacheKey = "pos_image_exists_{$cleanFilename}";
+
+        return Cache::remember($cacheKey, 3600, function () use ($cleanFilename) {
+            $url = self::generateApiUrl($cleanFilename);
+
+            try {
+                $response = Http::posApi()->timeout(3)->head($url);
+                return $response->successful();
+            } catch (\Exception $e) {
+                Log::warning('POS image check failed', [
+                    'filename' => $cleanFilename,
+                    'error' => $e->getMessage()
+                ]);
+                return false;
+            }
+        });
+    }
+
+    /**
      * Get multiple image URLs from array or string
      */
     public static function getPosImageUrls($images)
@@ -98,5 +169,19 @@ class ImageHelper
         }
 
         return null;
+    }
+
+    /**
+     * Debug method to see what's happening with URL transformation
+     */
+    public static function debugUrlTransformation($originalUrl)
+    {
+        return [
+            'original_url' => $originalUrl,
+            'is_pos_url' => self::isPosStoredUrl($originalUrl),
+            'extracted_filename' => self::extractFilenameFromUrl($originalUrl),
+            'clean_filename' => self::cleanFilename($originalUrl),
+            'final_api_url' => self::posImageUrl($originalUrl),
+        ];
     }
 }
