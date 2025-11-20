@@ -21,7 +21,11 @@ Route::get('about-us', [EcommerceController::class, 'aboutUs'])->name('about-us'
 Route::get('contact-us', [EcommerceController::class, 'contactUs'])->name('contact-us');
 // Product Browsing
 Route::get('product-list', [ProductController::class, 'index'])->name('front.products'); // List all products
+Route::get('product/new-arrivals', [ProductController::class, 'index'])->name('product.new.arrivals'); // List all products
 Route::get('product/{slug}', [ProductController::class, 'show']); // Show product details
+
+Route::get('/deals', [ProductController::class, 'getPromotionProducts']);
+Route::get('/promotions', [ProductController::class, 'getPromotionProducts']);
 
 // Categories
 Route::get('product-categories', [ProductCategoryController::class, 'index']); // List all categories

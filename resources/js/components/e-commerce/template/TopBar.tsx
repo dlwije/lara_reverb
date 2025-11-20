@@ -97,7 +97,7 @@ export function TopBar() {
                             </div>
                             <div className="flex items-center space-x-1">
                                 <Mail className="h-3 w-3" />
-                                <span>support@example.com</span>
+                                <span>info@orions360.com</span>
                             </div>
                         </div>
 

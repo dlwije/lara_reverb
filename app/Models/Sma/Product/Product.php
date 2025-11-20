@@ -123,6 +123,18 @@ class Product extends Model
         return $this->hasMany(Variation::class)->orderBy('sku');
     }
 
+    public function promotions()
+    {
+        return $this->belongsToMany(Promotion::class, 'product_promotion');
+    }
+
+    public function scopeWithActivePromotions($query)
+    {
+        return $query->whereHas('promotions', function($q) {
+            $q->active();
+        });
+    }
+
     public function scopeActive($query)
     {
         $query->where('active', 1);

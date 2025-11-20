@@ -5,6 +5,7 @@ namespace Modules\Ecommerce\Http\Controllers\Public;
 use App\Helpers\ImageHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Collection;
+use App\Models\Sma\Product\Promotion;
 use App\Models\Sma\Setting\CustomField;
 use App\Models\Sma\Setting\Store;
 use Illuminate\Http\Request;
@@ -262,5 +263,176 @@ class ProductController extends Controller
             'message' => 'New arrivals retrieved successfully',
             'data' => $products
         ]);
+    }
+
+    public function getPromotionProducts(Request $request)
+    {
+        $filters = $request->input('filters') ?? [];
+
+        if (!($filters['store'] ?? null) && session('selected_store_id', null) && Store::count() > 1) {
+            $filters['store'] = session('selected_store_id');
+        }
+
+        // Get active promotions with their products
+        $promotions = Promotion::with([
+            'products' => function($query) use ($filters) {
+                $query->with([
+                    'supplier:id,name,company',
+                    'taxes:id,name',
+                    'stocks' => function($q) use ($filters) {
+                        if ($filters['store'] ?? null) {
+                            $q->where('store_id', $filters['store']);
+                        }
+                    },
+                    'brand:id,name',
+                    'category:id,name,category_id',
+                    'unit:id,code,name',
+                    'variations.stocks'
+                ])->where('active', 1);
+            },
+            'productToBuy',
+            'productToGet'
+        ])
+            ->active()
+            ->latest('id')
+            ->get();
+
+        // Transform promotions data for frontend
+        $promotionData = $promotions->map(function($promotion) {
+            return [
+                'id' => $promotion->id,
+                'name' => $promotion->name,
+                'type' => $promotion->type,
+                'discount' => $promotion->discount,
+                'discount_method' => $promotion->discount_method,
+                'coupon_code' => $promotion->coupon_code,
+                'start_date' => $promotion->start_date,
+                'end_date' => $promotion->end_date,
+                'details' => $promotion->details,
+                'products' => $promotion->products->map(function($product) use ($promotion) {
+                    return $this->transformProductWithPromotion($product, $promotion);
+                }),
+                'promotion_rules' => $this->getPromotionRules($promotion)
+            ];
+        });
+
+        // Also get individual promoted products
+        $promotedProducts = Product::with([
+            'supplier:id,name,company',
+            'taxes:id,name',
+            'stocks' => function($q) use ($filters) {
+                if ($filters['store'] ?? null) {
+                    $q->where('store_id', $filters['store']);
+                }
+            },
+            'brand:id,name',
+            'category:id,name,category_id',
+            'unit:id,code,name',
+            'variations.stocks',
+            'promotions' => function($q) {
+                $q->active()->select('id', 'name', 'type', 'discount', 'discount_method');
+            }
+        ])
+            ->whereHas('promotions', function($q) {
+                $q->active();
+            })
+            ->filter($filters)
+            ->latest('products.id')
+            ->paginate(12);
+
+        $data_array = [
+            'promotions' => $promotionData,
+            'promoted_products' => $promotedProducts->items(),
+            'custom_fields' => CustomField::ofModel('product')->get(),
+            'stores' => Store::active()->get(['id as value', 'name as label']),
+            'pagination' => [
+                'current_page' => $promotedProducts->currentPage(),
+                'last_page' => $promotedProducts->lastPage(),
+                'per_page' => $promotedProducts->perPage(),
+                'total' => $promotedProducts->total(),
+                'links' => $promotedProducts->linkCollection()->toArray(),
+            ],
+        ];
+
+        return Inertia::render('e-commerce/public/promotions/promotion-list', $data_array);
+    }
+
+    private function transformProductWithPromotion($product, $promotion)
+    {
+        $originalPrice = floatval($product->price);
+        $discountedPrice = $originalPrice;
+        $discountAmount = 0;
+        $discountPercentage = 0;
+
+        // Calculate discounted price based on promotion type
+        if ($promotion->discount_method === 'percentage' && $promotion->discount) {
+            $discountAmount = ($originalPrice * floatval($promotion->discount)) / 100;
+            $discountedPrice = $originalPrice - $discountAmount;
+            $discountPercentage = $promotion->discount;
+        } elseif ($promotion->discount_method === 'fixed' && $promotion->discount) {
+            $discountAmount = floatval($promotion->discount);
+            $discountedPrice = $originalPrice - $discountAmount;
+            $discountPercentage = ($discountAmount / $originalPrice) * 100;
+        }
+
+        // Calculate stock
+        $stockQuantity = $product->stocks->sum('balance') ?? 0;
+        $inStock = $stockQuantity > 0;
+
+        return [
+            'id' => $product->id,
+            'name' => $product->name,
+            'slug' => $product->slug,
+            'code' => $product->code,
+            'description' => $product->description,
+            'original_price' => $originalPrice,
+            'discounted_price' => $discountedPrice,
+            'discount_amount' => $discountAmount,
+            'discount_percentage' => round($discountPercentage),
+            'photo' => $product->photo,
+            'brand' => $product->brand,
+            'category' => $product->category,
+            'in_stock' => $inStock,
+            'stock_quantity' => $stockQuantity,
+            'promotion_type' => $promotion->type,
+            'promotion_name' => $promotion->name,
+            'promotion_end_date' => $promotion->end_date,
+        ];
+    }
+
+    private function getPromotionRules($promotion)
+    {
+        $rules = [];
+
+        switch ($promotion->type) {
+            case 'discount':
+                if ($promotion->discount_method === 'percentage') {
+                    $rules[] = "{$promotion->discount}% off";
+                } else {
+                    $rules[] = format_currency($promotion->discount) . " off";
+                }
+                break;
+
+            case 'buy_x_get_y':
+                if ($promotion->productToBuy && $promotion->productToGet) {
+                    $rules[] = "Buy {$promotion->quantity_to_buy} {$promotion->productToBuy->name}, Get {$promotion->quantity_to_get} {$promotion->productToGet->name}";
+                }
+                break;
+
+            case 'spend_and_save':
+                if ($promotion->amount_to_spend && $promotion->discount) {
+                    $rules[] = "Spend " . format_currency($promotion->amount_to_spend) . " and get " .
+                        ($promotion->discount_method === 'percentage' ? "{$promotion->discount}% off" : format_currency($promotion->discount) . " off");
+                }
+                break;
+
+            case 'coupon':
+                if ($promotion->coupon_code) {
+                    $rules[] = "Use code: {$promotion->coupon_code}";
+                }
+                break;
+        }
+
+        return $rules;
     }
 }

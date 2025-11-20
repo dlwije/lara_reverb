@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, TrendingUp, ShoppingCart, Star } from 'lucide-react';
+import { AlertCircle, TrendingUp, ShoppingCart } from 'lucide-react';
 import { TopSellingProduct } from '@/types/eCommerce/homepage';
 import { ApiResponse } from '@/types/chat';
 import { Link } from '@inertiajs/react';
+import { formatCurrency } from '@/lib/e-commerce/amountHelper';
 
 export function TopSellingProducts() {
     const [products, setProducts] = useState<TopSellingProduct[]>([]);
@@ -20,7 +21,7 @@ export function TopSellingProducts() {
         const fetchTopSelling = async () => {
             try {
                 setLoading(true);
-                const response = await apiClient.get<ApiResponse<TopSellingProduct[]>>('/api/v1/products/top-selling');
+                const response = await apiClient.get<ApiResponse>('/api/v1/products/top-selling');
 
                 if (response.data.status) {
                     setProducts(response.data.data);
@@ -160,7 +161,7 @@ function TopSellingProductCard({ item, rank }: TopSellingProductCardProps) {
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
             <span className="text-lg font-bold text-foreground">
-              ${product.price}
+              {formatCurrency(product.price)}
             </span>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <TrendingUp className="w-3 h-3" />

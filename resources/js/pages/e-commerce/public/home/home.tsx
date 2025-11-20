@@ -10,6 +10,8 @@ import { Head } from '@inertiajs/react';
 import PublicLayout from '@/pages/e-commerce/public/layout';
 import HeroBanner2 from '@/components/e-commerce/public/home/HeroBanner2';
 import { TopSmallSlider } from '@/components/e-commerce/public/home/TopSmallSlider';
+import { TopSellingProducts } from '@/components/e-commerce/public/home/TopSellingProducts';
+import { ShopByBrand } from '@/components/e-commerce/public/home/ShopByBrand';
 
 export default function Homepage() {
     return (
@@ -29,12 +31,14 @@ export default function Homepage() {
                 {/* Hero Banner */}
                 <HeroBanner2 />
 
+                <TopSellingProducts />
                 {/* Popular Categories */}
                 <PopularCategories />
 
                 {/* Featured Products */}
                 <FeaturedProducts />
 
+                <ShopByBrand />
                 {/* Hot Deals */}
                 <HotDeals />
 

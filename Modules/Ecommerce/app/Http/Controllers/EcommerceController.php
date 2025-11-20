@@ -111,11 +111,12 @@ class EcommerceController extends Controller
     {
         try {
             $brands = Brand::withCount(['products' => function($query) {
-                $query->where('active', 1)
+                $query
+//                    ->where('active', 1)
                     ->where('hide_in_shop', 0)
                     ->whereNull('deleted_at');
             }])
-                ->where('active', 1)
+//                ->where('active', 1)
                 ->whereHas('products', function($query) {
                     $query->where('active', 1)
                         ->where('hide_in_shop', 0)
