@@ -330,7 +330,7 @@ class ProductController extends Controller
             'unit:id,code,name',
             'variations.stocks',
             'promotions' => function($q) {
-                $q->active()->select('id', 'name', 'type', 'discount', 'discount_method');
+                $q->valid()->select('id', 'name', 'type', 'discount', 'discount_method');
             }
         ])
             ->whereHas('promotions', function($q) {
