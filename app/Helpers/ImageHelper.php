@@ -80,13 +80,13 @@ class ImageHelper
         $cleanFilename = self::cleanFilename($filename);
 
         // Use public endpoint to avoid authentication issues
-//        $endpoint = '/public/images/products/' . $cleanFilename;
+        $endpoint = '/public/images/products/' . $cleanFilename;
 
         // If you want to use authenticated endpoint, include token
-         $endpoint = '/images/products/' . $cleanFilename;
-         $apiUrl = $baseUrl . $endpoint . '?token=' . config('services.pos.api_token');
+//         $endpoint = '/images/products/' . $cleanFilename;
+//         $apiUrl = $baseUrl . $endpoint . '?token=' . config('services.pos.api_token');
 
-//        $apiUrl = $baseUrl . $endpoint;
+        $apiUrl = $baseUrl . $endpoint;
 
         return $apiUrl;
     }
