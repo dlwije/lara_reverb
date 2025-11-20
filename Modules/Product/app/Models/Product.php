@@ -248,17 +248,17 @@ class Product extends Model
     /**
      * Get the transformed image URL
      */
-    public function getImageUrlAttribute()
+    public function getPhotoUrlAttribute()
     {
         // Debug the transformation
-        $debugInfo = ImageHelper::debugUrlTransformation($this->image);
+        $debugInfo = ImageHelper::debugUrlTransformation($this->photo);
         Log::info('Models/Product image URL transformation', $debugInfo);
 
-        if (empty($this->image)) {
+        if (empty($this->photo)) {
             return ImageHelper::posImageWithFallback(null);
         }
 
-        return ImageHelper::posImageWithFallback($this->image);
+        return ImageHelper::posImageWithFallback($this->photo);
     }
 
     /**

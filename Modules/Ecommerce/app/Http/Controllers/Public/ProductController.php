@@ -62,6 +62,7 @@ class ProductController extends Controller
             $product->load(['validPromotions', 'category.validPromotions']);
         }
 
+        Log::info('Product Show:', ['product' => $product]);
         return Inertia::render('e-commerce/public/product/page', [
             'single_product' => $product, // pass as prop
         ]);
